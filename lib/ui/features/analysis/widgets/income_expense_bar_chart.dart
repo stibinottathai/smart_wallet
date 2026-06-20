@@ -23,12 +23,46 @@ class IncomeExpenseBarChart extends StatelessWidget {
   Widget build(BuildContext context) {
     final monthlyData = <String, _MonthlySum>{};
 
-    final startMonth = DateTime(start.year, start.month);
-    final endMonth = DateTime(end.year, end.month);
+    DateTime chartStart = start;
+    DateTime chartEnd = end;
+
+    if (end.difference(start).inDays > 365 * 2) {
+      DateTime? firstDate;
+      DateTime? lastDate;
+
+      for (final inc in incomes) {
+        if (firstDate == null || inc.date.isBefore(firstDate)) {
+          firstDate = inc.date;
+        }
+        if (lastDate == null || inc.date.isAfter(lastDate)) {
+          lastDate = inc.date;
+        }
+      }
+      for (final exp in expenses) {
+        if (firstDate == null || exp.date.isBefore(firstDate)) {
+          firstDate = exp.date;
+        }
+        if (lastDate == null || exp.date.isAfter(lastDate)) {
+          lastDate = exp.date;
+        }
+      }
+
+      if (firstDate != null && lastDate != null) {
+        chartStart = DateTime(firstDate.year, firstDate.month, 1);
+        chartEnd = DateTime(lastDate.year, lastDate.month + 1, 0);
+      } else {
+        final now = DateTime.now();
+        chartStart = DateTime(now.year, now.month - 11, 1);
+        chartEnd = DateTime(now.year, now.month + 1, 0);
+      }
+    }
+
+    final startMonth = DateTime(chartStart.year, chartStart.month);
+    final endMonth = DateTime(chartEnd.year, chartEnd.month);
     int monthCount = ((endMonth.year - startMonth.year) * 12 + (endMonth.month - startMonth.month)).clamp(1, 24);
 
     for (int i = monthCount; i >= 0; i--) {
-      final d = DateTime(end.year, end.month - i);
+      final d = DateTime(chartEnd.year, chartEnd.month - i);
       final key = DateFormat('MMM yy').format(d);
       monthlyData[key] = _MonthlySum(0, 0);
     }
@@ -87,10 +121,18 @@ class IncomeExpenseBarChart extends StatelessWidget {
                       getTitlesWidget: (v, _) {
                         final i = v.toInt();
                         if (i >= 0 && i < keys.length) {
-                          return Padding(
-                            padding: const EdgeInsets.only(top: 6),
-                            child: Text(keys[i], style: const TextStyle(fontSize: 10, color: AppColors.textSecondary)),
-                          );
+                          final showLabel = keys.length <= 6 ||
+                              (keys.length <= 12 && i % 3 == 0) ||
+                              (i % 4 == 0);
+                          if (showLabel) {
+                            return Padding(
+                              padding: const EdgeInsets.only(top: 6),
+                              child: Text(
+                                keys[i],
+                                style: const TextStyle(fontSize: 9, color: AppColors.textSecondary),
+                              ),
+                            );
+                          }
                         }
                         return const SizedBox();
                       },

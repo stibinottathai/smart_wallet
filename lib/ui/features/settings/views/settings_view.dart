@@ -256,6 +256,27 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
                       ),
                     ],
                   ),
+                  const SizedBox(height: 8),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Developer',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: AppColors.text.withValues(alpha: 0.6),
+                        ),
+                      ),
+                      const Text(
+                        'Stibi Augustine',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.text,
+                        ),
+                      ),
+                    ],
+                  ),
                 ],
               ),
             ),
