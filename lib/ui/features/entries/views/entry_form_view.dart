@@ -101,11 +101,11 @@ class _EntryFormViewState extends ConsumerState<EntryFormView> {
   }
 
   Future<void> _scanReceipt() async {
-    final apiKey = ref.read(geminiApiKeyProvider);
+    final apiKey = ref.read(openRouterApiKeyProvider);
     if (apiKey.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Please add a Gemini API Key in Settings to scan receipts.'),
+          content: Text('Please configure an OpenRouter API Key to scan receipts.'),
           backgroundColor: AppColors.secondary,
         ),
       );
@@ -401,13 +401,13 @@ class _EntryFormViewState extends ConsumerState<EntryFormView> {
                     SwitchListTile(
                       title: const Text('Recurring Income'),
                       value: _isRecurring,
-                      activeColor: AppColors.primary,
+                      activeThumbColor: AppColors.primary,
                       onChanged: (val) => setState(() => _isRecurring = val),
                     ),
                     if (_isRecurring) ...[
                       const SizedBox(height: 8.0),
                       DropdownButtonFormField<domain.IncomeFrequency>(
-                        value: _frequency,
+                        initialValue: _frequency,
                         decoration: const InputDecoration(
                           labelText: 'Frequency',
                           prefixIcon: Icon(Icons.repeat, color: AppColors.primary),
@@ -437,7 +437,7 @@ class _EntryFormViewState extends ConsumerState<EntryFormView> {
                         }
 
                         return DropdownButtonFormField<String>(
-                          value: _selectedCategoryId,
+                          initialValue: _selectedCategoryId,
                           decoration: const InputDecoration(
                             labelText: 'Category',
                             prefixIcon: Icon(Icons.category, color: AppColors.primary),

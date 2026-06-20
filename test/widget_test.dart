@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:smart_wallet/domain/models/models.dart' as domain;
 import 'package:smart_wallet/data/services/receipt_scan_service.dart';
+import 'package:smart_wallet/data/services/insights_service.dart';
 
 void main() {
   group('Smart Wallet Domain and Services Tests', () {
@@ -32,6 +33,19 @@ void main() {
       expect(scanService.matchCategory('groceries purchase', mockCategories), 'cat_groceries');
       expect(scanService.matchCategory('uber taxi ride', mockCategories), 'cat_transport');
       expect(scanService.matchCategory('unknown billing category', mockCategories), 'cat_uncategorized');
+    });
+
+    test('InsightsService askAssistant returns error on empty API key', () async {
+      final service = InsightsService();
+      final response = await service.askAssistant(
+        expenses: [],
+        incomes: [],
+        categories: [],
+        chatHistory: [],
+        userQuery: 'How can I save money?',
+        apiKey: '',
+      );
+      expect(response.contains('Error contacting financial assistant:'), isTrue);
     });
   });
 }

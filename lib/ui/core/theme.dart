@@ -75,7 +75,7 @@ ThemeData get appTheme {
         borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
       ),
       labelStyle: const TextStyle(color: AppColors.text),
-      hintStyle: TextStyle(color: AppColors.text.withOpacity(0.5)),
+      hintStyle: TextStyle(color: AppColors.text.withValues(alpha: 0.5)),
     ),
   );
 }

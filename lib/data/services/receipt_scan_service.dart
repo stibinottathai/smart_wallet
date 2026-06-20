@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
-import 'package:google_generative_ai/google_generative_ai.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:http/http.dart' as http;
 import 'package:path/path.dart' as p;
 import '../../domain/models/models.dart' as domain;
 
@@ -58,12 +59,7 @@ class ReceiptScanService {
       final bytes = await file.readAsBytes();
       final extension = p.extension(imagePath).toLowerCase();
       final mimeType = (extension == '.png') ? 'image/png' : 'image/jpeg';
-
-      final model = GenerativeModel(
-        model: 'gemini-1.5-flash',
-        apiKey: apiKey,
-        generationConfig: GenerationConfig(responseMimeType: 'application/json'),
-      );
+      final base64Image = base64Encode(bytes);
 
       final prompt = 'Analyze this receipt image and extract structured transaction details. '
           'Provide the output in JSON format matching this schema exactly:\n'
@@ -78,20 +74,63 @@ class ReceiptScanService {
           '  ]\n'
           '}';
 
-      final content = [
-        Content.multi([
-          TextPart(prompt),
-          DataPart(mimeType, bytes),
-        ])
-      ];
+      final response = await http.post(
+        Uri.parse('https://openrouter.ai/api/v1/chat/completions'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $apiKey',
+          'HTTP-Referer': 'https://github.com/stibinottathai/smart_wallet',
+          'X-Title': 'Smart Wallet',
+        },
+        body: jsonEncode({
+          'model': dotenv.env['OPENROUTER_VISION_MODEL'] ?? 'meta-llama/llama-3.2-11b-vision-instruct',
+          'messages': [
+            {
+              'role': 'user',
+              'content': [
+                {
+                  'type': 'text',
+                  'text': prompt,
+                },
+                {
+                  'type': 'image_url',
+                  'image_url': {
+                    'url': 'data:$mimeType;base64,$base64Image',
+                  },
+                },
+              ],
+            }
+          ],
+        }),
+      );
 
-      final response = await model.generateContent(content);
-      final responseText = response.text;
-      if (responseText == null) {
+      if (response.statusCode != 200) {
         return null;
       }
 
-      final Map<String, dynamic> decoded = jsonDecode(responseText);
+      final Map<String, dynamic> body = jsonDecode(response.body);
+      final choices = body['choices'] as List<dynamic>?;
+      if (choices == null || choices.isEmpty) {
+        return null;
+      }
+
+      var content = choices[0]['message']['content'] as String?;
+      if (content == null) {
+        return null;
+      }
+
+      content = content.trim();
+      if (content.startsWith('```json')) {
+        content = content.substring(7);
+      } else if (content.startsWith('```')) {
+        content = content.substring(3);
+      }
+      if (content.endsWith('```')) {
+        content = content.substring(0, content.length - 3);
+      }
+      content = content.trim();
+
+      final Map<String, dynamic> decoded = jsonDecode(content);
       return ReceiptScanResult.fromJson(decoded);
     } catch (e) {
       // Return null on failure instead of throwing so form fallback can be pre-filled as empty.

@@ -92,7 +92,7 @@ class _DashboardViewState extends ConsumerState<DashboardView> {
                                       'net balance',
                                       style: TextStyle(
                                         fontSize: 11,
-                                        color: AppColors.text.withOpacity(0.5),
+                                        color: AppColors.text.withValues(alpha: 0.5),
                                         fontWeight: FontWeight.w600,
                                         letterSpacing: 1.2,
                                       ),
@@ -144,7 +144,7 @@ class _DashboardViewState extends ConsumerState<DashboardView> {
                                         style: TextStyle(
                                           fontWeight: FontWeight.bold,
                                           fontSize: 13.0,
-                                          color: !_showExpenses ? Colors.white : AppColors.text.withOpacity(0.6),
+                                          color: !_showExpenses ? Colors.white : AppColors.text.withValues(alpha: 0.6),
                                         ),
                                       ),
                                     ),
@@ -162,7 +162,7 @@ class _DashboardViewState extends ConsumerState<DashboardView> {
                                         style: TextStyle(
                                           fontWeight: FontWeight.bold,
                                           fontSize: 13.0,
-                                          color: _showExpenses ? Colors.white : AppColors.text.withOpacity(0.6),
+                                          color: _showExpenses ? Colors.white : AppColors.text.withValues(alpha: 0.6),
                                         ),
                                       ),
                                     ),
@@ -216,12 +216,12 @@ class _DashboardViewState extends ConsumerState<DashboardView> {
     final baseColors = [
       AppColors.primary,
       AppColors.secondary,
-      AppColors.primary.withOpacity(0.7),
-      AppColors.secondary.withOpacity(0.7),
-      AppColors.primary.withOpacity(0.5),
-      AppColors.secondary.withOpacity(0.5),
-      AppColors.primary.withOpacity(0.3),
-      AppColors.secondary.withOpacity(0.3),
+      AppColors.primary.withValues(alpha: 0.7),
+      AppColors.secondary.withValues(alpha: 0.7),
+      AppColors.primary.withValues(alpha: 0.5),
+      AppColors.secondary.withValues(alpha: 0.5),
+      AppColors.primary.withValues(alpha: 0.3),
+      AppColors.secondary.withValues(alpha: 0.3),
     ];
 
     categorySpendMap.forEach((catId, amount) {
@@ -299,7 +299,7 @@ class _DashboardViewState extends ConsumerState<DashboardView> {
               );
             },
             leading: CircleAvatar(
-              backgroundColor: catColor.withOpacity(0.15),
+              backgroundColor: catColor.withValues(alpha: 0.15),
               child: Icon(
                 _getIconData(cat?.icon),
                 color: catColor,
@@ -346,7 +346,7 @@ class _DashboardViewState extends ConsumerState<DashboardView> {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
                     decoration: BoxDecoration(
-                      color: AppColors.primary.withOpacity(0.15),
+                      color: AppColors.primary.withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(4.0),
                     ),
                     child: const Text(
@@ -412,7 +412,7 @@ class _DashboardViewState extends ConsumerState<DashboardView> {
               );
             },
             leading: CircleAvatar(
-              backgroundColor: AppColors.primary.withOpacity(0.15),
+              backgroundColor: AppColors.primary.withValues(alpha: 0.15),
               child: const Icon(
                 Icons.attach_money,
                 color: AppColors.primary,

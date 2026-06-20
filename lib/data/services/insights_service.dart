@@ -1,5 +1,6 @@
 import 'dart:convert';
-import 'package:google_generative_ai/google_generative_ai.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../domain/models/models.dart' as domain;
 
@@ -106,14 +107,8 @@ class InsightsService {
       buffer.writeln('- $name: Current spend $current, Previous spend $previous ($sign${changePercent.toStringAsFixed(1)}%)');
     }
 
-    // 3. Request Gemini
+    // 3. Request OpenRouter
     try {
-      final model = GenerativeModel(
-        model: 'gemini-1.5-flash',
-        apiKey: apiKey,
-        generationConfig: GenerationConfig(responseMimeType: 'application/json'),
-      );
-
       final prompt = 'Analyze the following aggregated local spending summary. '
           'Identify the 2-3 biggest drivers of spend or month-over-month growth, and provide direct, actionable advice on where to cut back. '
           'Observation cards must state facts plainly (e.g., "Dining is up 32% this month"). Suggestions must offer concrete, specific numbers/actions.\n\n'
@@ -127,11 +122,44 @@ class InsightsService {
           '  }\n'
           ']';
 
-      final response = await model.generateContent([Content.text(prompt)]);
-      final text = response.text;
-      if (text == null) throw Exception('Null response from Gemini');
+      final response = await http.post(
+        Uri.parse('https://openrouter.ai/api/v1/chat/completions'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $apiKey',
+          'HTTP-Referer': 'https://github.com/stibinottathai/smart_wallet',
+          'X-Title': 'Smart Wallet',
+        },
+        body: jsonEncode({
+          'model': dotenv.env['OPENROUTER_MODEL'] ?? 'deepseek/deepseek-chat-v3-0324',
+          'messages': [
+            {
+              'role': 'user',
+              'content': prompt,
+            }
+          ],
+          'response_format': {
+            'type': 'json_object',
+          },
+        }),
+      );
 
-      final List<dynamic> decoded = jsonDecode(text);
+      if (response.statusCode != 200) {
+        throw Exception('OpenRouter responded with code ${response.statusCode}');
+      }
+
+      final Map<String, dynamic> body = jsonDecode(response.body);
+      final choices = body['choices'] as List<dynamic>?;
+      if (choices == null || choices.isEmpty) {
+        throw Exception('Empty choices returned from OpenRouter');
+      }
+
+      final content = choices[0]['message']['content'] as String?;
+      if (content == null) {
+        throw Exception('Null content returned from OpenRouter');
+      }
+
+      final List<dynamic> decoded = jsonDecode(content.trim());
       final list = decoded.map((item) => SpendingInsight.fromJson(item)).toList();
 
       if (list.isNotEmpty) {
@@ -162,9 +190,110 @@ class InsightsService {
           observation: topGrowthId != null
               ? '$topGrowthName is currently your leading spend area at $topGrowthVal.'
               : 'Total spend for the past 30 days is $totalCurrent.',
-          suggestion: 'Ensure your Gemini API key is configured in settings and check your network connection to generate advanced on-demand insights.',
+          suggestion: 'Ensure your OpenRouter API key is configured and check your network connection to generate advanced on-demand insights.',
         )
       ];
+    }
+  }
+
+  Future<String> askAssistant({
+    required List<domain.Expense> expenses,
+    required List<domain.Income> incomes,
+    required List<domain.Category> categories,
+    required List<Map<String, String>> chatHistory,
+    required String userQuery,
+    required String apiKey,
+  }) async {
+    try {
+      final categoryMap = {for (var c in categories) c.id: c.name};
+
+      // 1. Build a text-based ledger log context of the user's data
+      final expenseSummary = expenses.isEmpty
+          ? "No expense records."
+          : expenses.map((e) {
+              final catName = categoryMap[e.categoryId] ?? 'Uncategorized';
+              final noteStr = e.note != null ? " (Note: ${e.note})" : "";
+              return "- Date: ${e.date.toString().substring(0, 10)}, Amount: \$${e.amount.toStringAsFixed(2)}, Category: $catName$noteStr";
+            }).join('\n');
+
+      final incomeSummary = incomes.isEmpty
+          ? "No income records."
+          : incomes.map((e) {
+              final recurringStr = e.isRecurring ? " (Recurring, Frequency: ${e.frequency.displayName})" : " (One-off)";
+              return "- Date: ${e.date.toString().substring(0, 10)}, Amount: \$${e.amount.toStringAsFixed(2)}, Source: ${e.source}$recurringStr";
+            }).join('\n');
+
+      // Calculate totals
+      double totalIncome = incomes.fold(0.0, (sum, item) => sum + item.amount);
+      double totalExpense = expenses.fold(0.0, (sum, item) => sum + item.amount);
+      double balance = totalIncome - totalExpense;
+
+      // 2. Formulate the system instruction
+      final systemPrompt = "You are a helpful, professional, and friendly AI financial assistant for Smart Wallet.\n"
+          "The user's transaction data is stored locally offline, and privacy is fully respected. "
+          "Use the following transaction summary context to answer the user's questions and provide custom money-saving suggestions.\n\n"
+          "Financial Summary:\n"
+          "- Total Income: \$${totalIncome.toStringAsFixed(2)}\n"
+          "- Total Expenses: \$${totalExpense.toStringAsFixed(2)}\n"
+          "- Net Balance: \$${balance.toStringAsFixed(2)}\n\n"
+          "Incomes Log:\n"
+          "$incomeSummary\n\n"
+          "Expenses Log:\n"
+          "$expenseSummary\n\n"
+          "Guidelines:\n"
+          "1. Give concise, friendly, and practical replies. Avoid long walls of text.\n"
+          "2. Answer custom user questions using their transaction lists.\n"
+          "3. Provide realistic ideas on how they can save money (e.g. identify high categories, recurring leaks, etc.).\n"
+          "4. Output format should use standard Markdown (bold, lists, etc.) for visual formatting in the app.";
+
+      // Build payload messages
+      final List<Map<String, String>> messages = [
+        {
+          'role': 'system',
+          'content': systemPrompt,
+        }
+      ];
+
+      for (final msg in chatHistory) {
+        messages.add({
+          'role': msg['role'] == 'model' ? 'assistant' : 'user',
+          'content': msg['text']!,
+        });
+      }
+
+      messages.add({
+        'role': 'user',
+        'content': userQuery,
+      });
+
+      final response = await http.post(
+        Uri.parse('https://openrouter.ai/api/v1/chat/completions'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $apiKey',
+          'HTTP-Referer': 'https://github.com/stibinottathai/smart_wallet',
+          'X-Title': 'Smart Wallet',
+        },
+        body: jsonEncode({
+          'model': dotenv.env['OPENROUTER_MODEL'] ?? 'deepseek/deepseek-chat-v3-0324',
+          'messages': messages,
+        }),
+      );
+
+      if (response.statusCode != 200) {
+        throw Exception('OpenRouter responded with code ${response.statusCode}');
+      }
+
+      final Map<String, dynamic> body = jsonDecode(response.body);
+      final choices = body['choices'] as List<dynamic>?;
+      if (choices == null || choices.isEmpty) {
+        throw Exception('Empty choices returned from OpenRouter');
+      }
+
+      final content = choices[0]['message']['content'] as String?;
+      return content ?? "I'm sorry, I couldn't formulate a response. Please try again.";
+    } catch (e) {
+      return "Error contacting financial assistant: $e\n\nPlease check your network connection and try again.";
     }
   }
 }

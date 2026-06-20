@@ -146,7 +146,7 @@ class AnalysisView extends ConsumerWidget {
             style: TextStyle(
               fontSize: 10.0,
               fontWeight: FontWeight.bold,
-              color: AppColors.text.withOpacity(0.5),
+              color: AppColors.text.withValues(alpha: 0.5),
               letterSpacing: 1.0,
             ),
           ),
@@ -169,7 +169,7 @@ class AnalysisView extends ConsumerWidget {
                 children: [
                   Text(
                     '\$${last.toStringAsFixed(2)}',
-                    style: TextStyle(fontSize: 20.0, color: AppColors.text.withOpacity(0.8)),
+                    style: TextStyle(fontSize: 20.0, color: AppColors.text.withValues(alpha: 0.8)),
                   ),
                   const Text('Last Month', style: TextStyle(fontSize: 12.0, color: Colors.grey)),
                 ],
@@ -278,12 +278,12 @@ class AnalysisView extends ConsumerWidget {
     final baseColors = [
       AppColors.primary,
       AppColors.secondary,
-      AppColors.primary.withOpacity(0.7),
-      AppColors.secondary.withOpacity(0.7),
-      AppColors.primary.withOpacity(0.5),
-      AppColors.secondary.withOpacity(0.5),
-      AppColors.primary.withOpacity(0.3),
-      AppColors.secondary.withOpacity(0.3),
+      AppColors.primary.withValues(alpha: 0.7),
+      AppColors.secondary.withValues(alpha: 0.7),
+      AppColors.primary.withValues(alpha: 0.5),
+      AppColors.secondary.withValues(alpha: 0.5),
+      AppColors.primary.withValues(alpha: 0.3),
+      AppColors.secondary.withValues(alpha: 0.3),
     ];
 
     categorySpendMap.forEach((catId, amount) {

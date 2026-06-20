@@ -1,3 +1,4 @@
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../data/repositories/expense_repository_impl.dart';
@@ -52,29 +53,53 @@ final allCategoriesProvider = StreamProvider<List<domain.Category>>((ref) {
   return repo.watchAllCategories();
 });
 
-// Gemini API Key State Management
-final geminiApiKeyProvider = StateNotifierProvider<GeminiApiKeyNotifier, String>((ref) {
-  return GeminiApiKeyNotifier();
+// OpenRouter API Key State Management
+final isUsingCustomKeyProvider = StateProvider<bool>((ref) => false);
+
+final openRouterApiKeyProvider = StateNotifierProvider<OpenRouterApiKeyNotifier, String>((ref) {
+  return OpenRouterApiKeyNotifier(ref);
 });
 
-class GeminiApiKeyNotifier extends StateNotifier<String> {
-  static const _key = 'gemini_api_key_pref';
+class OpenRouterApiKeyNotifier extends StateNotifier<String> {
+  static const _key = 'openrouter_api_key_pref';
+  final Ref _ref;
 
-  GeminiApiKeyNotifier() : super(const String.fromEnvironment('GEMINI_API_KEY')) {
+  OpenRouterApiKeyNotifier(this._ref) : super(dotenv.env['OPENROUTER_API_KEY'] ?? '') {
     _loadKey();
   }
 
   Future<void> _loadKey() async {
     final prefs = await SharedPreferences.getInstance();
-    final savedKey = prefs.getString(_key);
+    var savedKey = prefs.getString(_key);
+    if (savedKey == null || savedKey.isEmpty) {
+      // Migrate from legacy Gemini preference if it exists
+      final legacyKey = prefs.getString('gemini_api_key_pref');
+      if (legacyKey != null && legacyKey.isNotEmpty) {
+        savedKey = legacyKey;
+        await prefs.setString(_key, legacyKey);
+        await prefs.remove('gemini_api_key_pref'); // clean up legacy key
+      }
+    }
     if (savedKey != null && savedKey.isNotEmpty) {
       state = savedKey;
+      _ref.read(isUsingCustomKeyProvider.notifier).state = true;
+    } else {
+      state = dotenv.env['OPENROUTER_API_KEY'] ?? '';
+      _ref.read(isUsingCustomKeyProvider.notifier).state = false;
     }
   }
 
   Future<void> saveKey(String newKey) async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_key, newKey);
-    state = newKey;
+    if (newKey.trim().isEmpty) {
+      await prefs.remove(_key);
+      state = dotenv.env['OPENROUTER_API_KEY'] ?? '';
+      _ref.read(isUsingCustomKeyProvider.notifier).state = false;
+    } else {
+      await prefs.setString(_key, newKey.trim());
+      state = newKey.trim();
+      _ref.read(isUsingCustomKeyProvider.notifier).state = true;
+    }
   }
 }
+

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'ui/core/theme.dart';
 import 'ui/features/dashboard/views/dashboard_view.dart';
@@ -6,7 +7,9 @@ import 'ui/features/analysis/views/analysis_view.dart';
 import 'ui/features/insights/views/insights_view.dart';
 import 'ui/features/settings/views/settings_view.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await dotenv.load(fileName: ".env");
   runApp(
     const ProviderScope(
       child: SmartWalletApp(),
@@ -63,7 +66,7 @@ class _MainNavigationWrapperState extends State<MainNavigationWrapper> {
             type: BottomNavigationBarType.fixed,
             backgroundColor: AppColors.background,
             selectedItemColor: AppColors.primary,
-            unselectedItemColor: AppColors.text.withOpacity(0.4),
+            unselectedItemColor: AppColors.text.withValues(alpha: 0.4),
             selectedLabelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 11.0),
             unselectedLabelStyle: const TextStyle(fontSize: 11.0),
             elevation: 0,

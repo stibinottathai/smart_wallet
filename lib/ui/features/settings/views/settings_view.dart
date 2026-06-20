@@ -11,58 +11,56 @@ class SettingsView extends ConsumerStatefulWidget {
 }
 
 class _SettingsViewState extends ConsumerState<SettingsView> {
-  final _keyController = TextEditingController();
-
-  @override
-  void initState() {
-    super.initState();
-    // Load existing key into text controller
-    Future.microtask(() {
-      if (mounted) {
-        _keyController.text = ref.read(geminiApiKeyProvider);
-      }
-    });
-  }
+  final _apiKeyController = TextEditingController();
+  bool _obscureKey = true;
+  bool _isInitialized = false;
 
   @override
   void dispose() {
-    _keyController.dispose();
+    _apiKeyController.dispose();
     super.dispose();
   }
 
-  void _saveKey() async {
-    final key = _keyController.text.trim();
-    await ref.read(geminiApiKeyProvider.notifier).saveKey(key);
+  void _saveApiKey() async {
+    final key = _apiKeyController.text.trim();
+    await ref.read(openRouterApiKeyProvider.notifier).saveKey(key);
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Gemini API Key saved successfully!'),
+          content: Text('OpenRouter API Key updated successfully!'),
           backgroundColor: AppColors.primary,
         ),
       );
+      FocusScope.of(context).unfocus();
     }
   }
 
-  void _clearKey() async {
-    await ref.read(geminiApiKeyProvider.notifier).saveKey('');
-    _keyController.clear();
+  void _resetToDefault() async {
+    await ref.read(openRouterApiKeyProvider.notifier).saveKey('');
+    _apiKeyController.text = '';
+    setState(() {
+      _isInitialized = false;
+    });
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Gemini API Key cleared.'),
-          backgroundColor: AppColors.secondary,
+          content: Text('Reset to default system API Key.'),
+          backgroundColor: AppColors.primary,
         ),
       );
+      FocusScope.of(context).unfocus();
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    ref.listen<String>(geminiApiKeyProvider, (_, currentKey) {
-      if (_keyController.text != currentKey) {
-        _keyController.text = currentKey;
-      }
-    });
+    final isUsingCustomKey = ref.watch(isUsingCustomKeyProvider);
+
+    if (!_isInitialized) {
+      final currentKey = ref.read(openRouterApiKeyProvider);
+      _apiKeyController.text = currentKey;
+      _isInitialized = true;
+    }
 
     return Scaffold(
       appBar: AppBar(
@@ -73,8 +71,9 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            // Status Info Card
             Container(
-              padding: const EdgeInsets.all(16.0),
+              padding: const EdgeInsets.all(20.0),
               decoration: BoxDecoration(
                 color: AppColors.surface,
                 borderRadius: BorderRadius.circular(8.0),
@@ -85,66 +84,139 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
                 children: [
                   const Row(
                     children: [
-                      Icon(Icons.vpn_key_outlined, color: AppColors.primary, size: 20),
+                      Icon(Icons.check_circle_outline, color: AppColors.primary, size: 22),
                       SizedBox(width: 8.0),
                       Text(
-                        'Gemini API Settings',
-                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14.0),
+                        'System Status',
+                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15.0),
                       ),
                     ],
                   ),
+                  const SizedBox(height: 16.0),
+                  _buildStatusRow(Icons.storage, 'Storage', 'Offline-First (Drift/SQLite)'),
                   const SizedBox(height: 12.0),
-                  Text(
-                    'To enable receipt OCR scanning and AI spending observations, paste your Gemini API Key below. You can obtain a free key from Google AI Studio.',
-                    style: TextStyle(fontSize: 12.5, color: AppColors.text.withOpacity(0.7), height: 1.4),
+                  _buildStatusRow(Icons.auto_awesome, 'AI Intelligence', 'OpenRouter AI Activated'),
+                  const SizedBox(height: 12.0),
+                  _buildStatusRow(Icons.security, 'Data Privacy', 'All transactions remain local'),
+                ],
+              ),
+            ),
+            const SizedBox(height: 24.0),
+
+            // AI Configuration Card
+            Container(
+              padding: const EdgeInsets.all(20.0),
+              decoration: BoxDecoration(
+                color: AppColors.surface,
+                borderRadius: BorderRadius.circular(8.0),
+                border: Border.all(color: AppColors.divider),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const Icon(Icons.auto_awesome, color: AppColors.secondary, size: 22),
+                      const SizedBox(width: 8.0),
+                      const Text(
+                        'AI & OpenRouter Config',
+                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15.0),
+                      ),
+                      const Spacer(),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
+                        decoration: BoxDecoration(
+                          color: isUsingCustomKey
+                              ? AppColors.secondary.withValues(alpha: 0.1)
+                              : AppColors.primary.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(12.0),
+                        ),
+                        child: Text(
+                          isUsingCustomKey ? 'Custom Key' : 'Default Key',
+                          style: TextStyle(
+                            fontSize: 11.0,
+                            fontWeight: FontWeight.bold,
+                            color: isUsingCustomKey ? AppColors.secondary : AppColors.primary,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16.0),
+                  const Text(
+                    'Customize the API key used for generating monthly spending insights and scanning receipts.',
+                    style: TextStyle(fontSize: 12.0, color: Colors.grey, height: 1.4),
+                  ),
+                  const SizedBox(height: 16.0),
+                  TextFormField(
+                    controller: _apiKeyController,
+                    obscureText: _obscureKey,
+                    style: const TextStyle(fontSize: 13.0, fontFamily: 'monospace'),
+                    decoration: InputDecoration(
+                      labelText: 'OpenRouter API Key',
+                      hintText: 'sk-or-v1-...',
+                      suffixIcon: IconButton(
+                        icon: Icon(_obscureKey ? Icons.visibility_off : Icons.visibility, size: 20.0),
+                        onPressed: () => setState(() => _obscureKey = !_obscureKey),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16.0),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      if (isUsingCustomKey) ...[
+                        TextButton(
+                          onPressed: _resetToDefault,
+                          style: TextButton.styleFrom(
+                            foregroundColor: AppColors.secondary,
+                          ),
+                          child: const Text('Reset to Default', style: TextStyle(fontSize: 13.0)),
+                        ),
+                        const SizedBox(width: 12.0),
+                      ],
+                      ElevatedButton(
+                        onPressed: _saveApiKey,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.primary,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 10.0),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4.0)),
+                        ),
+                        child: const Text('Save Key', style: TextStyle(fontSize: 13.0, fontWeight: FontWeight.bold)),
+                      ),
+                    ],
                   ),
                 ],
               ),
             ),
             const SizedBox(height: 24.0),
-            TextField(
-              controller: _keyController,
-              obscureText: true,
-              decoration: InputDecoration(
-                labelText: 'Gemini API Key',
-                hintText: 'AIzaSy...',
-                suffixIcon: IconButton(
-                  icon: const Icon(Icons.clear, size: 18),
-                  onPressed: () => _keyController.clear(),
-                ),
+            
+            // Helpful Guide Card
+            Container(
+              padding: const EdgeInsets.all(20.0),
+              decoration: BoxDecoration(
+                color: AppColors.background,
+                borderRadius: BorderRadius.circular(8.0),
+                border: Border.all(color: AppColors.divider),
+              ),
+              child: const Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'About Smart Wallet',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14.0),
+                  ),
+                  SizedBox(height: 8.0),
+                  Text(
+                    'Your personal income and expense ledger. Add income or scan receipts to instantly pre-fill expense entries. Get monthly spending insights via on-demand AI observations.',
+                    style: TextStyle(fontSize: 12.5, color: Colors.grey, height: 1.4),
+                  ),
+                ],
               ),
             ),
-            const SizedBox(height: 20.0),
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: _clearKey,
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: AppColors.secondary,
-                      side: const BorderSide(color: AppColors.secondary),
-                      padding: const EdgeInsets.symmetric(vertical: 14.0),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8.0)),
-                    ),
-                    child: const Text('Clear'),
-                  ),
-                ),
-                const SizedBox(width: 16.0),
-                Expanded(
-                  child: ElevatedButton(
-                    onPressed: _saveKey,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.primary,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 14.0),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8.0)),
-                    ),
-                    child: const Text('Save Key'),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 40.0),
+            const SizedBox(height: 48.0),
+            
             const Divider(),
             const SizedBox(height: 24.0),
             const Text(
@@ -161,6 +233,32 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildStatusRow(IconData icon, String title, String subtitle) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, size: 16.0, color: AppColors.text.withValues(alpha: 0.6)),
+        const SizedBox(width: 8.0),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13.0),
+              ),
+              const SizedBox(height: 2.0),
+              Text(
+                subtitle,
+                style: const TextStyle(fontSize: 12.0, color: Colors.grey),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }
