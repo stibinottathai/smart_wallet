@@ -98,8 +98,19 @@ class _GoalFormDialogState extends ConsumerState<GoalFormDialog> {
       return;
     }
 
-    final repo = ref.read(savingsGoalRepositoryProvider);
     final isEdit = widget.initialGoal != null;
+
+    if (!isEdit) {
+      final existing = ref.read(allSavingsGoalsProvider).value ?? [];
+      if (existing.length >= 3) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Can't add more than 3 savings goals.")),
+        );
+        return;
+      }
+    }
+
+    final repo = ref.read(savingsGoalRepositoryProvider);
 
     final goal = domain.SavingsGoal(
       id: isEdit ? widget.initialGoal!.id : const Uuid().v4(),

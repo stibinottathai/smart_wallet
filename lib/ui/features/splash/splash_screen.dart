@@ -2,8 +2,11 @@ import 'dart:async';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:lottie/lottie.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:smart_wallet/ui/core/navigation.dart';
 import 'package:smart_wallet/ui/core/theme.dart';
+import 'package:smart_wallet/ui/features/onboarding/onboarding_screen.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -17,7 +20,6 @@ class _SplashScreenState extends State<SplashScreen>
   late AnimationController _controller;
   late Animation<double> _fadeIn;
   late Animation<double> _scaleUp;
-  late Animation<double> _iconBounce;
   late Animation<double> _taglineFade;
   late Animation<double> _footerFade;
 
@@ -27,66 +29,67 @@ class _SplashScreenState extends State<SplashScreen>
 
     _controller = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 2400),
+      duration: const Duration(milliseconds: 2000),
     );
 
     _fadeIn = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(
         parent: _controller,
-        curve: const Interval(0.0, 0.7, curve: Curves.easeOut),
+        curve: const Interval(0.0, 0.6, curve: Curves.easeOut),
       ),
     );
 
-    _scaleUp = Tween<double>(begin: 0.85, end: 1.0).animate(
+    _scaleUp = Tween<double>(begin: 0.9, end: 1.0).animate(
       CurvedAnimation(
         parent: _controller,
-        curve: const Interval(0.0, 0.55, curve: Curves.easeOutBack),
-      ),
-    );
-
-    _iconBounce = Tween<double>(begin: 0.3, end: 1.0).animate(
-      CurvedAnimation(
-        parent: _controller,
-        curve: const Interval(0.1, 0.6, curve: Curves.elasticOut),
+        curve: const Interval(0.0, 0.5, curve: Curves.easeOutBack),
       ),
     );
 
     _taglineFade = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(
         parent: _controller,
-        curve: const Interval(0.5, 0.9, curve: Curves.easeIn),
+        curve: const Interval(0.4, 0.8, curve: Curves.easeIn),
       ),
     );
 
     _footerFade = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(
         parent: _controller,
-        curve: const Interval(0.7, 1.0, curve: Curves.easeIn),
+        curve: const Interval(0.6, 1.0, curve: Curves.easeIn),
       ),
     );
 
     _controller.forward();
-
-    Timer(const Duration(milliseconds: 3000), _navigateToMain);
+    _checkFirstLaunch();
   }
 
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
+  Future<void> _checkFirstLaunch() async {
+    await Future.delayed(const Duration(milliseconds: 2500));
+    final prefs = await SharedPreferences.getInstance();
+    final onboardingDone = prefs.getBool('onboarding_done') ?? false;
+    if (!mounted) return;
+    _navigateToMain(onboardingDone);
   }
 
-  void _navigateToMain() {
+  void _navigateToMain(bool showOnboarding) {
     if (!mounted) return;
     Navigator.of(context).pushReplacement(
       PageRouteBuilder(
-        pageBuilder: (_, __, ___) => const MainNavigationWrapper(),
+        pageBuilder: (_, __, ___) =>
+            showOnboarding ? const OnboardingScreen() : const MainNavigationWrapper(),
         transitionsBuilder: (_, animation, __, child) {
           return FadeTransition(opacity: animation, child: child);
         },
         transitionDuration: const Duration(milliseconds: 500),
       ),
     );
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
   }
 
   @override
@@ -114,49 +117,15 @@ class _SplashScreenState extends State<SplashScreen>
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  AnimatedBuilder(
-                    animation: _iconBounce,
-                    builder: (context, child) {
-                      return Transform.scale(
-                        scale: _iconBounce.value,
-                        child: child,
-                      );
-                    },
-                    child: Container(
-                      width: 104,
-                      height: 104,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: AppColors.primary.withValues(alpha: 0.08),
-                        border: Border.all(
-                          color: AppColors.primary.withValues(alpha: 0.15),
-                          width: 1.5,
-                        ),
-                      ),
-                      child: Stack(
-                        alignment: Alignment.center,
-                        children: [
-                          Icon(
-                            Icons.account_balance_wallet_rounded,
-                            size: 50,
-                            color: AppColors.primary.withValues(alpha: 0.85),
-                          ),
-                        ],
-                      ),
+                  SizedBox(
+                    width: 130,
+                    height: 130,
+                    child: Lottie.asset(
+                      'assets/animations/wallet_splash.json',
+                      fit: BoxFit.contain,
                     ),
                   ),
-                  const SizedBox(height: 28),
-                  Text(
-                    'Smart Wallet',
-                    style: GoogleFonts.fraunces(
-                      fontSize: 34,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.text,
-                      letterSpacing: -0.8,
-                      height: 1.1,
-                    ),
-                  ),
-                  const SizedBox(height: 10),
+                  const SizedBox(height: 20),
                   AnimatedBuilder(
                     animation: _taglineFade,
                     builder: (context, child) {
@@ -165,14 +134,29 @@ class _SplashScreenState extends State<SplashScreen>
                         child: child,
                       );
                     },
-                    child: Text(
-                      'Your Personal Finance Tracker',
-                      style: GoogleFonts.inter(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w400,
-                        color: AppColors.text.withValues(alpha: 0.55),
-                        letterSpacing: 0.4,
-                      ),
+                    child: Column(
+                      children: [
+                        Text(
+                          'Smart Wallet',
+                          style: GoogleFonts.fraunces(
+                            fontSize: 34,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.text,
+                            letterSpacing: -0.8,
+                            height: 1.1,
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        Text(
+                          'Your Personal Finance Tracker',
+                          style: GoogleFonts.inter(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w400,
+                            color: AppColors.text.withValues(alpha: 0.55),
+                            letterSpacing: 0.4,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ],

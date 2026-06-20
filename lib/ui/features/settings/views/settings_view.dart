@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:smart_wallet/data/services/notification_service.dart';
@@ -7,6 +8,8 @@ import 'package:smart_wallet/ui/core/theme.dart';
 import 'package:smart_wallet/ui/features/reports/views/report_view.dart';
 import 'package:smart_wallet/ui/providers.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:smart_wallet/domain/models/models.dart' as domain;
+
 
 class SettingsView extends ConsumerStatefulWidget {
   const SettingsView({super.key});
@@ -191,6 +194,12 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
                   ),
                 ),
               ),
+            ),
+            const SizedBox(height: 12),
+            _SectionCard(
+              icon: Icons.table_chart_rounded,
+              title: 'Google Sheets Sync',
+              child: const _GoogleSheetsSyncSection(),
             ),
             const SizedBox(height: 12),
             _SectionCard(
@@ -459,6 +468,422 @@ class _StatusRow extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+class _GoogleSheetsSyncSection extends ConsumerWidget {
+  const _GoogleSheetsSyncSection();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(12),
+      onTap: () => _showSyncBottomSheet(context, ref),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 4),
+        child: Row(
+          children: [
+            Expanded(
+              child: Text(
+                'Configure and sync data to your Google Sheet',
+                style: const TextStyle(
+                  fontSize: 13,
+                  color: AppColors.textSecondary,
+                  height: 1.4,
+                ),
+              ),
+            ),
+            const Icon(
+              Icons.chevron_right_rounded,
+              size: 20,
+              color: AppColors.textSecondary,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showSyncBottomSheet(BuildContext context, WidgetRef ref) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) => const _GoogleSheetsSyncBottomSheet(),
+    );
+  }
+}
+
+class _GoogleSheetsSyncBottomSheet extends ConsumerStatefulWidget {
+  const _GoogleSheetsSyncBottomSheet();
+
+  @override
+  ConsumerState<_GoogleSheetsSyncBottomSheet> createState() =>
+      _GoogleSheetsSyncBottomSheetState();
+}
+
+class _GoogleSheetsSyncBottomSheetState
+    extends ConsumerState<_GoogleSheetsSyncBottomSheet> {
+  final _urlController = TextEditingController();
+  bool _isLoading = false;
+  bool _isSyncing = false;
+  String _savedUrl = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSavedUrl();
+  }
+
+  @override
+  void dispose() {
+    _urlController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadSavedUrl() async {
+    setState(() => _isLoading = true);
+    final service = ref.read(googleSheetsSyncServiceProvider);
+    final url = await service.getSavedUrl();
+    setState(() {
+      _savedUrl = url;
+      _urlController.text = url;
+      _isLoading = false;
+    });
+  }
+
+  Future<void> _saveUrl() async {
+    final service = ref.read(googleSheetsSyncServiceProvider);
+    await service.saveUrl(_urlController.text);
+    setState(() {
+      _savedUrl = _urlController.text.trim();
+    });
+  }
+
+  Future<void> _triggerSync() async {
+    final url = _urlController.text.trim();
+    if (url.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter a Web App URL first.')),
+      );
+      return;
+    }
+
+    // Save the URL first if it has changed
+    if (url != _savedUrl) {
+      await _saveUrl();
+    }
+
+    setState(() => _isSyncing = true);
+
+    List<domain.Income> incomes = [];
+    List<domain.Expense> expenses = [];
+    List<domain.Category> categories = [];
+
+    try {
+      incomes = await ref.read(incomeRepositoryProvider).watchAllIncomes().first;
+      expenses = await ref.read(expenseRepositoryProvider).watchAllExpenses().first;
+      categories = await ref.read(expenseRepositoryProvider).watchAllCategories().first;
+    } catch (_) {
+      incomes = ref.read(allIncomesProvider).value ?? [];
+      expenses = ref.read(allExpensesProvider).value ?? [];
+      categories = ref.read(allCategoriesProvider).value ?? [];
+    }
+
+
+    final service = ref.read(googleSheetsSyncServiceProvider);
+    final result = await service.syncDatabase(
+      expenses: expenses,
+      incomes: incomes,
+      categories: categories,
+      webAppUrl: url,
+    );
+
+    if (!mounted) return;
+    setState(() => _isSyncing = false);
+
+    if (result.success) {
+      showDialog(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          icon: const Icon(Icons.check_circle_rounded, color: AppColors.primary, size: 40),
+          title: const Text('Sync Successful'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                'Your incomes and expenses have been successfully synchronized to your Google Sheet.',
+                textAlign: TextAlign.center,
+              ),
+              if (result.spreadsheetName != null && result.spreadsheetUrl != null) ...[
+                const SizedBox(height: 16),
+                const Text(
+                  'Destination Spreadsheet:',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AppColors.text),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  result.spreadsheetName!,
+                  style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13, color: AppColors.primary),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'Please check the tabs named "Incomes" and "Expenses" at the bottom left of your spreadsheet.',
+                  style: TextStyle(fontSize: 11, color: AppColors.textSecondary),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 12),
+                SelectableText(
+                  result.spreadsheetUrl!,
+                  style: const TextStyle(fontSize: 11, color: Colors.blue, decoration: TextDecoration.underline),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('OK'),
+            ),
+          ],
+        ),
+      );
+    } else {
+      showDialog(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          icon: const Icon(Icons.error_outline_rounded, color: AppColors.secondary, size: 40),
+          title: const Text('Sync Failed'),
+          content: Text(
+            result.errorMessage ?? 'An unknown error occurred while communicating with the server.',
+            textAlign: TextAlign.center,
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Close'),
+            ),
+          ],
+        ),
+      );
+    }
+  }
+
+  void _copyScript() {
+    const scriptCode = '''function doPost(e) {
+  try {
+    var data = JSON.parse(e.postData.contents);
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    if (!ss) {
+      throw new Error("This Apps Script is not bound to any Google Sheet. Please open your Google Sheet, go to Extensions > Apps Script, and paste the code there.");
+    }
+    
+    function formatHeader(sheet, headers) {
+      sheet.clear();
+      sheet.appendRow(headers);
+      var range = sheet.getRange(1, 1, 1, headers.length);
+      range.setFontWeight("bold");
+      range.setBackground("#2F6F5E");
+      range.setFontColor("#FFFFFF");
+      sheet.setFrozenRows(1);
+      sheet.getRange("A:Z").setHorizontalAlignment("left");
+    }
+    
+    var incomes = data.incomes || [];
+    var incomeSheet = ss.getSheetByName("Incomes") || ss.insertSheet("Incomes");
+    formatHeader(incomeSheet, ["ID", "Date", "Source", "Amount", "Recurring", "Frequency"]);
+    if (incomes.length > 0) {
+      var rows = incomes.map(function(inc) {
+        return [inc.id, inc.date, inc.source, inc.amount, inc.isRecurring ? "Yes" : "No", inc.frequency];
+      });
+      incomeSheet.getRange(2, 1, rows.length, rows[0].length).setValues(rows);
+    }
+    
+    var expenses = data.expenses || [];
+    var expenseSheet = ss.getSheetByName("Expenses") || ss.insertSheet("Expenses");
+    formatHeader(expenseSheet, ["ID", "Date", "Category", "Amount", "Note", "Source"]);
+    if (expenses.length > 0) {
+      var rows = expenses.map(function(exp) {
+        return [exp.id, exp.date, exp.category, exp.amount, exp.note || "", exp.source];
+      });
+      expenseSheet.getRange(2, 1, rows.length, rows[0].length).setValues(rows);
+    }
+    
+    return ContentService.createTextOutput(JSON.stringify({ 
+      success: true,
+      spreadsheetName: ss.getName(),
+      spreadsheetUrl: ss.getUrl()
+    })).setMimeType(ContentService.MimeType.JSON);
+  } catch (error) {
+    return ContentService.createTextOutput(JSON.stringify({ success: false, error: error.toString() }))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+}''';
+
+    Clipboard.setData(const ClipboardData(text: scriptCode));
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Apps Script copied to clipboard!')),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final bottomInset = MediaQuery.of(context).viewInsets.bottom;
+    
+    if (_isLoading) {
+      return const SizedBox(
+        height: 200,
+        child: Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    return Padding(
+      padding: EdgeInsets.fromLTRB(20, 16, 20, 20 + bottomInset),
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Center(
+              child: Container(
+                width: 36,
+                height: 4,
+                margin: const EdgeInsets.only(bottom: 16),
+                decoration: BoxDecoration(
+                  color: AppColors.divider,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            Text(
+              'Google Sheets Sync',
+              style: GoogleFonts.inter(
+                fontSize: 17,
+                fontWeight: FontWeight.w600,
+                color: AppColors.text,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Export your entire wallet database into a custom Google Sheet.',
+              style: TextStyle(fontSize: 13, color: AppColors.text.withValues(alpha: 0.6)),
+            ),
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: AppColors.surface,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: AppColors.divider.withValues(alpha: 0.5)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Setup Instructions:',
+                    style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12, color: AppColors.primary),
+                  ),
+                  const SizedBox(height: 8),
+                  _stepRow('1', 'Open the specific Google Sheet you want to use.'),
+                  _stepRow('2', 'Go to Extensions > Apps Script (creates a bound script).'),
+                  _stepRow('3', 'Paste the code snippet (click button below).'),
+                  _stepRow('4', 'Deploy as Web App (Execute: Me, Access: Anyone).'),
+                  _stepRow('5', 'Paste the Web App URL below.'),
+                  const SizedBox(height: 4),
+                  const Divider(),
+                  const SizedBox(height: 4),
+                  const Row(
+                    children: [
+                      Icon(Icons.info_outline_rounded, size: 14, color: AppColors.primary),
+                      SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          'Note: When updating your code, you must deploy a NEW VERSION in Apps Script to apply changes.',
+                          style: TextStyle(fontSize: 10, color: AppColors.textSecondary, fontWeight: FontWeight.w600),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+            OutlinedButton.icon(
+              onPressed: _copyScript,
+              icon: const Icon(Icons.copy_rounded, size: 16),
+              label: const Text('Copy Apps Script Code'),
+              style: OutlinedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: _urlController,
+              decoration: const InputDecoration(
+                labelText: 'Google Sheets Web App URL',
+                hintText: 'https://script.google.com/macros/s/.../exec',
+                prefixIcon: Icon(Icons.link_rounded),
+              ),
+              style: const TextStyle(fontSize: 13),
+              keyboardType: TextInputType.url,
+            ),
+            const SizedBox(height: 20),
+            SizedBox(
+              height: 48,
+              child: FilledButton.icon(
+                onPressed: _isSyncing ? null : _triggerSync,
+                icon: _isSyncing
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                      )
+                    : const Icon(Icons.sync_rounded, size: 18),
+                label: Text(_isSyncing ? 'Syncing...' : 'Sync Database Now'),
+                style: FilledButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _stepRow(String num, String text) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 16,
+            height: 16,
+            alignment: Alignment.center,
+            decoration: const BoxDecoration(color: AppColors.primaryLight, shape: BoxShape.circle),
+            child: Text(
+              num,
+              style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AppColors.primary),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              text,
+              style: const TextStyle(fontSize: 12, color: AppColors.text),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

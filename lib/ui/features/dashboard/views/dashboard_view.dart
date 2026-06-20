@@ -10,6 +10,7 @@ import 'package:smart_wallet/ui/features/entries/views/entry_form_view.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'goal_form_dialog.dart';
 import 'bill_form_dialog.dart';
+import 'bills_view.dart';
 import 'budget_form_dialog.dart';
 import 'package:uuid/uuid.dart';
 
@@ -675,7 +676,7 @@ class _DashboardViewState extends ConsumerState<DashboardView> {
               ),
             )
           else
-            ...upcoming.take(4).map((bill) {
+            ...upcoming.take(2).map((bill) {
               final cat = bill.categoryId != null ? categoryMap[bill.categoryId] : null;
               final catColorStr = cat?.color ?? '#9E9E9E';
               final catColor = Color(int.parse(catColorStr.replaceAll('#', '0xFF')));
@@ -683,6 +684,14 @@ class _DashboardViewState extends ConsumerState<DashboardView> {
               final dueLabel = _getDueDateLabel(bill.dueDate);
               final isOverdue = bill.dueDate.isBefore(DateTime.now()) &&
                   !DateUtils.isSameDay(bill.dueDate, DateTime.now());
+              final diff = bill.dueDate.difference(DateTime.now());
+              final canPay = isOverdue || switch (bill.frequency) {
+                domain.BillFrequency.daily   => diff.inHours <= 12,
+                domain.BillFrequency.weekly  => diff.inDays <= 2,
+                domain.BillFrequency.monthly => diff.inDays <= 10,
+                domain.BillFrequency.yearly  => diff.inDays <= 30,
+                domain.BillFrequency.oneOff  => diff.inDays <= 10,
+              };
 
               return Padding(
                 padding: const EdgeInsets.only(bottom: 8),
@@ -754,26 +763,30 @@ class _DashboardViewState extends ConsumerState<DashboardView> {
                               ),
                             ],
                           ),
-                          const SizedBox(width: 12),
-                          GestureDetector(
-                            onTap: () => _toggleBillPaid(bill, categoryMap),
-                            child: Container(
-                              width: 24,
-                              height: 24,
-                              decoration: BoxDecoration(
-                                border: Border.all(
-                                  color: AppColors.primary.withValues(alpha: 0.4),
-                                  width: 1.5,
+                          if (canPay) ...[
+                            const SizedBox(width: 6),
+                            TextButton(
+                              onPressed: () => _confirmPayBill(bill, categoryMap),
+                              style: TextButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                backgroundColor: AppColors.primary.withValues(alpha: 0.1),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(8),
                                 ),
-                                shape: BoxShape.circle,
+                                minimumSize: Size.zero,
+                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                               ),
-                              child: const Icon(
-                                Icons.check_rounded,
-                                size: 16,
-                                color: Colors.transparent,
+                              child: const Text(
+                                'Pay Now',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w700,
+                                  color: AppColors.primary,
+                                  letterSpacing: 0.3,
+                                ),
                               ),
                             ),
-                          ),
+                          ],
                         ],
                       ),
                     ),
@@ -781,6 +794,29 @@ class _DashboardViewState extends ConsumerState<DashboardView> {
                 ),
               );
             }),
+            if (upcoming.length > 2)
+              Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: Center(
+                  child: TextButton.icon(
+                    onPressed: () => Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => const BillsView()),
+                    ),
+                    icon: const Icon(Icons.arrow_forward_rounded, size: 16, color: AppColors.primary),
+                    label: Text(
+                      'View All (${upcoming.length})',
+                      style: GoogleFonts.inter(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.primary,
+                      ),
+                    ),
+                    style: TextButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    ),
+                  ),
+                ),
+              ),
         ],
       ),
     );
@@ -797,6 +833,109 @@ class _DashboardViewState extends ConsumerState<DashboardView> {
     if (diff == -1) return 'Overdue by 1 day';
     if (diff < -1) return 'Overdue by ${-diff} days';
     return 'Due in $diff days';
+  }
+
+  Future<void> _confirmPayBill(domain.Bill bill, Map<String, domain.Category> categoryMap) async {
+    final code = ref.read(currencyCodeProvider);
+    final sym = currencySymbol(code);
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.card,
+        surfaceTintColor: Colors.transparent,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        titlePadding: const EdgeInsets.fromLTRB(24, 24, 24, 8),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 24),
+        actionsPadding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: const BoxDecoration(
+                color: AppColors.primaryLight,
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.payment_rounded, color: AppColors.primary, size: 24),
+            ),
+            const SizedBox(width: 12),
+            Text(
+              'Pay Bill',
+              style: GoogleFonts.inter(
+                fontWeight: FontWeight.w700,
+                fontSize: 18,
+                color: AppColors.text,
+              ),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const SizedBox(height: 8),
+            Text(
+              bill.name,
+              style: GoogleFonts.inter(
+                fontWeight: FontWeight.w600,
+                fontSize: 16,
+                color: AppColors.text,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              '$sym${bill.amount.toStringAsFixed(2)} — ${bill.frequency.displayName}',
+              style: GoogleFonts.inter(
+                fontSize: 14,
+                color: AppColors.textSecondary,
+                height: 1.4,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'An expense of $sym${bill.amount.toStringAsFixed(2)} will be logged automatically.',
+              style: GoogleFonts.inter(
+                fontSize: 13,
+                color: AppColors.textSecondary,
+                height: 1.4,
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            style: TextButton.styleFrom(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            ),
+            child: Text(
+              'Cancel',
+              style: GoogleFonts.inter(
+                color: AppColors.textSecondary,
+                fontWeight: FontWeight.w600,
+                fontSize: 14,
+              ),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              foregroundColor: Colors.white,
+              elevation: 0,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+            child: Text(
+              'Pay Now',
+              style: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 14),
+            ),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true) {
+      _toggleBillPaid(bill, categoryMap);
+    }
   }
 
   void _toggleBillPaid(domain.Bill bill, Map<String, domain.Category> categoryMap) async {
@@ -816,12 +955,16 @@ class _DashboardViewState extends ConsumerState<DashboardView> {
     );
     await expenseRepo.addExpense(expense);
 
-    if (bill.frequency == domain.BillFrequency.oneOff) {
-      final updated = bill.copyWith(isPaid: true);
-      await repo.updateBill(updated);
-    } else {
+    // Mark current bill as paid so it disappears from upcoming section
+    await repo.updateBill(bill.copyWith(isPaid: true));
+
+    // For recurring bills, create the next occurrence
+    if (bill.frequency != domain.BillFrequency.oneOff) {
       DateTime nextDueDate;
       switch (bill.frequency) {
+        case domain.BillFrequency.daily:
+          nextDueDate = bill.dueDate.add(const Duration(days: 1));
+          break;
         case domain.BillFrequency.weekly:
           nextDueDate = bill.dueDate.add(const Duration(days: 7));
           break;
@@ -843,8 +986,17 @@ class _DashboardViewState extends ConsumerState<DashboardView> {
           nextDueDate = bill.dueDate;
           break;
       }
-      final updated = bill.copyWith(dueDate: nextDueDate, isPaid: false);
-      await repo.updateBill(updated);
+      await repo.addBill(
+        domain.Bill(
+          id: const Uuid().v4(),
+          name: bill.name,
+          amount: bill.amount,
+          dueDate: nextDueDate,
+          isPaid: false,
+          frequency: bill.frequency,
+          categoryId: bill.categoryId,
+        ),
+      );
     }
 
     if (mounted) {

@@ -172,6 +172,7 @@ class Expense {
 }
 
 enum BillFrequency {
+  daily,
   weekly,
   monthly,
   yearly,
@@ -188,6 +189,8 @@ enum BillFrequency {
 
   String get displayName {
     switch (this) {
+      case BillFrequency.daily:
+        return 'Daily';
       case BillFrequency.weekly:
         return 'Weekly';
       case BillFrequency.monthly:
