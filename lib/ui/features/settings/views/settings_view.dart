@@ -123,6 +123,22 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
                       ],
                     ),
                   ),
+                  if (remindersOn)
+                    TextButton(
+                      onPressed: () {
+                        NotificationService().showTestNotification();
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Test notification sent')),
+                        );
+                      },
+                      style: TextButton.styleFrom(
+                        foregroundColor: AppColors.primary,
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        minimumSize: Size.zero,
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      ),
+                      child: const Text('Test'),
+                    ),
                 ],
               ),
             ),
@@ -748,6 +764,15 @@ class _GoogleSheetsSyncBottomSheetState
     var ss = SpreadsheetApp.getActiveSpreadsheet();
     if (!ss) {
       throw new Error("This Apps Script is not bound to any Google Sheet. Please open your Google Sheet, go to Extensions > Apps Script, and paste the code there.");
+    }
+    
+    // TEST MODE: return sheet info without modifying data
+    if (data.test === true) {
+      return ContentService.createTextOutput(JSON.stringify({ 
+        success: true,
+        spreadsheetName: ss.getName(),
+        spreadsheetUrl: ss.getUrl()
+      })).setMimeType(ContentService.MimeType.JSON);
     }
     
     function formatHeader(sheet, headers) {

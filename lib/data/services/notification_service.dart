@@ -34,12 +34,13 @@ class NotificationService {
         AndroidFlutterLocalNotificationsPlugin>();
 
     if (androidPlugin != null) {
+      await androidPlugin.requestNotificationsPermission();
       await androidPlugin.createNotificationChannel(
         const AndroidNotificationChannel(
           _channelId,
           _channelName,
           description: 'Daily transaction reminders',
-          importance: Importance.defaultImportance,
+          importance: Importance.max,
           playSound: true,
           enableVibration: true,
         ),
@@ -93,6 +94,20 @@ class NotificationService {
 
   Future<void> cancelReminders() async {
     await _cancelAll();
+  }
+
+  Future<void> showTestNotification() async {
+    await initialize();
+    await _plugin.show(
+      9999,
+      'Test Reminder',
+      'This is a test notification. Reminders are working correctly!',
+      const NotificationDetails(
+        android: AndroidNotificationDetails(_channelId, _channelName,
+          icon: '@mipmap/ic_launcher'),
+        iOS: DarwinNotificationDetails(),
+      ),
+    );
   }
 
   Future<void> _cancelAll() async {
