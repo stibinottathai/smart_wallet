@@ -24,12 +24,7 @@ class _InsightsViewState extends ConsumerState<InsightsView> {
   @override
   void initState() {
     super.initState();
-    _messages.add(ChatMessage(
-      text: "Hello! I'm your **AI Financial Assistant**.\n\nAsk me about your balances, spending, or get saving ideas!",
-      isUser: false,
-      timestamp: DateTime.now(),
-      isSystemGenerated: true,
-    ));
+    _messages.add(_welcomeMessage());
   }
 
   @override
@@ -130,21 +125,47 @@ class _InsightsViewState extends ConsumerState<InsightsView> {
     _addMsg(msg, isError: true);
   }
 
+  ChatMessage _welcomeMessage() {
+    return ChatMessage(
+      text: "✨ Welcome! I'm your **AI Financial Assistant**\n\n"
+          "Here's what I can help you with:\n\n"
+          "📊 **Analyze** — Understand your spending by category, merchant, or time period\n"
+          "💡 **Optimize** — Get smart saving ideas tailored to your habits\n"
+          "📈 **Compare** — See how this month stacks up against previous ones\n"
+          "🔍 **Explore** — Ask anything about your finances\n\n"
+          "_**What would you like to explore today?**_",
+      isUser: false,
+      timestamp: DateTime.now(),
+      isSystemGenerated: true,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('AI Assistant'),
+        title: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.auto_awesome_rounded, size: 18, color: AppColors.primary),
+            const SizedBox(width: 6),
+            Text(
+              'AI Assistant',
+              style: GoogleFonts.inter(
+                fontWeight: FontWeight.w600,
+                fontSize: 17,
+                color: AppColors.text,
+              ),
+            ),
+          ],
+        ),
         actions: [
           IconButton(
             icon: const Icon(Icons.delete_outline_rounded, size: 20),
             tooltip: 'Clear Chat',
             onPressed: () => setState(() {
               _messages.clear();
-              _messages.add(ChatMessage(
-                text: "Hello! I'm your **AI Financial Assistant**.\n\nAsk me about your balances, spending, or get saving ideas!",
-                isUser: false, timestamp: DateTime.now(), isSystemGenerated: true,
-              ));
+              _messages.add(_welcomeMessage());
             }),
           ),
         ],

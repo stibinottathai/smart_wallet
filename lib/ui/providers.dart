@@ -101,6 +101,8 @@ final openRouterApiKeyProvider = Provider<String>((ref) {
 
 final remindersEnabledProvider = StateProvider<bool>((ref) => false);
 
+final activeTabIndexProvider = StateProvider<int>((ref) => 0);
+
 final analysisDateRangeProvider = StateProvider<(DateTime, DateTime)?>((ref) {
   final now = DateTime.now();
   return (DateTime(now.year, now.month - 5, 1), DateTime(now.year, now.month + 1, 0));

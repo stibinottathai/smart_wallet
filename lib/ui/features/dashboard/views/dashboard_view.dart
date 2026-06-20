@@ -29,16 +29,29 @@ class _DashboardViewState extends ConsumerState<DashboardView> {
     final categoriesAsync = ref.watch(allCategoriesProvider);
     final code = ref.watch(currencyCodeProvider);
 
+    Widget buildLoading() => const Scaffold(
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            CircularProgressIndicator(color: AppColors.primary),
+            SizedBox(height: 16),
+            Text('Loading Dashboard...', style: TextStyle(color: AppColors.textSecondary, fontWeight: FontWeight.w500)),
+          ],
+        ),
+      ),
+    );
+
     return incomesAsync.when(
-      loading: () => const Scaffold(body: Center(child: CircularProgressIndicator())),
+      loading: () => buildLoading(),
       error: (err, stack) => Scaffold(body: Center(child: Text('$err'))),
       data: (incomes) {
         return expensesAsync.when(
-          loading: () => const Scaffold(body: Center(child: CircularProgressIndicator())),
+          loading: () => buildLoading(),
           error: (err, stack) => Scaffold(body: Center(child: Text('$err'))),
           data: (expenses) {
             return categoriesAsync.when(
-              loading: () => const Scaffold(body: Center(child: CircularProgressIndicator())),
+              loading: () => buildLoading(),
               error: (err, stack) => Scaffold(body: Center(child: Text('$err'))),
               data: (categories) {
                 final totalIncome = incomes.fold<double>(0.0, (sum, item) => sum + item.amount);
@@ -416,7 +429,7 @@ class _DashboardViewState extends ConsumerState<DashboardView> {
           _buildHeader(netBalance, spentPercent, totalIncome, totalExpense, symbol),
           const SizedBox(height: 8),
           _buildSummaryRow(totalIncome, totalExpense, symbol),
-          _buildFinancialTipCard(totalIncome, totalExpense, categorySpendMap, categoryMap, symbol),
+          _buildAiAssistantCard(),
           _buildWeeklyTrendSection(expenses, symbol),
           _buildBudgetLimitsSection(categorySpendMap, categories, symbol),
           _buildSavingsGoalsSection(savingsGoals, symbol),
@@ -1357,117 +1370,111 @@ class _DashboardViewState extends ConsumerState<DashboardView> {
     );
   }
 
-  Widget _buildFinancialTipCard(
-    double totalIncome,
-    double totalExpense,
-    Map<String, double> categorySpendMap,
-    Map<String, domain.Category> categoryMap,
-    String symbol,
-  ) {
-    String tipTitle = 'Financial Insight';
-    String tipBody = 'Start tracking your daily expenses to see smart suggestions here!';
-    IconData tipIcon = Icons.lightbulb_outline_rounded;
-    Color tipColor = AppColors.primary;
-
-    if (totalIncome == 0 && totalExpense == 0) {
-      tipTitle = 'Welcome to Smart Wallet!';
-      tipBody = 'Add your first transaction using the "+" button below to get personalized insights.';
-      tipIcon = Icons.stars_rounded;
-    } else if (totalExpense > totalIncome && totalIncome > 0) {
-      tipTitle = 'Budget Alert';
-      tipBody = 'Your spending has exceeded your income this month by $symbol${(totalExpense - totalIncome).toStringAsFixed(2)}. Try pausing non-essential purchases.';
-      tipIcon = Icons.warning_amber_rounded;
-      tipColor = AppColors.secondary;
-    } else if (totalExpense > 0) {
-      String? topCategoryId;
-      double maxSpend = 0.0;
-      categorySpendMap.forEach((catId, amount) {
-        if (amount > maxSpend) {
-          maxSpend = amount;
-          topCategoryId = catId;
-        }
-      });
-
-      final topCategory = topCategoryId != null ? categoryMap[topCategoryId] : null;
-      final topCategoryName = topCategory?.name ?? 'Discretionary';
-      final savingsRate = totalIncome > 0 ? ((totalIncome - totalExpense) / totalIncome * 100) : 0.0;
-
-      if (savingsRate < 10) {
-        tipTitle = 'Savings Booster';
-        tipBody = 'Your savings rate is at ${savingsRate.toStringAsFixed(0)}%. Financial planners recommend saving 20% of your monthly income for emergencies.';
-        tipIcon = Icons.trending_up_rounded;
-        tipColor = AppColors.primary;
-      } else if (topCategory != null && maxSpend > (totalExpense * 0.4)) {
-        tipTitle = 'High Category Spend';
-        tipBody = 'You spent $symbol${maxSpend.toStringAsFixed(2)} on $topCategoryName, which is ${(maxSpend / totalExpense * 100).toStringAsFixed(0)}% of your total spending. Consider setting a monthly limit!';
-        tipIcon = Icons.pie_chart_outline_rounded;
-        tipColor = AppColors.secondary;
-      } else {
-        final tips = [
-          'Review your subscription services this week. Canceling unused plans is the easiest way to save.',
-          'Consider the 50/30/20 rule: 50% for Needs, 30% for Wants, and 20% for Savings.',
-          'Create a shopping list before buying groceries to avoid impulse food purchases.',
-          'Great job keeping a healthy savings rate of ${savingsRate.toStringAsFixed(0)}%! Consider investing the surplus.',
-        ];
-        final tipIndex = (totalExpense.toInt()) % tips.length;
-        tipTitle = 'Smart Tip';
-        tipBody = tips[tipIndex];
-        tipIcon = Icons.tips_and_updates_rounded;
-        tipColor = AppColors.primary;
-      }
-    }
+  Widget _buildAiAssistantCard() {
+    final apiKey = ref.watch(openRouterApiKeyProvider);
+    final isConfigured = apiKey.isNotEmpty;
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-      child: Card(
-        margin: EdgeInsets.zero,
-        elevation: 0,
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: tipColor.withValues(alpha: 0.12),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(
-                  tipIcon,
-                  color: tipColor,
-                  size: 24,
-                ),
+      child: GestureDetector(
+        onTap: () {
+          ref.read(activeTabIndexProvider.notifier).state = isConfigured ? 3 : 4;
+        },
+        child: Container(
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [Color(0xFF1A4A3E), AppColors.primary],
+            ),
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.primary.withValues(alpha: 0.2),
+                blurRadius: 16,
+                offset: const Offset(0, 6),
               ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+            ],
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
                   children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Icon(Icons.auto_awesome_rounded, color: Colors.white, size: 20),
+                    ),
+                    const SizedBox(width: 10),
                     Text(
-                      tipTitle,
+                      'AI Assistant',
                       style: GoogleFonts.inter(
+                        fontSize: 16,
                         fontWeight: FontWeight.w700,
-                        fontSize: 14,
-                        color: AppColors.text,
+                        color: Colors.white,
                       ),
                     ),
-                    const SizedBox(height: 4),
-                    Text(
-                      tipBody,
-                      style: GoogleFonts.inter(
-                        fontSize: 12,
-                        color: AppColors.textSecondary,
-                        height: 1.4,
+                    const Spacer(),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: isConfigured ? AppColors.secondary : Colors.white.withValues(alpha: 0.2),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            isConfigured ? 'Try Now' : 'Setup',
+                            style: GoogleFonts.inter(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.white,
+                            ),
+                          ),
+                          const SizedBox(width: 4),
+                          Icon(
+                            isConfigured ? Icons.arrow_forward_rounded : Icons.settings_rounded,
+                            size: 14, color: Colors.white,
+                          ),
+                        ],
                       ),
                     ),
                   ],
                 ),
-              ),
-            ],
+                const SizedBox(height: 14),
+                _buildAiFeature(Icons.analytics_rounded, 'Analyze your spending patterns'),
+                const SizedBox(height: 8),
+                _buildAiFeature(Icons.lightbulb_rounded, 'Get personalized saving ideas'),
+                const SizedBox(height: 8),
+                _buildAiFeature(Icons.compare_arrows_rounded, 'Compare months and track trends'),
+              ],
+            ),
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildAiFeature(IconData icon, String text) {
+    return Row(
+      children: [
+        Icon(icon, size: 16, color: Colors.white.withValues(alpha: 0.7)),
+        const SizedBox(width: 8),
+        Text(
+          text,
+          style: GoogleFonts.inter(
+            fontSize: 13,
+            color: Colors.white.withValues(alpha: 0.85),
+          ),
+        ),
+      ],
     );
   }
 }

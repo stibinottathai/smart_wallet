@@ -1,22 +1,22 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:smart_wallet/ui/core/theme.dart';
 import 'package:smart_wallet/ui/features/dashboard/views/dashboard_view.dart';
 import 'package:smart_wallet/ui/features/entries/views/all_transactions_view.dart';
 import 'package:smart_wallet/ui/features/analysis/views/analysis_view.dart';
 import 'package:smart_wallet/ui/features/insights/views/insights_view.dart';
 import 'package:smart_wallet/ui/features/settings/views/settings_view.dart';
+import 'package:smart_wallet/ui/providers.dart';
 
-class MainNavigationWrapper extends StatefulWidget {
+class MainNavigationWrapper extends ConsumerStatefulWidget {
   const MainNavigationWrapper({super.key});
 
   @override
-  State<MainNavigationWrapper> createState() => _MainNavigationWrapperState();
+  ConsumerState<MainNavigationWrapper> createState() => _MainNavigationWrapperState();
 }
 
-class _MainNavigationWrapperState extends State<MainNavigationWrapper> {
-  int _currentIndex = 0;
-
+class _MainNavigationWrapperState extends ConsumerState<MainNavigationWrapper> {
   final List<Widget> _screens = const [
     DashboardView(),
     AllTransactionsView(initialShowExpenses: true),
@@ -26,15 +26,17 @@ class _MainNavigationWrapperState extends State<MainNavigationWrapper> {
   ];
 
   void _onNavTap(int index) {
-    if (index == _currentIndex) return;
-    setState(() => _currentIndex = index);
+    final current = ref.read(activeTabIndexProvider);
+    if (index == current) return;
+    ref.read(activeTabIndexProvider.notifier).state = index;
   }
 
   @override
   Widget build(BuildContext context) {
+    final currentIndex = ref.watch(activeTabIndexProvider);
     return Scaffold(
       body: IndexedStack(
-        index: _currentIndex,
+        index: currentIndex,
         children: _screens,
       ),
       bottomNavigationBar: ClipRRect(
@@ -58,31 +60,31 @@ class _MainNavigationWrapperState extends State<MainNavigationWrapper> {
                     _NavItem(
                       icon: Icons.account_balance_wallet_rounded,
                       label: 'Ledger',
-                      isSelected: _currentIndex == 0,
+                      isSelected: currentIndex == 0,
                       onTap: () => _onNavTap(0),
                     ),
                     _NavItem(
                       icon: Icons.receipt_long_rounded,
                       label: 'Transactions',
-                      isSelected: _currentIndex == 1,
+                      isSelected: currentIndex == 1,
                       onTap: () => _onNavTap(1),
                     ),
                     _NavItem(
                       icon: Icons.bar_chart_rounded,
                       label: 'Analysis',
-                      isSelected: _currentIndex == 2,
+                      isSelected: currentIndex == 2,
                       onTap: () => _onNavTap(2),
                     ),
                     _NavItem(
-                      icon: Icons.lightbulb_rounded,
-                      label: 'Insights',
-                      isSelected: _currentIndex == 3,
+                      icon: Icons.auto_awesome_rounded,
+                      label: 'AI Chat',
+                      isSelected: currentIndex == 3,
                       onTap: () => _onNavTap(3),
                     ),
                     _NavItem(
                       icon: Icons.settings_rounded,
                       label: 'Settings',
-                      isSelected: _currentIndex == 4,
+                      isSelected: currentIndex == 4,
                       onTap: () => _onNavTap(4),
                     ),
                   ],
