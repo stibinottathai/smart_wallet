@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:intl/intl.dart';
 import 'package:smart_wallet/domain/models/models.dart' as domain;
 import 'package:smart_wallet/ui/core/theme.dart';
 import 'package:smart_wallet/ui/core/dialogs.dart';
@@ -24,6 +25,10 @@ class _AllTransactionsViewState extends ConsumerState<AllTransactionsView> {
   late bool _showExpenses;
   final _searchController = TextEditingController();
   String _searchQuery = '';
+  bool _filtersExpanded = false;
+  String? _filterCategoryId;
+  DateTime? _filterStartDate;
+  DateTime? _filterEndDate;
 
   @override
   void initState() {
@@ -36,6 +41,21 @@ class _AllTransactionsViewState extends ConsumerState<AllTransactionsView> {
     _searchController.dispose();
     super.dispose();
   }
+
+  void _clearFilters() {
+    setState(() {
+      _filterCategoryId = null;
+      _filterStartDate = null;
+      _filterEndDate = null;
+    });
+  }
+
+  bool get _hasActiveFilters =>
+      _filterCategoryId != null ||
+      _filterStartDate != null ||
+      _filterEndDate != null;
+
+
 
   @override
   Widget build(BuildContext context) {
@@ -59,6 +79,7 @@ class _AllTransactionsViewState extends ConsumerState<AllTransactionsView> {
           children: [
             _buildTypeToggle(),
             _buildSearchField(),
+            if (_filtersExpanded) _buildFilterPanel(),
             Expanded(
               child: incomesAsync.when(
                 loading: () => const Center(child: CircularProgressIndicator()),
@@ -161,7 +182,7 @@ class _AllTransactionsViewState extends ConsumerState<AllTransactionsView> {
 
   Widget _buildSearchField() {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 4, 20, 12),
+      padding: EdgeInsets.fromLTRB(20, 4, 20, (_filtersExpanded ? 0 : 12)),
       child: TextField(
         controller: _searchController,
         onChanged: (val) {
@@ -172,8 +193,11 @@ class _AllTransactionsViewState extends ConsumerState<AllTransactionsView> {
         decoration: InputDecoration(
           hintText: _showExpenses ? 'Search notes or categories...' : 'Search income sources...',
           prefixIcon: const Icon(Icons.search_rounded, size: 20, color: AppColors.textSecondary),
-          suffixIcon: _searchQuery.isNotEmpty
-              ? IconButton(
+          suffixIcon: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (_searchQuery.isNotEmpty)
+                IconButton(
                   icon: const Icon(Icons.clear_rounded, size: 18),
                   onPressed: () {
                     setState(() {
@@ -181,28 +205,216 @@ class _AllTransactionsViewState extends ConsumerState<AllTransactionsView> {
                       _searchQuery = '';
                     });
                   },
-                )
-              : null,
+                ),
+              Stack(
+                children: [
+                  IconButton(
+                    icon: Icon(
+                      _filtersExpanded ? Icons.filter_alt_off_rounded : Icons.filter_alt_rounded,
+                      size: 20,
+                      color: _hasActiveFilters ? AppColors.primary : AppColors.textSecondary,
+                    ),
+                    onPressed: () {
+                      setState(() => _filtersExpanded = !_filtersExpanded);
+                    },
+                  ),
+                  if (_hasActiveFilters)
+                    Positioned(
+                      right: 6,
+                      top: 6,
+                      child: Container(
+                        width: 8,
+                        height: 8,
+                        decoration: const BoxDecoration(
+                          color: AppColors.secondary,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ],
+          ),
           contentPadding: const EdgeInsets.symmetric(vertical: 12),
         ),
       ),
     );
   }
 
-  Widget _buildExpensesList(List<domain.Expense> expenses, Map<String, domain.Category> catMap) {
+  Widget _buildFilterPanel() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Text(
+                'Filters',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.text.withValues(alpha: 0.5),
+                  letterSpacing: 0.5,
+                ),
+              ),
+              const Spacer(),
+              if (_hasActiveFilters)
+                GestureDetector(
+                  onTap: _clearFilters,
+                  child: Text(
+                    'Clear all',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.secondary,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          if (_showExpenses) _buildCategoryChips(),
+          const SizedBox(height: 6),
+          _buildDateRangeRow(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCategoryChips() {
+    final categories = ref.watch(allCategoriesProvider).valueOrNull ?? [];
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: [
+          _FilterChip(
+            label: 'All',
+            selected: _filterCategoryId == null,
+            onTap: () => setState(() => _filterCategoryId = null),
+          ),
+          const SizedBox(width: 6),
+          ...categories.map((cat) => _FilterChip(
+            label: cat.name,
+            selected: _filterCategoryId == cat.id,
+            color: Color(int.parse(cat.color.replaceAll('#', '0xFF'))),
+            onTap: () => setState(() => _filterCategoryId = cat.id),
+          )),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDateRangeRow() {
+    return Row(
+      children: [
+        Expanded(
+          child: _DateFilterButton(
+            label: 'From',
+            date: _filterStartDate,
+            onTap: () => _pickDate(isStart: true),
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8),
+          child: Icon(Icons.arrow_forward_rounded, size: 14, color: AppColors.text.withValues(alpha: 0.3)),
+        ),
+        Expanded(
+          child: _DateFilterButton(
+            label: 'To',
+            date: _filterEndDate,
+            onTap: () => _pickDate(isStart: false),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _pickDate({required bool isStart}) async {
+    final current = isStart ? _filterStartDate : _filterEndDate;
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: current ?? DateTime.now(),
+      firstDate: DateTime(2020),
+      lastDate: DateTime.now(),
+      builder: (context, child) => Theme(
+        data: Theme.of(context).copyWith(
+          colorScheme: Theme.of(context).colorScheme.copyWith(
+                primary: AppColors.primary,
+                onPrimary: Colors.white,
+              ),
+        ),
+        child: child!,
+      ),
+    );
+    if (picked != null) {
+      setState(() {
+        if (isStart) {
+          _filterStartDate = picked;
+        } else {
+          _filterEndDate = picked;
+        }
+      });
+    }
+  }
+
+  List<domain.Expense> _applyFilters(List<domain.Expense> expenses, Map<String, domain.Category> catMap) {
     var filtered = expenses;
+
     if (_searchQuery.isNotEmpty) {
-      filtered = expenses.where((exp) {
+      filtered = filtered.where((exp) {
         final catName = catMap[exp.categoryId]?.name.toLowerCase() ?? '';
         final note = exp.note?.toLowerCase() ?? '';
         return catName.contains(_searchQuery) || note.contains(_searchQuery);
       }).toList();
     }
 
+    if (_filterCategoryId != null) {
+      filtered = filtered.where((exp) => exp.categoryId == _filterCategoryId).toList();
+    }
+
+    if (_filterStartDate != null) {
+      filtered = filtered.where((exp) => !exp.date.isBefore(_filterStartDate!)).toList();
+    }
+
+    if (_filterEndDate != null) {
+      final endOfDay = DateTime(_filterEndDate!.year, _filterEndDate!.month, _filterEndDate!.day, 23, 59, 59);
+      filtered = filtered.where((exp) => !exp.date.isAfter(endOfDay)).toList();
+    }
+
+    return filtered;
+  }
+
+  List<domain.Income> _applyIncomeFilters(List<domain.Income> incomes) {
+    var filtered = incomes;
+
+    if (_searchQuery.isNotEmpty) {
+      filtered = filtered.where((inc) {
+        return inc.source.toLowerCase().contains(_searchQuery);
+      }).toList();
+    }
+
+    if (_filterStartDate != null) {
+      filtered = filtered.where((inc) => !inc.date.isBefore(_filterStartDate!)).toList();
+    }
+
+    if (_filterEndDate != null) {
+      final endOfDay = DateTime(_filterEndDate!.year, _filterEndDate!.month, _filterEndDate!.day, 23, 59, 59);
+      filtered = filtered.where((inc) => !inc.date.isAfter(endOfDay)).toList();
+    }
+
+    return filtered;
+  }
+
+  Widget _buildExpensesList(List<domain.Expense> expenses, Map<String, domain.Category> catMap) {
+    final filtered = _applyFilters(expenses, catMap);
+
     if (filtered.isEmpty) {
       return _buildEmptyState(
-        _searchQuery.isNotEmpty ? 'No matches found' : 'No expenses yet',
-        _searchQuery.isNotEmpty ? 'Try searching something else' : 'Tap + on the ledger screen to add an expense',
+        _hasActiveFilters || _searchQuery.isNotEmpty ? 'No matches found' : 'No expenses yet',
+        _hasActiveFilters || _searchQuery.isNotEmpty
+            ? 'Try adjusting your search or filters'
+            : 'Tap + on the ledger screen to add an expense',
       );
     }
 
@@ -256,17 +468,14 @@ class _AllTransactionsViewState extends ConsumerState<AllTransactionsView> {
   }
 
   Widget _buildIncomesList(List<domain.Income> incomes) {
-    var filtered = incomes;
-    if (_searchQuery.isNotEmpty) {
-      filtered = incomes.where((inc) {
-        return inc.source.toLowerCase().contains(_searchQuery);
-      }).toList();
-    }
+    final filtered = _applyIncomeFilters(incomes);
 
     if (filtered.isEmpty) {
       return _buildEmptyState(
-        _searchQuery.isNotEmpty ? 'No matches found' : 'No income yet',
-        _searchQuery.isNotEmpty ? 'Try searching something else' : 'Tap + on the ledger screen to add an income',
+        _hasActiveFilters || _searchQuery.isNotEmpty ? 'No matches found' : 'No income yet',
+        _hasActiveFilters || _searchQuery.isNotEmpty
+            ? 'Try adjusting your search or filters'
+            : 'Tap + on the ledger screen to add an income',
       );
     }
 
@@ -348,6 +557,97 @@ class _AllTransactionsViewState extends ConsumerState<AllTransactionsView> {
             style: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _FilterChip extends StatelessWidget {
+  final String label;
+  final bool selected;
+  final Color? color;
+  final VoidCallback onTap;
+
+  const _FilterChip({
+    required this.label,
+    required this.selected,
+    this.color,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final chipColor = color ?? AppColors.primary;
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+        decoration: BoxDecoration(
+          color: selected ? chipColor.withValues(alpha: 0.12) : AppColors.surface,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: selected ? chipColor.withValues(alpha: 0.4) : AppColors.divider.withValues(alpha: 0.3),
+          ),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            color: selected ? chipColor : AppColors.text.withValues(alpha: 0.6),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _DateFilterButton extends StatelessWidget {
+  final String label;
+  final DateTime? date;
+  final VoidCallback onTap;
+
+  const _DateFilterButton({
+    required this.label,
+    required this.date,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          color: date != null ? AppColors.primaryLight : AppColors.surface,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            color: date != null
+                ? AppColors.primary.withValues(alpha: 0.3)
+                : AppColors.divider.withValues(alpha: 0.3),
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.calendar_today_rounded,
+              size: 13,
+              color: date != null ? AppColors.primary : AppColors.text.withValues(alpha: 0.4),
+            ),
+            const SizedBox(width: 6),
+            Text(
+              date != null ? DateFormat('MMM d, yyyy').format(date!) : label,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+                color: date != null ? AppColors.primary : AppColors.text.withValues(alpha: 0.5),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

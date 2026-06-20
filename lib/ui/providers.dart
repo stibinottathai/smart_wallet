@@ -6,6 +6,7 @@ import '../data/repositories/savings_goal_repository_impl.dart';
 import '../data/repositories/bill_repository_impl.dart';
 import '../data/services/database.dart';
 import '../data/services/insights_service.dart';
+import '../data/services/notification_service.dart';
 import '../data/services/pdf_report_service.dart';
 import '../data/services/receipt_scan_service.dart';
 import '../domain/models/models.dart' as domain;
@@ -51,6 +52,10 @@ final insightsServiceProvider = Provider<InsightsService>((ref) {
   return InsightsService();
 });
 
+final notificationServiceProvider = Provider<NotificationService>((ref) {
+  return NotificationService();
+});
+
 final pdfReportServiceProvider = Provider<PdfReportService>((ref) {
   final db = ref.watch(databaseProvider);
   return PdfReportService(db);
@@ -86,3 +91,5 @@ final allBillsProvider = StreamProvider<List<domain.Bill>>((ref) {
 final openRouterApiKeyProvider = Provider<String>((ref) {
   return dotenv.env['OPENROUTER_API_KEY'] ?? '';
 });
+
+final remindersEnabledProvider = StateProvider<bool>((ref) => false);

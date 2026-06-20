@@ -1,17 +1,48 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:smart_wallet/data/services/notification_service.dart';
 import 'package:smart_wallet/ui/core/theme.dart';
 import 'package:smart_wallet/ui/features/reports/views/report_view.dart';
 import 'package:smart_wallet/ui/providers.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-class SettingsView extends ConsumerWidget {
+class SettingsView extends ConsumerStatefulWidget {
   const SettingsView({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<SettingsView> createState() => _SettingsViewState();
+}
+
+class _SettingsViewState extends ConsumerState<SettingsView> {
+  @override
+  void initState() {
+    super.initState();
+    _loadReminderPref();
+  }
+
+  Future<void> _loadReminderPref() async {
+    final prefs = await SharedPreferences.getInstance();
+    final enabled = prefs.getBool('reminders_enabled') ?? false;
+    ref.read(remindersEnabledProvider.notifier).state = enabled;
+  }
+
+  Future<void> _toggleReminders(bool value) async {
+    ref.read(remindersEnabledProvider.notifier).state = value;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('reminders_enabled', value);
+    if (value) {
+      await NotificationService().scheduleReminders();
+    } else {
+      await NotificationService().cancelReminders();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final apiKey = ref.watch(openRouterApiKeyProvider);
     final isConfigured = apiKey.isNotEmpty;
+    final remindersOn = ref.watch(remindersEnabledProvider);
 
     return Scaffold(
       appBar: AppBar(title: const Text('Settings')),
@@ -42,6 +73,37 @@ class SettingsView extends ConsumerWidget {
                     icon: Icons.security_rounded,
                     title: 'Data Privacy',
                     subtitle: 'All transactions stay local',
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+            _SectionCard(
+              icon: Icons.notifications_rounded,
+              title: 'Reminders',
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          remindersOn ? 'Daily reminders on' : 'Daily reminders off',
+                          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.text),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          '12:00 PM & 8:00 PM notifications',
+                          style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Switch(
+                    value: remindersOn,
+                    onChanged: _toggleReminders,
+                    activeTrackColor: AppColors.primary.withValues(alpha: 0.4),
+                    activeThumbColor: AppColors.primary,
                   ),
                 ],
               ),
