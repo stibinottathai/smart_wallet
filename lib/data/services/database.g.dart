@@ -60,8 +60,26 @@ class $CategoriesTable extends Categories
     ),
     defaultValue: const Constant(false),
   );
+  static const VerificationMeta _budgetLimitMeta = const VerificationMeta(
+    'budgetLimit',
+  );
   @override
-  List<GeneratedColumn> get $columns => [id, name, icon, color, isDefault];
+  late final GeneratedColumn<double> budgetLimit = GeneratedColumn<double>(
+    'budget_limit',
+    aliasedName,
+    true,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    name,
+    icon,
+    color,
+    isDefault,
+    budgetLimit,
+  ];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
@@ -109,6 +127,15 @@ class $CategoriesTable extends Categories
         isDefault.isAcceptableOrUnknown(data['is_default']!, _isDefaultMeta),
       );
     }
+    if (data.containsKey('budget_limit')) {
+      context.handle(
+        _budgetLimitMeta,
+        budgetLimit.isAcceptableOrUnknown(
+          data['budget_limit']!,
+          _budgetLimitMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -138,6 +165,10 @@ class $CategoriesTable extends Categories
         DriftSqlType.bool,
         data['${effectivePrefix}is_default'],
       )!,
+      budgetLimit: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}budget_limit'],
+      ),
     );
   }
 
@@ -153,12 +184,14 @@ class Category extends DataClass implements Insertable<Category> {
   final String icon;
   final String color;
   final bool isDefault;
+  final double? budgetLimit;
   const Category({
     required this.id,
     required this.name,
     required this.icon,
     required this.color,
     required this.isDefault,
+    this.budgetLimit,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -168,6 +201,9 @@ class Category extends DataClass implements Insertable<Category> {
     map['icon'] = Variable<String>(icon);
     map['color'] = Variable<String>(color);
     map['is_default'] = Variable<bool>(isDefault);
+    if (!nullToAbsent || budgetLimit != null) {
+      map['budget_limit'] = Variable<double>(budgetLimit);
+    }
     return map;
   }
 
@@ -178,6 +214,9 @@ class Category extends DataClass implements Insertable<Category> {
       icon: Value(icon),
       color: Value(color),
       isDefault: Value(isDefault),
+      budgetLimit: budgetLimit == null && nullToAbsent
+          ? const Value.absent()
+          : Value(budgetLimit),
     );
   }
 
@@ -192,6 +231,7 @@ class Category extends DataClass implements Insertable<Category> {
       icon: serializer.fromJson<String>(json['icon']),
       color: serializer.fromJson<String>(json['color']),
       isDefault: serializer.fromJson<bool>(json['isDefault']),
+      budgetLimit: serializer.fromJson<double?>(json['budgetLimit']),
     );
   }
   @override
@@ -203,6 +243,7 @@ class Category extends DataClass implements Insertable<Category> {
       'icon': serializer.toJson<String>(icon),
       'color': serializer.toJson<String>(color),
       'isDefault': serializer.toJson<bool>(isDefault),
+      'budgetLimit': serializer.toJson<double?>(budgetLimit),
     };
   }
 
@@ -212,12 +253,14 @@ class Category extends DataClass implements Insertable<Category> {
     String? icon,
     String? color,
     bool? isDefault,
+    Value<double?> budgetLimit = const Value.absent(),
   }) => Category(
     id: id ?? this.id,
     name: name ?? this.name,
     icon: icon ?? this.icon,
     color: color ?? this.color,
     isDefault: isDefault ?? this.isDefault,
+    budgetLimit: budgetLimit.present ? budgetLimit.value : this.budgetLimit,
   );
   Category copyWithCompanion(CategoriesCompanion data) {
     return Category(
@@ -226,6 +269,9 @@ class Category extends DataClass implements Insertable<Category> {
       icon: data.icon.present ? data.icon.value : this.icon,
       color: data.color.present ? data.color.value : this.color,
       isDefault: data.isDefault.present ? data.isDefault.value : this.isDefault,
+      budgetLimit: data.budgetLimit.present
+          ? data.budgetLimit.value
+          : this.budgetLimit,
     );
   }
 
@@ -236,13 +282,15 @@ class Category extends DataClass implements Insertable<Category> {
           ..write('name: $name, ')
           ..write('icon: $icon, ')
           ..write('color: $color, ')
-          ..write('isDefault: $isDefault')
+          ..write('isDefault: $isDefault, ')
+          ..write('budgetLimit: $budgetLimit')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode => Object.hash(id, name, icon, color, isDefault);
+  int get hashCode =>
+      Object.hash(id, name, icon, color, isDefault, budgetLimit);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -251,7 +299,8 @@ class Category extends DataClass implements Insertable<Category> {
           other.name == this.name &&
           other.icon == this.icon &&
           other.color == this.color &&
-          other.isDefault == this.isDefault);
+          other.isDefault == this.isDefault &&
+          other.budgetLimit == this.budgetLimit);
 }
 
 class CategoriesCompanion extends UpdateCompanion<Category> {
@@ -260,6 +309,7 @@ class CategoriesCompanion extends UpdateCompanion<Category> {
   final Value<String> icon;
   final Value<String> color;
   final Value<bool> isDefault;
+  final Value<double?> budgetLimit;
   final Value<int> rowid;
   const CategoriesCompanion({
     this.id = const Value.absent(),
@@ -267,6 +317,7 @@ class CategoriesCompanion extends UpdateCompanion<Category> {
     this.icon = const Value.absent(),
     this.color = const Value.absent(),
     this.isDefault = const Value.absent(),
+    this.budgetLimit = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   CategoriesCompanion.insert({
@@ -275,6 +326,7 @@ class CategoriesCompanion extends UpdateCompanion<Category> {
     required String icon,
     required String color,
     this.isDefault = const Value.absent(),
+    this.budgetLimit = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        name = Value(name),
@@ -286,6 +338,7 @@ class CategoriesCompanion extends UpdateCompanion<Category> {
     Expression<String>? icon,
     Expression<String>? color,
     Expression<bool>? isDefault,
+    Expression<double>? budgetLimit,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -294,6 +347,7 @@ class CategoriesCompanion extends UpdateCompanion<Category> {
       if (icon != null) 'icon': icon,
       if (color != null) 'color': color,
       if (isDefault != null) 'is_default': isDefault,
+      if (budgetLimit != null) 'budget_limit': budgetLimit,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -304,6 +358,7 @@ class CategoriesCompanion extends UpdateCompanion<Category> {
     Value<String>? icon,
     Value<String>? color,
     Value<bool>? isDefault,
+    Value<double?>? budgetLimit,
     Value<int>? rowid,
   }) {
     return CategoriesCompanion(
@@ -312,6 +367,7 @@ class CategoriesCompanion extends UpdateCompanion<Category> {
       icon: icon ?? this.icon,
       color: color ?? this.color,
       isDefault: isDefault ?? this.isDefault,
+      budgetLimit: budgetLimit ?? this.budgetLimit,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -334,6 +390,9 @@ class CategoriesCompanion extends UpdateCompanion<Category> {
     if (isDefault.present) {
       map['is_default'] = Variable<bool>(isDefault.value);
     }
+    if (budgetLimit.present) {
+      map['budget_limit'] = Variable<double>(budgetLimit.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -348,6 +407,7 @@ class CategoriesCompanion extends UpdateCompanion<Category> {
           ..write('icon: $icon, ')
           ..write('color: $color, ')
           ..write('isDefault: $isDefault, ')
+          ..write('budgetLimit: $budgetLimit, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -2383,6 +2443,7 @@ typedef $$CategoriesTableCreateCompanionBuilder =
       required String icon,
       required String color,
       Value<bool> isDefault,
+      Value<double?> budgetLimit,
       Value<int> rowid,
     });
 typedef $$CategoriesTableUpdateCompanionBuilder =
@@ -2392,6 +2453,7 @@ typedef $$CategoriesTableUpdateCompanionBuilder =
       Value<String> icon,
       Value<String> color,
       Value<bool> isDefault,
+      Value<double?> budgetLimit,
       Value<int> rowid,
     });
 
@@ -2426,6 +2488,11 @@ class $$CategoriesTableFilterComposer
 
   ColumnFilters<bool> get isDefault => $composableBuilder(
     column: $table.isDefault,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get budgetLimit => $composableBuilder(
+    column: $table.budgetLimit,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -2463,6 +2530,11 @@ class $$CategoriesTableOrderingComposer
     column: $table.isDefault,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<double> get budgetLimit => $composableBuilder(
+    column: $table.budgetLimit,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$CategoriesTableAnnotationComposer
@@ -2488,6 +2560,11 @@ class $$CategoriesTableAnnotationComposer
 
   GeneratedColumn<bool> get isDefault =>
       $composableBuilder(column: $table.isDefault, builder: (column) => column);
+
+  GeneratedColumn<double> get budgetLimit => $composableBuilder(
+    column: $table.budgetLimit,
+    builder: (column) => column,
+  );
 }
 
 class $$CategoriesTableTableManager
@@ -2523,6 +2600,7 @@ class $$CategoriesTableTableManager
                 Value<String> icon = const Value.absent(),
                 Value<String> color = const Value.absent(),
                 Value<bool> isDefault = const Value.absent(),
+                Value<double?> budgetLimit = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => CategoriesCompanion(
                 id: id,
@@ -2530,6 +2608,7 @@ class $$CategoriesTableTableManager
                 icon: icon,
                 color: color,
                 isDefault: isDefault,
+                budgetLimit: budgetLimit,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -2539,6 +2618,7 @@ class $$CategoriesTableTableManager
                 required String icon,
                 required String color,
                 Value<bool> isDefault = const Value.absent(),
+                Value<double?> budgetLimit = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => CategoriesCompanion.insert(
                 id: id,
@@ -2546,6 +2626,7 @@ class $$CategoriesTableTableManager
                 icon: icon,
                 color: color,
                 isDefault: isDefault,
+                budgetLimit: budgetLimit,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0

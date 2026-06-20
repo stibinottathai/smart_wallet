@@ -1,20 +1,136 @@
-import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:smart_wallet/domain/models/models.dart' as domain;
 import 'package:smart_wallet/ui/core/theme.dart';
 import 'package:smart_wallet/ui/providers.dart';
-import 'package:google_fonts/google_fonts.dart';
+import '../widgets/section_card.dart';
+import '../widgets/income_expense_bar_chart.dart';
+import '../widgets/category_pie_chart.dart';
+import '../widgets/net_worth_line_chart.dart';
+import '../widgets/savings_rate_card.dart';
+import '../widgets/income_breakdown_pie.dart';
+import '../widgets/weekday_spending_chart.dart';
+import '../widgets/budget_utilization_chart.dart';
+import '../widgets/top_spending_days_card.dart';
+import '../widgets/expense_source_pie.dart';
 
-class AnalysisView extends ConsumerWidget {
+class AnalysisView extends ConsumerStatefulWidget {
   const AnalysisView({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<AnalysisView> createState() => _AnalysisViewState();
+}
+
+class _AnalysisViewState extends ConsumerState<AnalysisView> {
+  DateTime? _customStart;
+  DateTime? _customEnd;
+  String _activeChip = '6M';
+
+  final _chips = ['1M', '3M', '6M', '1Y', 'All'];
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _applyChip('6M'));
+  }
+
+  void _applyChip(String chip) {
+    setState(() {
+      _activeChip = chip;
+      _customStart = null;
+      _customEnd = null;
+    });
+    _updateRange();
+  }
+
+  void _updateRange() {
+    final now = DateTime.now();
+    (DateTime, DateTime) range;
+    if (_customStart != null && _customEnd != null) {
+      range = (_customStart!, _customEnd!);
+    } else {
+      switch (_activeChip) {
+        case '1M':
+          range = (DateTime(now.year, now.month - 1, 1), DateTime(now.year, now.month + 1, 0));
+        case '3M':
+          range = (DateTime(now.year, now.month - 3, 1), DateTime(now.year, now.month + 1, 0));
+        case '1Y':
+          range = (DateTime(now.year - 1, now.month, 1), DateTime(now.year, now.month + 1, 0));
+        case 'All':
+          range = (DateTime(2000), DateTime(2100));
+        default: // 6M
+          range = (DateTime(now.year, now.month - 5, 1), DateTime(now.year, now.month + 1, 0));
+      }
+    }
+    ref.read(analysisDateRangeProvider.notifier).state = range;
+  }
+
+  Future<void> _pickStart() async {
+    final current = ref.read(analysisDateRangeProvider);
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: current?.$1 ?? DateTime.now().subtract(const Duration(days: 180)),
+      firstDate: DateTime(2000),
+      lastDate: DateTime(2100),
+      builder: (context, child) => Theme(
+        data: Theme.of(context).copyWith(
+          colorScheme: Theme.of(context).colorScheme.copyWith(
+            primary: AppColors.primary, onPrimary: Colors.white,
+            surface: AppColors.card, onSurface: AppColors.text,
+          ),
+        ),
+        child: child!,
+      ),
+    );
+    if (picked != null) {
+      setState(() {
+        _customStart = picked;
+        _activeChip = '';
+      });
+      if (_customEnd != null && _customStart!.isAfter(_customEnd!)) {
+        _customEnd = _customStart;
+      }
+      _updateRange();
+    }
+  }
+
+  Future<void> _pickEnd() async {
+    final current = ref.read(analysisDateRangeProvider);
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: current?.$2 ?? DateTime.now(),
+      firstDate: DateTime(2000),
+      lastDate: DateTime(2100),
+      builder: (context, child) => Theme(
+        data: Theme.of(context).copyWith(
+          colorScheme: Theme.of(context).colorScheme.copyWith(
+            primary: AppColors.primary, onPrimary: Colors.white,
+            surface: AppColors.card, onSurface: AppColors.text,
+          ),
+        ),
+        child: child!,
+      ),
+    );
+    if (picked != null) {
+      setState(() {
+        _customEnd = picked;
+        _activeChip = '';
+      });
+      if (_customStart != null && _customEnd!.isBefore(_customStart!)) {
+        _customStart = _customEnd;
+      }
+      _updateRange();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final incomesAsync = ref.watch(allIncomesProvider);
     final expensesAsync = ref.watch(allExpensesProvider);
     final categoriesAsync = ref.watch(allCategoriesProvider);
+    final range = ref.watch(analysisDateRangeProvider);
 
     return Scaffold(
       appBar: AppBar(title: const Text('Analysis')),
@@ -31,38 +147,35 @@ class AnalysisView extends ConsumerWidget {
                 error: (err, _) => Center(child: Text('$err')),
                 data: (categories) {
                   final now = DateTime.now();
+                  final start = range?.$1 ?? DateTime(now.year, now.month - 5, 1);
+                  final end = range?.$2 ?? DateTime(now.year, now.month + 1, 0);
 
-                  final currentMonthExpenses = expenses
-                      .where((e) => e.date.month == now.month && e.date.year == now.year)
-                      .fold<double>(0.0, (s, e) => s + e.amount);
+                  final filteredExpenses = expenses.where((e) =>
+                    !e.date.isBefore(start) && !e.date.isAfter(end)
+                  ).toList();
+                  final filteredIncomes = incomes.where((e) =>
+                    !e.date.isBefore(start) && !e.date.isAfter(end)
+                  ).toList();
 
-                  final lastMonthDate = DateTime(now.year, now.month - 1);
-                  final lastMonthExpenses = expenses
-                      .where((e) => e.date.month == lastMonthDate.month && e.date.year == lastMonthDate.year)
-                      .fold<double>(0.0, (s, e) => s + e.amount);
+                  final totalIncome = filteredIncomes.fold(0.0, (s, i) => s + i.amount);
+                  final totalExpense = filteredExpenses.fold(0.0, (s, e) => s + e.amount);
 
-                  final momDiff = currentMonthExpenses - lastMonthExpenses;
-                  final momPct = lastMonthExpenses > 0
-                      ? (momDiff / lastMonthExpenses) * 100
-                      : (currentMonthExpenses > 0 ? 100.0 : 0.0);
+                  // Last period for savings rate comparison (same length before start)
+                  final periodDays = end.difference(start).inDays + 1;
+                  final lastStart = start.subtract(Duration(days: periodDays));
+                  final lastEnd = start.subtract(const Duration(days: 1));
+                  final lastIncomes = incomes.where((e) =>
+                    !e.date.isBefore(lastStart) && !e.date.isAfter(lastEnd)
+                  ).toList();
+                  final lastExpenses = expenses.where((e) =>
+                    !e.date.isBefore(lastStart) && !e.date.isAfter(lastEnd)
+                  ).toList();
+                  final lastIncomeTotal = lastIncomes.fold(0.0, (s, i) => s + i.amount);
+                  final lastExpenseTotal = lastExpenses.fold(0.0, (s, e) => s + e.amount);
 
-                  final monthlyData = <String, _MonthlySum>{};
-                  for (int i = 5; i >= 0; i--) {
-                    final d = DateTime(now.year, now.month - i);
-                    final key = DateFormat('MMM yy').format(d);
-                    monthlyData[key] = _MonthlySum(0, 0);
-                  }
-                  for (final inc in incomes) {
-                    final key = DateFormat('MMM yy').format(inc.date);
-                    monthlyData[key]?.income += inc.amount;
-                  }
-                  for (final exp in expenses) {
-                    final key = DateFormat('MMM yy').format(exp.date);
-                    monthlyData[key]?.expense += exp.amount;
-                  }
-
+                  // Category spend map
                   final categorySpend = <String, double>{};
-                  for (final exp in expenses) {
+                  for (final exp in filteredExpenses) {
                     categorySpend[exp.categoryId] = (categorySpend[exp.categoryId] ?? 0) + exp.amount;
                   }
                   final catMap = {for (var c in categories) c.id: c};
@@ -72,20 +185,78 @@ class AnalysisView extends ConsumerWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        _MoMCard(current: currentMonthExpenses, last: lastMonthExpenses, pct: momPct),
+                        _DateRangeBar(
+                          activeChip: _activeChip,
+                          chips: _chips,
+                          customStart: _customStart,
+                          customEnd: _customEnd,
+                          onChipTap: _applyChip,
+                          onPickStart: _pickStart,
+                          onPickEnd: _pickEnd,
+                        ),
+                        const SizedBox(height: 12),
+                        MoMCard(
+                          currentMonthExpenses: _currentMonthExpenses(filteredExpenses),
+                          lastMonthExpenses: _lastMonthExpenses(filteredExpenses),
+                        ),
                         const SizedBox(height: 16),
-                        _SectionCard(
+                        if (totalIncome > 0 || totalExpense > 0)
+                          SavingsRateCard(
+                            totalIncome: totalIncome,
+                            totalExpense: totalExpense,
+                            lastIncome: lastIncomeTotal,
+                            lastExpense: lastExpenseTotal,
+                          ),
+                        if (totalIncome > 0 || totalExpense > 0) const SizedBox(height: 16),
+                        SectionCard(
+                          title: 'Net Worth Trend',
+                          child: NetWorthLineChart(incomes: filteredIncomes, expenses: filteredExpenses),
+                        ),
+                        const SizedBox(height: 16),
+                        SectionCard(
                           title: 'Income vs Expense',
-                          child: _BarChart(monthlyData: monthlyData),
+                          child: IncomeExpenseBarChart(
+                            incomes: filteredIncomes, expenses: filteredExpenses,
+                            start: start, end: end,
+                          ),
                         ),
                         const SizedBox(height: 16),
                         if (categorySpend.isNotEmpty)
-                          _SectionCard(
+                          SectionCard(
                             title: 'Category Breakdown',
-                            child: _CategoryPie(spend: categorySpend, catMap: catMap),
-                          )
-                        else
-                          _EmptyState(),
+                            child: CategoryPieChart(
+                              spend: categorySpend, catMap: catMap,
+                              expenses: filteredExpenses, start: start, end: end,
+                            ),
+                          ),
+                        if (categorySpend.isNotEmpty) const SizedBox(height: 16),
+                        SectionCard(
+                          title: 'Income Breakdown',
+                          child: IncomeBreakdownPie(incomes: filteredIncomes),
+                        ),
+                        const SizedBox(height: 16),
+                        if (filteredExpenses.isNotEmpty)
+                          SectionCard(
+                            title: 'Spending by Weekday',
+                            child: WeekdaySpendingChart(expenses: filteredExpenses),
+                          ),
+                        if (filteredExpenses.isNotEmpty) const SizedBox(height: 16),
+                        if (categories.any((c) => c.budgetLimit != null))
+                          SectionCard(
+                            title: 'Budget Utilization',
+                            child: BudgetUtilizationChart(spend: categorySpend, categories: categories),
+                          ),
+                        if (categories.any((c) => c.budgetLimit != null)) const SizedBox(height: 16),
+                        SectionCard(
+                          title: 'Expense Source',
+                          child: ExpenseSourcePie(expenses: filteredExpenses),
+                        ),
+                        const SizedBox(height: 16),
+                        if (filteredExpenses.isNotEmpty)
+                          SectionCard(
+                            title: 'Top Spending Days',
+                            child: TopSpendingDaysCard(expenses: filteredExpenses, catMap: catMap),
+                          ),
                       ],
                     ),
                   );
@@ -97,25 +268,42 @@ class AnalysisView extends ConsumerWidget {
       ),
     );
   }
+
+  double _currentMonthExpenses(List<domain.Expense> expenses) {
+    final now = DateTime.now();
+    return expenses
+        .where((e) => e.date.month == now.month && e.date.year == now.year)
+        .fold<double>(0.0, (s, e) => s + e.amount);
+  }
+
+  double _lastMonthExpenses(List<domain.Expense> expenses) {
+    final now = DateTime.now();
+    final last = DateTime(now.year, now.month - 1);
+    return expenses
+        .where((e) => e.date.month == last.month && e.date.year == last.year)
+        .fold<double>(0.0, (s, e) => s + e.amount);
+  }
 }
 
-class _MonthlySum {
-  double income;
-  double expense;
-  _MonthlySum(this.income, this.expense);
-}
+class MoMCard extends StatelessWidget {
+  final double currentMonthExpenses;
+  final double lastMonthExpenses;
 
-class _MoMCard extends StatelessWidget {
-  final double current;
-  final double last;
-  final double pct;
-
-  const _MoMCard({required this.current, required this.last, required this.pct});
+  const MoMCard({
+    super.key,
+    required this.currentMonthExpenses,
+    required this.lastMonthExpenses,
+  });
 
   @override
   Widget build(BuildContext context) {
+    final diff = currentMonthExpenses - lastMonthExpenses;
+    final pct = lastMonthExpenses > 0
+        ? (diff / lastMonthExpenses) * 100
+        : (currentMonthExpenses > 0 ? 100.0 : 0.0);
     final sign = pct >= 0 ? '+' : '';
     final isUp = pct > 0;
+
     return Card(
       margin: EdgeInsets.zero,
       child: Padding(
@@ -151,7 +339,7 @@ class _MoMCard extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        '\$${current.toStringAsFixed(2)}',
+                        '\$${currentMonthExpenses.toStringAsFixed(2)}',
                         style: GoogleFonts.fraunces(fontSize: 24, fontWeight: FontWeight.w500, color: AppColors.text),
                       ),
                       const SizedBox(height: 2),
@@ -163,7 +351,7 @@ class _MoMCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
                     Text(
-                      '\$${last.toStringAsFixed(2)}',
+                      '\$${lastMonthExpenses.toStringAsFixed(2)}',
                       style: GoogleFonts.fraunces(fontSize: 20, fontWeight: FontWeight.w400, color: AppColors.textSecondary),
                     ),
                     const SizedBox(height: 2),
@@ -204,225 +392,115 @@ class _MoMCard extends StatelessWidget {
   }
 }
 
-class _SectionCard extends StatelessWidget {
-  final String title;
-  final Widget child;
+class _DateRangeBar extends StatelessWidget {
+  final String activeChip;
+  final List<String> chips;
+  final DateTime? customStart;
+  final DateTime? customEnd;
+  final ValueChanged<String> onChipTap;
+  final VoidCallback onPickStart;
+  final VoidCallback onPickEnd;
 
-  const _SectionCard({required this.title, required this.child});
+  const _DateRangeBar({
+    required this.activeChip,
+    required this.chips,
+    required this.customStart,
+    required this.customEnd,
+    required this.onChipTap,
+    required this.onPickStart,
+    required this.onPickEnd,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Card(
       margin: EdgeInsets.zero,
       child: Padding(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              title,
-              style: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.w600, color: AppColors.text),
+            Row(
+              children: [
+                ...chips.map((chip) => Padding(
+                  padding: const EdgeInsets.only(right: 6),
+                  child: ChoiceChip(
+                    label: Text(chip, style: const TextStyle(fontSize: 12)),
+                    selected: activeChip == chip,
+                    selectedColor: AppColors.primary,
+                    labelStyle: TextStyle(
+                      color: activeChip == chip ? Colors.white : AppColors.text,
+                      fontSize: 12,
+                    ),
+                    onSelected: (_) => onChipTap(chip),
+                    visualDensity: VisualDensity.compact,
+                    materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
+                )),
+                const Spacer(),
+                if (customStart != null || customEnd != null)
+                  GestureDetector(
+                    onTap: () => onChipTap('6M'),
+                    child: const Padding(
+                      padding: EdgeInsets.only(left: 4),
+                      child: Icon(Icons.clear_rounded, size: 18, color: AppColors.textSecondary),
+                    ),
+                  ),
+              ],
             ),
-            const SizedBox(height: 16),
-            child,
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _BarChart extends StatelessWidget {
-  final Map<String, _MonthlySum> monthlyData;
-
-  const _BarChart({required this.monthlyData});
-
-  @override
-  Widget build(BuildContext context) {
-    final keys = monthlyData.keys.toList();
-    final groups = keys.asMap().entries.map((e) {
-      final val = monthlyData[e.value]!;
-      return BarChartGroupData(
-        x: e.key,
-        barRods: [
-          BarChartRodData(
-            toY: val.income,
-            color: AppColors.primary,
-            width: 7,
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(3)),
-          ),
-          BarChartRodData(
-            toY: val.expense,
-            color: AppColors.secondary,
-            width: 7,
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(3)),
-          ),
-        ],
-      );
-    }).toList();
-
-    return SizedBox(
-      height: 180,
-      child: Column(
-        children: [
-          Expanded(
-            child: BarChart(
-              BarChartData(
-                alignment: BarChartAlignment.spaceAround,
-                maxY: _maxY,
-                barGroups: groups,
-                gridData: const FlGridData(show: false),
-                borderData: FlBorderData(show: false),
-                titlesData: FlTitlesData(
-                  leftTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                  rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                  topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                  bottomTitles: AxisTitles(
-                    sideTitles: SideTitles(
-                      showTitles: true,
-                      reservedSize: 24,
-                      getTitlesWidget: (v, _) {
-                        final i = v.toInt();
-                        if (i >= 0 && i < keys.length) {
-                          return Padding(
-                            padding: const EdgeInsets.only(top: 6),
-                            child: Text(keys[i], style: const TextStyle(fontSize: 10, color: AppColors.textSecondary)),
-                          );
-                        }
-                        return const SizedBox();
-                      },
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Expanded(
+                  child: InkWell(
+                    onTap: onPickStart,
+                    borderRadius: BorderRadius.circular(8),
+                    child: InputDecorator(
+                      decoration: InputDecoration(
+                        isDense: true,
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                        labelText: 'From',
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                      ),
+                      child: Text(
+                        customStart != null ? DateFormat('MMM d, yyyy').format(customStart!) : 'Start',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: customStart != null ? AppColors.text : AppColors.textSecondary,
+                        ),
+                      ),
                     ),
                   ),
                 ),
-              ),
-            ),
-          ),
-          const SizedBox(height: 8),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              _LegendDot(color: AppColors.primary, label: 'Income'),
-              const SizedBox(width: 20),
-              _LegendDot(color: AppColors.secondary, label: 'Expenses'),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  double get _maxY {
-    double m = 100;
-    for (final v in monthlyData.values) {
-      if (v.income > m) m = v.income;
-      if (v.expense > m) m = v.expense;
-    }
-    return m * 1.2;
-  }
-}
-
-class _LegendDot extends StatelessWidget {
-  final Color color;
-  final String label;
-  const _LegendDot({required this.color, required this.label});
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Container(width: 8, height: 8, decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
-        const SizedBox(width: 6),
-        Text(label, style: const TextStyle(fontSize: 11, color: AppColors.textSecondary)),
-      ],
-    );
-  }
-}
-
-class _CategoryPie extends StatelessWidget {
-  final Map<String, double> spend;
-  final Map<String, domain.Category> catMap;
-
-  const _CategoryPie({required this.spend, required this.catMap});
-
-  @override
-  Widget build(BuildContext context) {
-    final total = spend.values.fold(0.0, (a, b) => a + b);
-    final entries = spend.entries.toList()..sort((a, b) => b.value.compareTo(a.value));
-    final colors = [
-      AppColors.primary, AppColors.secondary,
-      AppColors.primary.withValues(alpha: 0.7), AppColors.secondary.withValues(alpha: 0.7),
-      AppColors.primary.withValues(alpha: 0.5), AppColors.secondary.withValues(alpha: 0.5),
-      AppColors.primary.withValues(alpha: 0.35), AppColors.secondary.withValues(alpha: 0.35),
-    ];
-
-    final sections = entries.asMap().entries.map((e) {
-      return PieChartSectionData(
-        value: e.value.value,
-        color: colors[e.key % colors.length],
-        radius: 32,
-        showTitle: false,
-      );
-    }).toList();
-
-    return Row(
-      children: [
-        SizedBox(
-          width: 120,
-          height: 120,
-          child: PieChart(PieChartData(
-            sections: sections,
-            centerSpaceRadius: 28,
-            sectionsSpace: 2,
-          )),
-        ),
-        const SizedBox(width: 20),
-        Expanded(
-          child: Column(
-            children: entries.take(6).map((e) {
-              final name = catMap[e.key]?.name ?? 'Unknown';
-              final pct = total > 0 ? (e.value / total * 100) : 0.0;
-              return Padding(
-                padding: const EdgeInsets.only(bottom: 5),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 8, height: 8,
-                      decoration: BoxDecoration(shape: BoxShape.circle, color: colors[entries.indexOf(e) % colors.length]),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(child: Text(name, style: const TextStyle(fontSize: 12, color: AppColors.textSecondary), overflow: TextOverflow.ellipsis)),
-                    Text('\$${e.value.toStringAsFixed(0)}', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.text)),
-                    const SizedBox(width: 4),
-                    Text('(${pct.toStringAsFixed(0)}%)', style: const TextStyle(fontSize: 11, color: AppColors.textSecondary)),
-                  ],
+                const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 8),
+                  child: Text('–', style: TextStyle(color: AppColors.textSecondary)),
                 ),
-              );
-            }).toList(),
-          ),
+                Expanded(
+                  child: InkWell(
+                    onTap: onPickEnd,
+                    borderRadius: BorderRadius.circular(8),
+                    child: InputDecorator(
+                      decoration: InputDecoration(
+                        isDense: true,
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                        labelText: 'To',
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                      ),
+                      child: Text(
+                        customEnd != null ? DateFormat('MMM d, yyyy').format(customEnd!) : 'End',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: customEnd != null ? AppColors.text : AppColors.textSecondary,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
         ),
-      ],
-    );
-  }
-}
-
-class _EmptyState extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 48),
-      child: Column(
-        children: [
-          Container(
-            width: 64, height: 64,
-            decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(20)),
-            child: const Icon(Icons.analytics_rounded, size: 28, color: AppColors.textSecondary),
-          ),
-          const SizedBox(height: 16),
-          const Text('No expense data', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: AppColors.textSecondary)),
-          const SizedBox(height: 4),
-          Text('Add some expenses to see analysis', style: TextStyle(fontSize: 13, color: AppColors.text.withValues(alpha: 0.5))),
-        ],
       ),
     );
   }

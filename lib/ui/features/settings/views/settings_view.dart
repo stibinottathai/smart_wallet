@@ -23,8 +23,11 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
 
   Future<void> _loadReminderPref() async {
     final prefs = await SharedPreferences.getInstance();
-    final enabled = prefs.getBool('reminders_enabled') ?? false;
+    final enabled = prefs.getBool('reminders_enabled') ?? true;
     ref.read(remindersEnabledProvider.notifier).state = enabled;
+    if (enabled) {
+      await NotificationService().scheduleReminders();
+    }
   }
 
   Future<void> _toggleReminders(bool value) async {

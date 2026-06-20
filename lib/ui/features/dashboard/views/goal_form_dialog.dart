@@ -142,159 +142,177 @@ class _GoalFormDialogState extends ConsumerState<GoalFormDialog> {
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final isEdit = widget.initialGoal != null;
-
-    return Dialog(
-      backgroundColor: AppColors.background,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 400),
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
-          child: Form(
-            key: _formKey,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      isEdit ? 'Edit Goal' : 'New Savings Goal',
-                      style: GoogleFonts.inter(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.text,
-                      ),
-                    ),
-                    if (isEdit)
-                      IconButton(
-                        icon: const Icon(Icons.delete_outline_rounded, color: AppColors.secondary),
-                        onPressed: _delete,
-                      )
-                    else
-                      IconButton(
-                        icon: const Icon(Icons.close_rounded),
-                        onPressed: () => Navigator.of(context).pop(),
-                      ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                TextFormField(
-                  controller: _nameCtrl,
-                  decoration: const InputDecoration(
-                    labelText: 'Goal Name',
-                    hintText: 'e.g. Vacation Fund, Emergency Fund',
-                  ),
-                  validator: (v) => v == null || v.trim().isEmpty ? 'Enter a name' : null,
-                ),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Expanded(
-                      child: TextFormField(
-                        controller: _targetAmountCtrl,
-                        keyboardType: TextInputType.number,
-                        decoration: const InputDecoration(
-                          labelText: 'Target Amount',
-                          hintText: '0',
-                          prefixText: '\$',
-                        ),
-                        validator: (v) {
-                          if (v == null || v.trim().isEmpty) return 'Enter target';
-                          if (double.tryParse(v) == null) return 'Invalid number';
-                          return null;
-                        },
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: TextFormField(
-                        controller: _currentAmountCtrl,
-                        keyboardType: TextInputType.number,
-                        decoration: const InputDecoration(
-                          labelText: 'Saved So Far',
-                          hintText: '0',
-                          prefixText: '\$',
-                        ),
-                        validator: (v) {
-                          if (v == null || v.trim().isEmpty) return 'Enter amount';
-                          if (double.tryParse(v) == null) return 'Invalid number';
-                          return null;
-                        },
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                InkWell(
-                  onTap: _selectDate,
-                  borderRadius: BorderRadius.circular(12),
-                  child: InputDecorator(
-                    decoration: const InputDecoration(
-                      labelText: 'Target Date',
-                      prefixIcon: Icon(Icons.calendar_today_rounded, size: 18, color: AppColors.primary),
-                    ),
-                    child: Text(
-                      DateFormat('EEE, MMM d, yyyy').format(_targetDate),
-                      style: const TextStyle(fontSize: 14),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  'Theme Color',
-                  style: GoogleFonts.inter(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-                const SizedBox(height: 10),
-                Wrap(
-                  spacing: 10,
-                  runSpacing: 10,
-                  children: _colors.map((hex) {
-                    final colorVal = Color(int.parse(hex.replaceAll('#', '0xFF')));
-                    final isSelected = _selectedColor == hex;
-                    return GestureDetector(
-                      onTap: () => setState(() => _selectedColor = hex),
-                      child: Container(
-                        width: 32,
-                        height: 32,
-                        decoration: BoxDecoration(
-                          color: colorVal,
-                          shape: BoxShape.circle,
-                          border: isSelected
-                              ? Border.all(color: AppColors.text, width: 2.5)
-                              : Border.all(color: Colors.transparent),
-                        ),
-                        child: isSelected
-                            ? const Icon(Icons.check_rounded, color: Colors.white, size: 16)
-                            : null,
-                      ),
-                    );
-                  }).toList(),
-                ),
-                const SizedBox(height: 24),
-                ElevatedButton(
-                  onPressed: _save,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                    foregroundColor: Colors.white,
-                    minimumSize: const Size(double.infinity, 50),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  ),
-                  child: Text(isEdit ? 'Save Changes' : 'Create Goal'),
-                ),
-              ],
-            ),
-          ),
+  Widget _dragHandle() {
+    return Center(
+      child: Container(
+        width: 40,
+        height: 4,
+        decoration: BoxDecoration(
+          color: AppColors.textSecondary.withValues(alpha: 0.3),
+          borderRadius: BorderRadius.circular(2),
         ),
       ),
     );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isEdit = widget.initialGoal != null;
+    final bottomInset = MediaQuery.of(context).viewInsets.bottom;
+
+    return Padding(
+      padding: EdgeInsets.only(bottom: bottomInset),
+      child: Container(
+        decoration: const BoxDecoration(
+          color: AppColors.background,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(24, 12, 24, 24),
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    _dragHandle(),
+                    const SizedBox(height: 16),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          isEdit ? 'Edit Goal' : 'New Savings Goal',
+                          style: GoogleFonts.inter(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.text,
+                          ),
+                        ),
+                        if (isEdit)
+                          IconButton(
+                            icon: const Icon(Icons.delete_outline_rounded, color: AppColors.secondary),
+                            onPressed: _delete,
+                          )
+                        else
+                          IconButton(
+                            icon: const Icon(Icons.close_rounded),
+                            onPressed: () => Navigator.of(context).pop(),
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    TextFormField(
+                      controller: _nameCtrl,
+                      decoration: const InputDecoration(
+                        labelText: 'Goal Name',
+                        hintText: 'e.g. Vacation Fund, Emergency Fund',
+                      ),
+                      validator: (v) => v == null || v.trim().isEmpty ? 'Enter a name' : null,
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextFormField(
+                            controller: _targetAmountCtrl,
+                            keyboardType: TextInputType.number,
+                            decoration: const InputDecoration(
+                              labelText: 'Target Amount',
+                              hintText: '0',
+                              prefixText: '\$',
+                            ),
+                            validator: (v) {
+                              if (v == null || v.trim().isEmpty) return 'Enter target';
+                              if (double.tryParse(v) == null) return 'Invalid number';
+                              return null;
+                            },
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: TextFormField(
+                            controller: _currentAmountCtrl,
+                            keyboardType: TextInputType.number,
+                            decoration: const InputDecoration(
+                              labelText: 'Saved So Far',
+                              hintText: '0',
+                              prefixText: '\$',
+                            ),
+                            validator: (v) {
+                              if (v == null || v.trim().isEmpty) return 'Enter amount';
+                              if (double.tryParse(v) == null) return 'Invalid number';
+                              return null;
+                            },
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    InkWell(
+                      onTap: _selectDate,
+                      borderRadius: BorderRadius.circular(12),
+                      child: InputDecorator(
+                        decoration: const InputDecoration(
+                          labelText: 'Target Date',
+                          prefixIcon: Icon(Icons.calendar_today_rounded, size: 18, color: AppColors.primary),
+                        ),
+                        child: Text(
+                          DateFormat('EEE, MMM d, yyyy').format(_targetDate),
+                          style: const TextStyle(fontSize: 14),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      'Theme Color',
+                      style: GoogleFonts.inter(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    Wrap(
+                      spacing: 10,
+                      runSpacing: 10,
+                      children: _colors.map((hex) {
+                        final colorVal = Color(int.parse(hex.replaceAll('#', '0xFF')));
+                        final isSelected = _selectedColor == hex;
+                        return GestureDetector(
+                          onTap: () => setState(() => _selectedColor = hex),
+                          child: Container(
+                            width: 32,
+                            height: 32,
+                            decoration: BoxDecoration(
+                              color: colorVal,
+                              shape: BoxShape.circle,
+                              border: isSelected
+                                  ? Border.all(color: AppColors.text, width: 2.5)
+                                  : Border.all(color: Colors.transparent),
+                            ),
+                            child: isSelected
+                                ? const Icon(Icons.check_rounded, color: Colors.white, size: 16)
+                                : null,
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                    const SizedBox(height: 24),
+                    ElevatedButton(
+                      onPressed: _save,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        foregroundColor: Colors.white,
+                        minimumSize: const Size(double.infinity, 50),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                      child: Text(isEdit ? 'Save Changes' : 'Create Goal'),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
   }
 }

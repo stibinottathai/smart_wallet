@@ -209,9 +209,11 @@ class _ReportViewState extends ConsumerState<ReportView> {
                           Expanded(
                             child: FilledButton.icon(
                               onPressed: () async {
-                                await Share.shareXFiles(
-                                  [XFile(_generatedFile!.path)],
-                                  text: 'SmartWallet Report',
+                                await SharePlus.instance.share(
+                                  ShareParams(
+                                    files: [XFile(_generatedFile!.path)],
+                                    text: 'SmartWallet Report',
+                                  ),
                                 );
                               },
                               icon: const Icon(Icons.share_rounded, size: 18),

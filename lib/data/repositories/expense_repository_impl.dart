@@ -52,6 +52,7 @@ class ExpenseRepositoryImpl implements ExpenseRepository {
       icon: dbCategory.icon,
       color: dbCategory.color,
       isDefault: dbCategory.isDefault,
+      budgetLimit: dbCategory.budgetLimit,
     );
   }
 
@@ -62,6 +63,7 @@ class ExpenseRepositoryImpl implements ExpenseRepository {
       icon: Value(category.icon),
       color: Value(category.color),
       isDefault: Value(category.isDefault),
+      budgetLimit: Value(category.budgetLimit),
     );
   }
 
@@ -97,6 +99,11 @@ class ExpenseRepositoryImpl implements ExpenseRepository {
   @override
   Future<void> addCategory(domain.Category category) async {
     await _db.into(_db.categories).insert(_mapCategoryToCompanion(category));
+  }
+
+  @override
+  Future<void> updateCategory(domain.Category category) async {
+    await _db.update(_db.categories).replace(_mapCategoryToCompanion(category));
   }
 
   @override

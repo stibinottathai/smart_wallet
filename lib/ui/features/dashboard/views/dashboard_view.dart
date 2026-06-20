@@ -1,4 +1,3 @@
-import 'dart:math' as math;
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -10,6 +9,7 @@ import 'package:smart_wallet/ui/features/entries/views/entry_form_view.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'goal_form_dialog.dart';
 import 'bill_form_dialog.dart';
+import 'budget_form_dialog.dart';
 import 'package:uuid/uuid.dart';
 
 class DashboardView extends ConsumerStatefulWidget {
@@ -102,45 +102,155 @@ class _DashboardViewState extends ConsumerState<DashboardView> {
 
   Widget _buildHeader(double balance, double percent, double income, double expense) {
     final isPositive = balance >= 0;
+    final displayPercent = income > 0 ? (expense / income) : (expense > 0 ? 1.0 : 0.0);
+    
+    final String percentText;
+    if (income > 0) {
+      percentText = 'Spent ${(displayPercent * 100).toStringAsFixed(0)}% of income';
+    } else if (expense > 0) {
+      percentText = 'Spent with no income';
+    } else {
+      percentText = 'No spending activity';
+    }
+
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
-      child: Card(
-        margin: EdgeInsets.zero,
+      child: Container(
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              Color(0xFF1E463C),
+              AppColors.primary,
+            ],
+          ),
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.primary.withValues(alpha: 0.15),
+              blurRadius: 16,
+              offset: const Offset(0, 8),
+            ),
+          ],
+        ),
         child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 20),
+          padding: const EdgeInsets.all(22),
           child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Stack(
-                alignment: Alignment.center,
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  CustomPaint(
-                    size: const Size(200, 100),
-                    painter: _ArcPainter(percent: percent),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.only(top: 30),
-                    child: Column(
-                      children: [
-                        Text(
-                          '\$${balance.toStringAsFixed(2)}',
-                          style: GoogleFonts.fraunces(
-                            fontSize: 36,
-                            fontWeight: FontWeight.w400,
-                            color: isPositive ? AppColors.text : AppColors.secondary,
-                            letterSpacing: -1.0,
-                          ),
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(6),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(8),
                         ),
-                        const SizedBox(height: 2),
+                        child: const Icon(
+                          Icons.account_balance_wallet_rounded,
+                          color: Colors.white,
+                          size: 16,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        'NET BALANCE',
+                        style: GoogleFonts.inter(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.white.withValues(alpha: 0.65),
+                          letterSpacing: 1.2,
+                        ),
+                      ),
+                    ],
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: isPositive 
+                          ? Colors.white.withValues(alpha: 0.15)
+                          : AppColors.secondary.withValues(alpha: 0.25),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: isPositive
+                            ? Colors.white.withValues(alpha: 0.1)
+                            : AppColors.secondary.withValues(alpha: 0.3),
+                        width: 1,
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          isPositive ? Icons.trending_up_rounded : Icons.trending_down_rounded,
+                          color: isPositive ? Colors.white : AppColors.secondaryLight,
+                          size: 12,
+                        ),
+                        const SizedBox(width: 4),
                         Text(
-                          'net balance',
+                          isPositive ? 'On Track' : 'Overspent',
                           style: TextStyle(
                             fontSize: 10,
-                            color: AppColors.text.withValues(alpha: 0.45),
                             fontWeight: FontWeight.w600,
-                            letterSpacing: 1.5,
+                            color: isPositive ? Colors.white : AppColors.secondaryLight,
                           ),
                         ),
                       ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 20),
+              Text(
+                '\$${balance.toStringAsFixed(2)}',
+                style: GoogleFonts.inter(
+                  fontSize: 34,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.white,
+                  letterSpacing: -0.5,
+                ),
+              ),
+              const SizedBox(height: 24),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        percentText,
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: Colors.white.withValues(alpha: 0.7),
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      Text(
+                        '\$${expense.toStringAsFixed(0)} / \$${income.toStringAsFixed(0)}',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: Colors.white.withValues(alpha: 0.7),
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(4),
+                    child: LinearProgressIndicator(
+                      value: percent.clamp(0.0, 1.0),
+                      minHeight: 6,
+                      backgroundColor: Colors.white.withValues(alpha: 0.15),
+                      valueColor: AlwaysStoppedAnimation<Color>(
+                        percent > 0.8 
+                            ? AppColors.secondary 
+                            : const Color(0xFFD4E8E2),
+                      ),
                     ),
                   ),
                 ],
@@ -298,7 +408,7 @@ class _DashboardViewState extends ConsumerState<DashboardView> {
           _buildSummaryRow(totalIncome, totalExpense),
           _buildFinancialTipCard(totalIncome, totalExpense, categorySpendMap, categoryMap),
           _buildWeeklyTrendSection(expenses),
-          _buildBudgetLimitsSection(categorySpendMap, categoryMap),
+          _buildBudgetLimitsSection(categorySpendMap, categories),
           _buildSavingsGoalsSection(savingsGoals),
           _buildUpcomingBillsSection(bills, categoryMap),
           if (totalExpense > 0)
@@ -328,8 +438,10 @@ class _DashboardViewState extends ConsumerState<DashboardView> {
               IconButton(
                 icon: const Icon(Icons.add_circle_outline_rounded, size: 20, color: AppColors.primary),
                 onPressed: () {
-                  showDialog(
+                  showModalBottomSheet(
                     context: context,
+                    isScrollControlled: true,
+                    backgroundColor: Colors.transparent,
                     builder: (context) => const GoalFormDialog(),
                   );
                 },
@@ -389,8 +501,10 @@ class _DashboardViewState extends ConsumerState<DashboardView> {
 
                   return GestureDetector(
                     onTap: () {
-                      showDialog(
+                      showModalBottomSheet(
                         context: context,
+                        isScrollControlled: true,
+                        backgroundColor: Colors.transparent,
                         builder: (context) => GoalFormDialog(initialGoal: goal),
                       );
                     },
@@ -502,8 +616,10 @@ class _DashboardViewState extends ConsumerState<DashboardView> {
               IconButton(
                 icon: const Icon(Icons.add_circle_outline_rounded, size: 20, color: AppColors.primary),
                 onPressed: () {
-                  showDialog(
+                  showModalBottomSheet(
                     context: context,
+                    isScrollControlled: true,
+                    backgroundColor: Colors.transparent,
                     builder: (context) => const BillFormDialog(),
                   );
                 },
@@ -566,8 +682,10 @@ class _DashboardViewState extends ConsumerState<DashboardView> {
                   child: InkWell(
                     borderRadius: BorderRadius.circular(14),
                     onTap: () {
-                      showDialog(
+                      showModalBottomSheet(
                         context: context,
+                        isScrollControlled: true,
+                        backgroundColor: Colors.transparent,
                         builder: (context) => BillFormDialog(initialBill: bill),
                       );
                     },
@@ -731,37 +849,112 @@ class _DashboardViewState extends ConsumerState<DashboardView> {
     }
   }
 
+  void _showManageBudgetsDialog(BuildContext context, List<domain.Category> categories) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => BudgetFormDialog(categories: categories),
+    );
+  }
+
   Widget _buildBudgetLimitsSection(
     Map<String, double> categorySpendMap,
-    Map<String, domain.Category> categoryMap,
+    List<domain.Category> categories,
   ) {
-    const budgetLimits = {
-      'cat_dining': 200.0,
-      'cat_groceries': 150.0,
-      'cat_transport': 80.0,
-      'cat_housing': 1000.0,
-      'cat_entertainment': 100.0,
-      'cat_utilities': 200.0,
-      'cat_uncategorized': 100.0,
-    };
-
     final items = <_BudgetItem>[];
-    categorySpendMap.forEach((catId, spend) {
-      final limit = budgetLimits[catId] ?? 100.0;
-      final category = categoryMap[catId];
-      if (category != null) {
+    for (final category in categories) {
+      if (category.id == 'cat_income') continue;
+      final limit = category.budgetLimit;
+      if (limit != null && limit > 0) {
+        final spend = categorySpendMap[category.id] ?? 0.0;
         items.add(_BudgetItem(
           category: category,
           spend: spend,
           limit: limit,
         ));
       }
-    });
+    }
 
     items.sort((a, b) => b.percent.compareTo(a.percent));
 
     if (items.isEmpty) {
-      return const SizedBox.shrink();
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+        child: Card(
+          margin: EdgeInsets.zero,
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Monthly Budget Limits',
+                      style: GoogleFonts.inter(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.text,
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.edit_rounded, size: 20, color: AppColors.primary),
+                      onPressed: () => _showManageBudgetsDialog(context, categories),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: AppColors.primary.withValues(alpha: 0.12),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.pie_chart_outline_rounded, color: AppColors.primary, size: 20),
+                    ),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Track your spending caps',
+                            style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13, color: AppColors.text),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            'Set monthly budget limits for categories like Dining, Groceries, and Rent to avoid overspending.',
+                            style: TextStyle(fontSize: 11, color: AppColors.textSecondary, height: 1.3),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 14),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton(
+                    onPressed: () => _showManageBudgetsDialog(context, categories),
+                    style: OutlinedButton.styleFrom(
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      side: BorderSide(color: AppColors.primary.withValues(alpha: 0.4)),
+                      foregroundColor: AppColors.primary,
+                    ),
+                    child: const Text('Set Monthly Budgets', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
     }
 
     return Padding(
@@ -773,24 +966,38 @@ class _DashboardViewState extends ConsumerState<DashboardView> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                'Monthly Budget Limits',
-                style: GoogleFonts.inter(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.text,
-                ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                'Spending progress against category caps',
-                style: TextStyle(
-                  fontSize: 11,
-                  color: AppColors.textSecondary,
-                ),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Monthly Budget Limits',
+                        style: GoogleFonts.inter(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.text,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        'Spending progress against category caps',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                    ],
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.edit_rounded, size: 20, color: AppColors.primary),
+                    onPressed: () => _showManageBudgetsDialog(context, categories),
+                  ),
+                ],
               ),
               const SizedBox(height: 20),
-              ...items.take(3).map((item) {
+              ...items.map((item) {
                 final catColor = Color(int.parse(item.category.color.replaceAll('#', '0xFF')));
                 final percentLabel = '${(item.percent * 100).toStringAsFixed(0)}%';
                 final isOverBudget = item.spend > item.limit;
@@ -803,13 +1010,23 @@ class _DashboardViewState extends ConsumerState<DashboardView> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Text(
-                            item.category.name,
-                            style: GoogleFonts.inter(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
-                              color: AppColors.text,
-                            ),
+                          Row(
+                            children: [
+                              Icon(
+                                getCategoryIcon(item.category.icon),
+                                size: 14,
+                                color: catColor,
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                item.category.name,
+                                style: GoogleFonts.inter(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColors.text,
+                                ),
+                              ),
+                            ],
                           ),
                           Text(
                             '\$${item.spend.toStringAsFixed(0)} / \$${item.limit.toStringAsFixed(0)} ($percentLabel)',
@@ -1330,36 +1547,7 @@ class IncomeTile extends StatelessWidget {
   }
 }
 
-class _ArcPainter extends CustomPainter {
-  final double percent;
 
-  _ArcPainter({required this.percent});
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final bgPaint = Paint()
-      ..color = AppColors.divider.withValues(alpha: 0.5)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 2.5
-      ..strokeCap = StrokeCap.round;
-
-    final fgPaint = Paint()
-      ..color = percent > 0.6 ? AppColors.secondary : AppColors.primary
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 3.5
-      ..strokeCap = StrokeCap.round;
-
-    final rect = Rect.fromLTWH(10, 0, size.width - 20, size.height * 2 - 20);
-
-    canvas.drawArc(rect, math.pi, math.pi, false, bgPaint);
-    if (percent > 0) {
-      canvas.drawArc(rect, math.pi, math.pi * percent, false, fgPaint);
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant _ArcPainter oldDelegate) => oldDelegate.percent != percent;
-}
 
 class _BudgetItem {
   final domain.Category category;

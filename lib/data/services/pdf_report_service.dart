@@ -96,9 +96,11 @@ class PdfReportService {
     required DateTime end,
   }) async {
     final file = await generateReport(start: start, end: end);
-    await Share.shareXFiles(
-      [XFile(file.path)],
-      text: 'SmartWallet Report (${DateFormat('MMM d').format(start)} - ${DateFormat('MMM d').format(end)})',
+    await SharePlus.instance.share(
+      ShareParams(
+        files: [XFile(file.path)],
+        text: 'SmartWallet Report (${DateFormat('MMM d').format(start)} - ${DateFormat('MMM d').format(end)})',
+      ),
     );
   }
 

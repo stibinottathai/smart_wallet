@@ -9,6 +9,7 @@ class Categories extends Table {
   TextColumn get icon => text()();
   TextColumn get color => text()(); // Hex color string
   BoolColumn get isDefault => boolean().withDefault(const Constant(false))();
+  RealColumn get budgetLimit => real().nullable()();
 
   @override
   Set<Column> get primaryKey => {id};
@@ -74,7 +75,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(driftDatabase(name: 'smart_wallet'));
 
   @override
-  int get schemaVersion => 2;
+  int get schemaVersion => 3;
 
   @override
   MigrationStrategy get migration {
@@ -86,6 +87,16 @@ class AppDatabase extends _$AppDatabase {
         if (from < 2) {
           await m.createTable(savingsGoals);
           await m.createTable(bills);
+        }
+        if (from < 3) {
+          // Check if column already exists (handles partial migrations)
+          final cols = await customSelect(
+            "PRAGMA table_info('categories')",
+          ).get();
+          final hasColumn = cols.any((row) => row.read<String>('name') == 'budget_limit');
+          if (!hasColumn) {
+            await m.addColumn(categories, categories.budgetLimit);
+          }
         }
       },
       beforeOpen: (details) async {

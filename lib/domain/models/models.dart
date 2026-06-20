@@ -44,6 +44,7 @@ class Category {
   final String icon; // Icon name / identifier (e.g. 'food', 'transport')
   final String color; // Hex string (e.g. '#2F6F5E')
   final bool isDefault;
+  final double? budgetLimit;
 
   const Category({
     required this.id,
@@ -51,6 +52,7 @@ class Category {
     required this.icon,
     required this.color,
     this.isDefault = false,
+    this.budgetLimit,
   });
 
   Category copyWith({
@@ -59,6 +61,8 @@ class Category {
     String? icon,
     String? color,
     bool? isDefault,
+    double? budgetLimit,
+    bool clearBudgetLimit = false,
   }) {
     return Category(
       id: id ?? this.id,
@@ -66,6 +70,7 @@ class Category {
       icon: icon ?? this.icon,
       color: color ?? this.color,
       isDefault: isDefault ?? this.isDefault,
+      budgetLimit: clearBudgetLimit ? null : (budgetLimit ?? this.budgetLimit),
     );
   }
 }

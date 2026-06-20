@@ -7,6 +7,7 @@ abstract class ExpenseRepository {
   Future<void> deleteExpense(String id);
   Stream<List<Category>> watchAllCategories();
   Future<void> addCategory(Category category);
+  Future<void> updateCategory(Category category);
   Future<Category?> getCategoryById(String id);
   Future<List<Expense>> getExpensesBetween(DateTime start, DateTime end);
 }
