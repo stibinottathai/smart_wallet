@@ -9,5 +9,7 @@ abstract class ExpenseRepository {
   Future<void> addCategory(Category category);
   Future<void> updateCategory(Category category);
   Future<Category?> getCategoryById(String id);
+  Future<List<Expense>> getAllExpenses();
   Future<List<Expense>> getExpensesBetween(DateTime start, DateTime end);
+  Future<List<Category>> getAllCategories();
 }

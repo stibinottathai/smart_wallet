@@ -21,7 +21,23 @@ class DashboardView extends ConsumerStatefulWidget {
   ConsumerState<DashboardView> createState() => _DashboardViewState();
 }
 
-class _DashboardViewState extends ConsumerState<DashboardView> {
+class _DashboardViewState extends ConsumerState<DashboardView> with SingleTickerProviderStateMixin {
+  late final AnimationController _aiAnimationController;
+
+  @override
+  void initState() {
+    super.initState();
+    _aiAnimationController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 4),
+    )..repeat();
+  }
+
+  @override
+  void dispose() {
+    _aiAnimationController.dispose();
+    super.dispose();
+  }
   @override
   Widget build(BuildContext context) {
     final incomesAsync = ref.watch(allIncomesProvider);
@@ -1378,103 +1394,139 @@ class _DashboardViewState extends ConsumerState<DashboardView> {
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
       child: GestureDetector(
         onTap: () {
-          ref.read(activeTabIndexProvider.notifier).state = isConfigured ? 3 : 4;
+          ref.read(activeTabIndexProvider.notifier).state = isConfigured ? 2 : 4;
         },
         child: Container(
           decoration: BoxDecoration(
             gradient: const LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
-              colors: [Color(0xFF1A4A3E), AppColors.primary],
+              colors: [Color(0xFF132A35), Color(0xFF1B4D46)],
             ),
-            borderRadius: BorderRadius.circular(20),
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.1), width: 1.5),
             boxShadow: [
               BoxShadow(
-                color: AppColors.primary.withValues(alpha: 0.2),
-                blurRadius: 16,
-                offset: const Offset(0, 6),
+                color: const Color(0xFF1B4D46).withValues(alpha: 0.4),
+                blurRadius: 20,
+                offset: const Offset(0, 10),
               ),
             ],
           ),
-          child: Padding(
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
+          child: Stack(
+            children: [
+              Positioned(
+                right: -20,
+                top: -20,
+                child: Icon(
+                  Icons.auto_awesome_rounded,
+                  size: 120,
+                  color: Colors.white.withValues(alpha: 0.05),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                child: Row(
                   children: [
-                    Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.15),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: const Icon(Icons.auto_awesome_rounded, color: Colors.white, size: 20),
-                    ),
-                    const SizedBox(width: 10),
-                    Text(
-                      'AI Assistant',
-                      style: GoogleFonts.inter(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
-                        color: Colors.white,
-                      ),
-                    ),
-                    const Spacer(),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: isConfigured ? AppColors.secondary : Colors.white.withValues(alpha: 0.2),
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            isConfigured ? 'Try Now' : 'Setup',
-                            style: GoogleFonts.inter(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
+                            'AI Financial Assistant',
+                            style: GoogleFonts.outfit(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w800,
                               color: Colors.white,
+                              letterSpacing: 0.5,
                             ),
                           ),
-                          const SizedBox(width: 4),
-                          Icon(
-                            isConfigured ? Icons.arrow_forward_rounded : Icons.settings_rounded,
-                            size: 14, color: Colors.white,
+                          const SizedBox(height: 4),
+                          Text(
+                            isConfigured ? 'Tap the orb to start chatting' : 'Setup required to unlock AI',
+                            style: GoogleFonts.inter(
+                              fontSize: 12,
+                              color: Colors.white.withValues(alpha: 0.7),
+                            ),
                           ),
                         ],
                       ),
                     ),
-                  ],
-                ),
-                const SizedBox(height: 14),
-                _buildAiFeature(Icons.analytics_rounded, 'Analyze your spending patterns'),
-                const SizedBox(height: 8),
-                _buildAiFeature(Icons.lightbulb_rounded, 'Get personalized saving ideas'),
-                const SizedBox(height: 8),
-                _buildAiFeature(Icons.compare_arrows_rounded, 'Compare months and track trends'),
-              ],
-            ),
+                    // Siri-style Orb
+                        Stack(
+                          alignment: Alignment.center,
+                          children: [
+                            Container(
+                              width: 52,
+                              height: 52,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: isConfigured 
+                                        ? const Color(0xFF00A3FF).withValues(alpha: 0.4) 
+                                        : Colors.white.withValues(alpha: 0.1),
+                                    blurRadius: 16,
+                                    spreadRadius: 2,
+                                  ),
+                                ],
+                              ),
+                            ),
+                            RotationTransition(
+                              turns: _aiAnimationController,
+                              child: Container(
+                                width: 46,
+                                height: 46,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  gradient: isConfigured 
+                                      ? const SweepGradient(
+                                          colors: [
+                                            Color(0xFF00FFC2),
+                                            Color(0xFF00A3FF),
+                                            Color(0xFFB026FF),
+                                            Color(0xFFFF26A8),
+                                            Color(0xFF00FFC2),
+                                          ],
+                                        )
+                                      : SweepGradient(
+                                          colors: [
+                                            Colors.grey.shade600,
+                                            Colors.grey.shade400,
+                                            Colors.grey.shade600,
+                                          ],
+                                        ),
+                                ),
+                              ),
+                            ),
+                            Container(
+                              width: 42,
+                              height: 42,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                gradient: RadialGradient(
+                                  colors: [
+                                    Colors.black.withValues(alpha: 0.1),
+                                    Colors.black.withValues(alpha: 0.6),
+                                  ],
+                                  radius: 0.8,
+                                ),
+                              ),
+                            ),
+                            Icon(
+                              isConfigured ? Icons.auto_awesome_rounded : Icons.settings_rounded,
+                              color: Colors.white,
+                              size: 20,
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+              ),
+            ],
           ),
         ),
       ),
-    );
-  }
-
-  Widget _buildAiFeature(IconData icon, String text) {
-    return Row(
-      children: [
-        Icon(icon, size: 16, color: Colors.white.withValues(alpha: 0.7)),
-        const SizedBox(width: 8),
-        Text(
-          text,
-          style: GoogleFonts.inter(
-            fontSize: 13,
-            color: Colors.white.withValues(alpha: 0.85),
-          ),
-        ),
-      ],
     );
   }
 }

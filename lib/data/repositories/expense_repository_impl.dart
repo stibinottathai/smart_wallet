@@ -15,6 +15,18 @@ class ExpenseRepositoryImpl implements ExpenseRepository {
     return rows.map(_mapExpenseToDomain).toList();
   }
 
+  @override
+  Future<List<domain.Expense>> getAllExpenses() async {
+    final rows = await _db.select(_db.expenses).get();
+    return rows.map(_mapExpenseToDomain).toList();
+  }
+
+  @override
+  Future<List<domain.Category>> getAllCategories() async {
+    final rows = await _db.select(_db.categories).get();
+    return rows.map(_mapCategoryToDomain).toList();
+  }
+
   domain.Expense _mapExpenseToDomain(Expense dbExpense) {
     return domain.Expense(
       id: dbExpense.id,

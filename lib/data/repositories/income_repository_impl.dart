@@ -15,6 +15,12 @@ class IncomeRepositoryImpl implements IncomeRepository {
     return rows.map(_mapToDomain).toList();
   }
 
+  @override
+  Future<List<domain.Income>> getAllIncomes() async {
+    final rows = await _db.select(_db.incomes).get();
+    return rows.map(_mapToDomain).toList();
+  }
+
   domain.Income _mapToDomain(Income dbIncome) {
     return domain.Income(
       id: dbIncome.id,

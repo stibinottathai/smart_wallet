@@ -563,6 +563,72 @@ class _GoogleSheetsSyncBottomSheetState
     });
   }
 
+  Future<void> _testConnection() async {
+    final url = _urlController.text.trim();
+    if (url.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter a Web App URL first.')),
+      );
+      return;
+    }
+
+    if (!url.contains('/exec')) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('URL must end with "/exec". Check deployment settings.')),
+      );
+      return;
+    }
+
+    setState(() => _isSyncing = true);
+
+    try {
+      final service = ref.read(googleSheetsSyncServiceProvider);
+      final result = await service.syncDatabase(
+        expenses: [],
+        incomes: [],
+        categories: [],
+        webAppUrl: url,
+      );
+
+      if (!mounted) return;
+      setState(() => _isSyncing = false);
+
+      if (result.success) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('✓ Connected! Sheet: ${result.spreadsheetName ?? 'Unknown'}'),
+            backgroundColor: AppColors.primary,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      } else {
+        showDialog(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            icon: const Icon(Icons.error_outline_rounded, color: AppColors.secondary, size: 40),
+            title: const Text('Connection Test Failed'),
+            content: Text(
+              result.errorMessage ?? 'Unknown error',
+              textAlign: TextAlign.center,
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Close'),
+              ),
+            ],
+          ),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isSyncing = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Test failed: $e'), backgroundColor: AppColors.secondary),
+      );
+    }
+  }
+
   Future<void> _triggerSync() async {
     final url = _urlController.text.trim();
     if (url.isEmpty) {
@@ -584,10 +650,11 @@ class _GoogleSheetsSyncBottomSheetState
     List<domain.Category> categories = [];
 
     try {
-      incomes = await ref.read(incomeRepositoryProvider).watchAllIncomes().first;
-      expenses = await ref.read(expenseRepositoryProvider).watchAllExpenses().first;
-      categories = await ref.read(expenseRepositoryProvider).watchAllCategories().first;
+      incomes = await ref.read(incomeRepositoryProvider).getAllIncomes();
+      expenses = await ref.read(expenseRepositoryProvider).getAllExpenses();
+      categories = await ref.read(expenseRepositoryProvider).getAllCategories();
     } catch (_) {
+      // Fallback just in case
       incomes = ref.read(allIncomesProvider).value ?? [];
       expenses = ref.read(allExpensesProvider).value ?? [];
       categories = ref.read(allCategoriesProvider).value ?? [];
@@ -833,7 +900,21 @@ class _GoogleSheetsSyncBottomSheetState
               style: const TextStyle(fontSize: 13),
               keyboardType: TextInputType.url,
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 12),
+            SizedBox(
+              height: 44,
+              child: OutlinedButton.icon(
+                onPressed: _isSyncing ? null : _testConnection,
+                icon: const Icon(Icons.wifi_tethering_rounded, size: 18),
+                label: const Text('Test Connection'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppColors.primary,
+                  side: BorderSide(color: AppColors.primary.withValues(alpha: 0.5)),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
             SizedBox(
               height: 48,
               child: FilledButton.icon(

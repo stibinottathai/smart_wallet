@@ -1,7 +1,17 @@
 import 'dart:convert';
+import 'dart:math';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../domain/models/models.dart' as domain;
+
+/// Debug flag - set to true to enable verbose logging
+const bool _debugSync = true;
+
+void _log(String message) {
+  if (_debugSync) {
+    print('[GoogleSheetsSync] $message');
+  }
+}
 
 class GoogleSheetsSyncResult {
   final bool success;
@@ -32,6 +42,76 @@ class GoogleSheetsSyncService {
     await prefs.setString(_webAppUrlKey, url.trim());
   }
 
+  /// Validates the Web App URL format
+  static String? validateWebAppUrl(String url) {
+    final trimmed = url.trim();
+    if (trimmed.isEmpty) return 'URL cannot be empty';
+    if (!trimmed.startsWith('https://script.google.com/macros/s/') && !trimmed.startsWith('https://script.googleusercontent.com/macros/')) {
+      return 'Invalid URL format. Must be a Google Apps Script Web App URL.';
+    }
+    if (!trimmed.contains('/exec')) {
+      return 'URL must end with /exec (not /dev). Deploy a new version in Apps Script to get the production URL.';
+    }
+    return null;
+  }
+
+  /// Test connection to the Web App URL without syncing data
+  /// Sends a 'test: true' flag so Apps Script can return sheet info without clearing data
+  Future<GoogleSheetsSyncResult> testConnection({required String webAppUrl}) async {
+    _log('Testing connection to: $webAppUrl');
+    
+    final validationError = validateWebAppUrl(webAppUrl);
+    if (validationError != null) {
+      return GoogleSheetsSyncResult(success: false, errorMessage: validationError);
+    }
+
+    try {
+      final response = await _postWithRedirects(
+        webAppUrl,
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'test': true}),
+      );
+
+      _log('Test connection response: ${response.statusCode}');
+      _log('Response body: ${response.body.substring(0, min(200, response.body.length))}');
+
+      if (response.statusCode != 200) {
+        return GoogleSheetsSyncResult(
+          success: false,
+          errorMessage: 'Server responded with code ${response.statusCode}. Check Web App deployment.',
+        );
+      }
+
+      final contentType = response.headers['content-type'] ?? '';
+      if (contentType.contains('text/html') || response.body.trim().startsWith('<')) {
+        return GoogleSheetsSyncResult(
+          success: false,
+          errorMessage: 'Received HTML instead of JSON. Ensure Web App is deployed with "Anyone" access and you deployed a NEW VERSION.',
+        );
+      }
+
+      final Map<String, dynamic> body = jsonDecode(response.body);
+      if (body['success'] == true) {
+        return GoogleSheetsSyncResult(
+          success: true,
+          spreadsheetName: body['spreadsheetName'] as String?,
+          spreadsheetUrl: body['spreadsheetUrl'] as String?,
+        );
+      } else {
+        return GoogleSheetsSyncResult(
+          success: false,
+          errorMessage: body['error'] ?? 'Apps Script returned error.',
+        );
+      }
+    } catch (e) {
+      _log('Test connection failed: $e');
+      return GoogleSheetsSyncResult(
+        success: false,
+        errorMessage: 'Connection failed: ${e.toString()}',
+      );
+    }
+  }
+
   /// Backs up the entire database to the configured Google Sheet Web App URL
   Future<GoogleSheetsSyncResult> syncDatabase({
     required List<domain.Expense> expenses,
@@ -39,14 +119,19 @@ class GoogleSheetsSyncService {
     required List<domain.Category> categories,
     required String webAppUrl,
   }) async {
-    if (webAppUrl.trim().isEmpty) {
+    _log('Starting syncDatabase');
+    _log('Incomes: ${incomes.length}, Expenses: ${expenses.length}, Categories: ${categories.length}');
+    
+    final validationError = validateWebAppUrl(webAppUrl);
+    if (validationError != null) {
       return GoogleSheetsSyncResult(
         success: false,
-        errorMessage: 'Google Sheets Web App URL is not configured.',
+        errorMessage: validationError,
       );
     }
 
     final categoryMap = {for (var c in categories) c.id: c.name};
+    _log('Category map built: ${categoryMap.length} entries');
 
     // Format incomes payload
     final incomesPayload = incomes.map((inc) {
@@ -72,6 +157,8 @@ class GoogleSheetsSyncService {
       };
     }).toList();
 
+    _log('Payload prepared. Sending POST request...');
+
     try {
       final response = await _postWithRedirects(
         webAppUrl,
@@ -84,10 +171,14 @@ class GoogleSheetsSyncService {
         }),
       );
 
+      _log('Response status: ${response.statusCode}');
+      _log('Response headers: ${response.headers}');
+      _log('Response body (first 500 chars): ${response.body.substring(0, min(500, response.body.length))}');
+
       if (response.statusCode != 200) {
         return GoogleSheetsSyncResult(
           success: false,
-          errorMessage: 'Server responded with code ${response.statusCode}.',
+          errorMessage: 'Server responded with code ${response.statusCode}. Check Web App URL and deployment.',
         );
       }
 
@@ -95,11 +186,19 @@ class GoogleSheetsSyncService {
       if (contentType.contains('text/html') || response.body.trim().startsWith('<')) {
         return GoogleSheetsSyncResult(
           success: false,
-          errorMessage: 'Received HTML instead of JSON. This usually means your Web App deployment settings are restricting access. Please ensure that in Google Apps Script under "Deploy > Manage Deployments", "Who has access" is set to "Anyone" and you have deployed a new version of the Web App.',
+          errorMessage: 'Received HTML instead of JSON.\n\n'
+              'FIX: In Google Apps Script:\n'
+              '1. Open your sheet → Extensions → Apps Script\n'
+              '2. Click Deploy → Manage deployments\n'
+              '3. Click the pencil icon → New version → Deploy\n'
+              '4. Set "Execute as: Me" and "Who has access: Anyone"\n'
+              '5. Copy the NEW Web App URL (ends with /exec)',
         );
       }
 
       final Map<String, dynamic> body = jsonDecode(response.body);
+      _log('Parsed response: $body');
+      
       if (body['success'] == true) {
         return GoogleSheetsSyncResult(
           success: true,
@@ -113,9 +212,10 @@ class GoogleSheetsSyncService {
         );
       }
     } catch (e) {
+      _log('Sync exception: $e');
       return GoogleSheetsSyncResult(
         success: false,
-        errorMessage: 'Connection failed: ${e.toString()}',
+        errorMessage: 'Connection failed: ${e.toString()}. Check internet and URL.',
       );
     }
   }

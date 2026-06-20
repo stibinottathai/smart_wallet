@@ -16,12 +16,28 @@ class MainNavigationWrapper extends ConsumerStatefulWidget {
   ConsumerState<MainNavigationWrapper> createState() => _MainNavigationWrapperState();
 }
 
-class _MainNavigationWrapperState extends ConsumerState<MainNavigationWrapper> {
+class _MainNavigationWrapperState extends ConsumerState<MainNavigationWrapper> with SingleTickerProviderStateMixin {
+  late final AnimationController _orbController;
+
+  @override
+  void initState() {
+    super.initState();
+    _orbController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 4),
+    )..repeat();
+  }
+
+  @override
+  void dispose() {
+    _orbController.dispose();
+    super.dispose();
+  }
   final List<Widget> _screens = const [
     DashboardView(),
     AllTransactionsView(initialShowExpenses: true),
-    AnalysisView(),
     InsightsView(),
+    AnalysisView(),
     SettingsView(),
   ];
 
@@ -70,14 +86,15 @@ class _MainNavigationWrapperState extends ConsumerState<MainNavigationWrapper> {
                       onTap: () => _onNavTap(1),
                     ),
                     _NavItem(
-                      icon: Icons.bar_chart_rounded,
-                      label: 'Analysis',
-                      isSelected: currentIndex == 2,
-                      onTap: () => _onNavTap(2),
-                    ),
-                    _NavItem(
                       icon: Icons.auto_awesome_rounded,
                       label: 'AI Chat',
+                      isSelected: currentIndex == 2,
+                      onTap: () => _onNavTap(2),
+                      customIcon: _buildMiniOrb(),
+                    ),
+                    _NavItem(
+                      icon: Icons.bar_chart_rounded,
+                      label: 'Analysis',
                       isSelected: currentIndex == 3,
                       onTap: () => _onNavTap(3),
                     ),
@@ -96,6 +113,61 @@ class _MainNavigationWrapperState extends ConsumerState<MainNavigationWrapper> {
       ),
     );
   }
+
+  Widget _buildMiniOrb() {
+    final isConfigured = ref.watch(openRouterApiKeyProvider).isNotEmpty;
+    return Stack(
+      alignment: Alignment.center,
+      children: [
+        RotationTransition(
+          turns: _orbController,
+          child: Container(
+            width: 24,
+            height: 24,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: isConfigured 
+                  ? const SweepGradient(
+                      colors: [
+                        Color(0xFF00FFC2),
+                        Color(0xFF00A3FF),
+                        Color(0xFFB026FF),
+                        Color(0xFFFF26A8),
+                        Color(0xFF00FFC2),
+                      ],
+                    )
+                  : SweepGradient(
+                      colors: [
+                        Colors.grey.shade600,
+                        Colors.grey.shade400,
+                        Colors.grey.shade600,
+                      ],
+                    ),
+            ),
+          ),
+        ),
+        Container(
+          width: 20,
+          height: 20,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            gradient: RadialGradient(
+              colors: [
+                Colors.black.withValues(alpha: 0.1),
+                Colors.black.withValues(alpha: 0.7),
+              ],
+              radius: 0.8,
+            ),
+          ),
+        ),
+        Icon(
+          isConfigured ? Icons.auto_awesome_rounded : Icons.settings_rounded,
+          color: Colors.white,
+          size: 12,
+        ),
+      ],
+    );
+  }
 }
 
 class _NavItem extends StatelessWidget {
@@ -103,12 +175,14 @@ class _NavItem extends StatelessWidget {
   final String label;
   final bool isSelected;
   final VoidCallback onTap;
+  final Widget? customIcon;
 
   const _NavItem({
     required this.icon,
     required this.label,
     required this.isSelected,
     required this.onTap,
+    this.customIcon,
   });
 
   @override
@@ -127,7 +201,7 @@ class _NavItem extends StatelessWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
+            customIcon ?? Icon(
               icon,
               size: 20,
               color: isSelected ? AppColors.primary : AppColors.text.withValues(alpha: 0.35),
