@@ -6,6 +6,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../../../domain/models/models.dart' as domain;
 import '../../../core/theme.dart';
 import '../../../core/dialogs.dart';
+import '../../../core/currency_utils.dart';
 import '../../../providers.dart';
 
 class BillFormDialog extends ConsumerStatefulWidget {
@@ -145,6 +146,7 @@ class _BillFormDialogState extends ConsumerState<BillFormDialog> {
     final categoriesAsync = ref.watch(allCategoriesProvider);
     final isEdit = widget.initialBill != null;
     final bottomInset = MediaQuery.of(context).viewInsets.bottom;
+    final currencySym = currencySymbol(ref.watch(currencyCodeProvider));
 
     return Padding(
       padding: EdgeInsets.only(bottom: bottomInset),
@@ -199,10 +201,10 @@ class _BillFormDialogState extends ConsumerState<BillFormDialog> {
                     TextFormField(
                       controller: _amountCtrl,
                       keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                      decoration: const InputDecoration(
+                      decoration: InputDecoration(
                         labelText: 'Amount',
                         hintText: '0.00',
-                        prefixText: '\$',
+                        prefixText: currencySym,
                       ),
                       validator: (v) {
                         if (v == null || v.trim().isEmpty) return 'Enter amount';

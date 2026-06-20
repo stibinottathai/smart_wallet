@@ -1,17 +1,20 @@
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../domain/models/models.dart' as domain;
 import 'package:smart_wallet/ui/core/theme.dart';
+import 'package:smart_wallet/ui/core/currency_utils.dart';
 
 const _weekdayLabels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
-class WeekdaySpendingChart extends StatelessWidget {
+class WeekdaySpendingChart extends ConsumerWidget {
   final List<domain.Expense> expenses;
 
   const WeekdaySpendingChart({super.key, required this.expenses});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final code = ref.watch(currencyCodeProvider);
     final dayTotals = <int, double>{};
     final dayCounts = <int, int>{};
     for (int i = 1; i <= 7; i++) {
@@ -82,7 +85,7 @@ class WeekdaySpendingChart extends StatelessWidget {
             touchTooltipData: BarTouchTooltipData(
               getTooltipItem: (group, groupIndex, rod, rodIndex) {
                 return BarTooltipItem(
-                  '\$${rod.toY.toStringAsFixed(2)}',
+                  '${currencySymbol(code)}${rod.toY.toStringAsFixed(2)}',
                   const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600),
                 );
               },

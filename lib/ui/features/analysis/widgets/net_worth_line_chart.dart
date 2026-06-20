@@ -1,10 +1,12 @@
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../../../../domain/models/models.dart' as domain;
 import 'package:smart_wallet/ui/core/theme.dart';
+import 'package:smart_wallet/ui/core/currency_utils.dart';
 
-class NetWorthLineChart extends StatelessWidget {
+class NetWorthLineChart extends ConsumerWidget {
   final List<domain.Income> incomes;
   final List<domain.Expense> expenses;
 
@@ -15,7 +17,8 @@ class NetWorthLineChart extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final code = ref.watch(currencyCodeProvider);
     final monthlyMap = <String, double>{};
 
     final now = DateTime.now();
@@ -89,7 +92,7 @@ class NetWorthLineChart extends StatelessWidget {
             touchTooltipData: LineTouchTooltipData(
               getTooltipItems: (touchedSpots) => touchedSpots.map((spot) {
                 return LineTooltipItem(
-                  '\$${spot.y.toStringAsFixed(2)}',
+                  '${currencySymbol(code)}${spot.y.toStringAsFixed(2)}',
                   const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600),
                 );
               }).toList(),

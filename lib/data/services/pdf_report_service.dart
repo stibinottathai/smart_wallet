@@ -5,6 +5,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:share_plus/share_plus.dart';
+import 'package:smart_wallet/ui/core/currency_utils.dart';
 import '../../domain/models/models.dart' as domain;
 import '../repositories/expense_repository_impl.dart';
 import '../repositories/income_repository_impl.dart';
@@ -12,8 +13,9 @@ import 'database.dart';
 
 class PdfReportService {
   final AppDatabase _db;
+  final String currencyCode;
 
-  PdfReportService(this._db);
+  PdfReportService(this._db, {this.currencyCode = 'AED'});
 
   Future<File> generateReport({
     required DateTime start,
@@ -160,11 +162,11 @@ class PdfReportService {
       child: pw.Row(
         mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
         children: [
-          _summaryItem('Total Income', '\$${income.toStringAsFixed(2)}', PdfColors.green700, '$incCount entries'),
-          _summaryItem('Total Expenses', '\$${expense.toStringAsFixed(2)}', PdfColors.red700, '$expCount entries'),
+          _summaryItem('Total Income', '${currencySymbol(currencyCode)}${income.toStringAsFixed(2)}', PdfColors.green700, '$incCount entries'),
+          _summaryItem('Total Expenses', '${currencySymbol(currencyCode)}${expense.toStringAsFixed(2)}', PdfColors.red700, '$expCount entries'),
           _summaryItem(
             'Net Balance',
-            '\$${net.toStringAsFixed(2)}',
+            '${currencySymbol(currencyCode)}${net.toStringAsFixed(2)}',
             net >= 0 ? PdfColors.green700 : PdfColors.red700,
             net >= 0 ? 'Surplus' : 'Deficit',
           ),
@@ -206,7 +208,7 @@ class PdfReportService {
       i.source,
       DateFormat('MMM d, yyyy').format(i.date),
       i.isRecurring ? i.frequency.displayName : '-',
-      '\$${i.amount.toStringAsFixed(2)}',
+      '${currencySymbol(currencyCode)}${i.amount.toStringAsFixed(2)}',
     ]).toList();
 
     return pw.TableHelper.fromTextArray(
@@ -232,7 +234,7 @@ class PdfReportService {
         cat?.name ?? 'Uncategorized',
         DateFormat('MMM d, yyyy').format(e.date),
         e.note ?? '-',
-        '\$${e.amount.toStringAsFixed(2)}',
+        '${currencySymbol(currencyCode)}${e.amount.toStringAsFixed(2)}',
       ];
     }).toList();
 
@@ -268,7 +270,7 @@ class PdfReportService {
       final pct = total > 0 ? (e.value / total * 100) : 0.0;
       return [
         cat?.name ?? 'Uncategorized',
-        '\$${e.value.toStringAsFixed(2)}',
+        '${currencySymbol(currencyCode)}${e.value.toStringAsFixed(2)}',
         '${pct.toStringAsFixed(1)}%',
       ];
     }).toList();

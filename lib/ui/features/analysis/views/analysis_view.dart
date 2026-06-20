@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:smart_wallet/domain/models/models.dart' as domain;
 import 'package:smart_wallet/ui/core/theme.dart';
+import 'package:smart_wallet/ui/core/currency_utils.dart';
 import 'package:smart_wallet/ui/providers.dart';
 import '../widgets/section_card.dart';
 import '../widgets/income_expense_bar_chart.dart';
@@ -285,7 +286,7 @@ class _AnalysisViewState extends ConsumerState<AnalysisView> {
   }
 }
 
-class MoMCard extends StatelessWidget {
+class MoMCard extends ConsumerWidget {
   final double currentMonthExpenses;
   final double lastMonthExpenses;
 
@@ -296,7 +297,8 @@ class MoMCard extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final code = ref.watch(currencyCodeProvider);
     final diff = currentMonthExpenses - lastMonthExpenses;
     final pct = lastMonthExpenses > 0
         ? (diff / lastMonthExpenses) * 100
@@ -339,7 +341,7 @@ class MoMCard extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        '\$${currentMonthExpenses.toStringAsFixed(2)}',
+                        '${currencySymbol(code)}${currentMonthExpenses.toStringAsFixed(2)}',
                         style: GoogleFonts.fraunces(fontSize: 24, fontWeight: FontWeight.w500, color: AppColors.text),
                       ),
                       const SizedBox(height: 2),
@@ -351,7 +353,7 @@ class MoMCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
                     Text(
-                      '\$${lastMonthExpenses.toStringAsFixed(2)}',
+                      '${currencySymbol(code)}${lastMonthExpenses.toStringAsFixed(2)}',
                       style: GoogleFonts.fraunces(fontSize: 20, fontWeight: FontWeight.w400, color: AppColors.textSecondary),
                     ),
                     const SizedBox(height: 2),

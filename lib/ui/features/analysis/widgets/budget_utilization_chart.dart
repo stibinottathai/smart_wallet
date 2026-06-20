@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../domain/models/models.dart' as domain;
 import 'package:smart_wallet/ui/core/theme.dart';
+import 'package:smart_wallet/ui/core/currency_utils.dart';
 
-class BudgetUtilizationChart extends StatelessWidget {
+class BudgetUtilizationChart extends ConsumerWidget {
   final Map<String, double> spend;
   final List<domain.Category> categories;
 
@@ -14,7 +16,8 @@ class BudgetUtilizationChart extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final code = ref.watch(currencyCodeProvider);
     final withBudget = categories.where((c) => c.budgetLimit != null && c.budgetLimit! > 0).toList();
 
     if (withBudget.isEmpty) {
@@ -66,7 +69,7 @@ class BudgetUtilizationChart extends StatelessWidget {
               SizedBox(
                 width: 72,
                 child: Text(
-                  '\$${actual.toStringAsFixed(0)} / \$${budget.toStringAsFixed(0)}',
+                  '${currencySymbol(code)}${actual.toStringAsFixed(0)} / ${currencySymbol(code)}${budget.toStringAsFixed(0)}',
                   style: TextStyle(
                     fontSize: 10,
                     color: isOver ? AppColors.error : AppColors.textSecondary,

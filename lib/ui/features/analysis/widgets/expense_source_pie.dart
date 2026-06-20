@@ -1,16 +1,19 @@
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../domain/models/models.dart' as domain;
 import 'package:smart_wallet/ui/core/theme.dart';
+import 'package:smart_wallet/ui/core/currency_utils.dart';
 
 
-class ExpenseSourcePie extends StatelessWidget {
+class ExpenseSourcePie extends ConsumerWidget {
   final List<domain.Expense> expenses;
 
   const ExpenseSourcePie({super.key, required this.expenses});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final code = ref.watch(currencyCodeProvider);
     double manualTotal = 0;
     double aiTotal = 0;
     int manualCount = 0;
@@ -64,9 +67,9 @@ class ExpenseSourcePie extends StatelessWidget {
         Expanded(
           child: Column(
             children: [
-              _sourceRow('Manual', manualTotal, total, manualCount, AppColors.primary),
+              _sourceRow('Manual', manualTotal, total, manualCount, AppColors.primary, code),
               const SizedBox(height: 6),
-              _sourceRow('AI Scan', aiTotal, total, aiCount, AppColors.secondary.withValues(alpha: 0.6)),
+      _sourceRow('AI Scan', aiTotal, total, aiCount, AppColors.secondary.withValues(alpha: 0.6), code),
             ],
           ),
         ),
@@ -74,14 +77,14 @@ class ExpenseSourcePie extends StatelessWidget {
     );
   }
 
-  Widget _sourceRow(String label, double amount, double total, int count, Color color) {
+  Widget _sourceRow(String label, double amount, double total, int count, Color color, String code) {
     final pct = total > 0 ? (amount / total * 100) : 0.0;
     return Row(
       children: [
         Container(width: 8, height: 8, decoration: BoxDecoration(shape: BoxShape.circle, color: color)),
         const SizedBox(width: 6),
         Expanded(child: Text(label, style: const TextStyle(fontSize: 12, color: AppColors.textSecondary))),
-        Text('\$${amount.toStringAsFixed(0)}', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.text)),
+        Text('${currencySymbol(code)}${amount.toStringAsFixed(0)}', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.text)),
         const SizedBox(width: 4),
         Text('(${pct.toStringAsFixed(0)}%)', style: const TextStyle(fontSize: 11, color: AppColors.textSecondary)),
       ],

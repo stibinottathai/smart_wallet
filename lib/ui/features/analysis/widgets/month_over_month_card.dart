@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../../domain/models/models.dart' as domain;
 import 'package:smart_wallet/ui/core/theme.dart';
+import 'package:smart_wallet/ui/core/currency_utils.dart';
 
-class MonthOverMonthCard extends StatelessWidget {
+class MonthOverMonthCard extends ConsumerWidget {
   final List<domain.Expense> expenses;
   final DateTime start;
   final DateTime end;
@@ -16,7 +18,8 @@ class MonthOverMonthCard extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final code = ref.watch(currencyCodeProvider);
     final now = end.isBefore(DateTime.now()) ? end : DateTime.now();
 
     final currentMonthExpenses = expenses
@@ -71,7 +74,7 @@ class MonthOverMonthCard extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        '\$${currentMonthExpenses.toStringAsFixed(2)}',
+                        '${currencySymbol(code)}${currentMonthExpenses.toStringAsFixed(2)}',
                         style: GoogleFonts.fraunces(fontSize: 24, fontWeight: FontWeight.w500, color: AppColors.text),
                       ),
                       const SizedBox(height: 2),
@@ -83,7 +86,7 @@ class MonthOverMonthCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
                     Text(
-                      '\$${lastMonthExpenses.toStringAsFixed(2)}',
+                      '${currencySymbol(code)}${lastMonthExpenses.toStringAsFixed(2)}',
                       style: GoogleFonts.fraunces(fontSize: 20, fontWeight: FontWeight.w400, color: AppColors.textSecondary),
                     ),
                     const SizedBox(height: 2),

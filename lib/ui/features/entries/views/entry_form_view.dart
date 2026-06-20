@@ -1,13 +1,13 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:uuid/uuid.dart';
 import 'package:smart_wallet/domain/models/models.dart' as domain;
 import 'package:smart_wallet/ui/core/theme.dart';
 import 'package:smart_wallet/ui/core/dialogs.dart';
 import 'package:smart_wallet/ui/providers.dart';
+import 'package:smart_wallet/ui/core/currency_utils.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 class EntryFormView extends ConsumerStatefulWidget {
@@ -40,8 +40,6 @@ class _EntryFormViewState extends ConsumerState<EntryFormView> {
   String? _receiptImagePath;
   domain.ExpenseSource _expenseSource = domain.ExpenseSource.manual;
   double? _aiConfidence;
-
-  bool _isScanning = false;
 
   @override
   void initState() {
@@ -95,123 +93,6 @@ class _EntryFormViewState extends ConsumerState<EntryFormView> {
     );
     if (picked != null && picked != _selectedDate) {
       setState(() => _selectedDate = picked);
-    }
-  }
-
-  Future<void> _scanReceipt() async {
-    final apiKey = ref.read(openRouterApiKeyProvider);
-    if (apiKey.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Configure an OpenRouter API key to scan receipts.')),
-      );
-      return;
-    }
-
-    final source = await showModalBottomSheet<ImageSource>(
-      context: context,
-      backgroundColor: AppColors.card,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (context) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 8),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 36,
-                height: 4,
-                margin: const EdgeInsets.only(bottom: 12),
-                decoration: BoxDecoration(
-                  color: AppColors.divider,
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-              ListTile(
-                leading: Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: AppColors.primaryLight,
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: const Icon(Icons.photo_library_rounded, color: AppColors.primary, size: 22),
-                ),
-                title: const Text('Photo Gallery', style: TextStyle(fontWeight: FontWeight.w600)),
-                subtitle: const Text('Choose an existing receipt photo'),
-                onTap: () => Navigator.of(context).pop(ImageSource.gallery),
-              ),
-              ListTile(
-                leading: Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: AppColors.secondaryLight,
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: const Icon(Icons.camera_alt_rounded, color: AppColors.secondary, size: 22),
-                ),
-                title: const Text('Camera', style: TextStyle(fontWeight: FontWeight.w600)),
-                subtitle: const Text('Take a photo of your receipt'),
-                onTap: () => Navigator.of(context).pop(ImageSource.camera),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-
-    if (source == null) return;
-
-    try {
-      final picker = ImagePicker();
-      final pickedFile = await picker.pickImage(source: source);
-      if (pickedFile == null) return;
-
-      setState(() => _isScanning = true);
-
-      final scanService = ref.read(receiptScanServiceProvider);
-      final result = await scanService.scanReceipt(
-        imagePath: pickedFile.path,
-        apiKey: apiKey,
-      );
-
-      if (result != null) {
-        final categoriesAsync = ref.read(allCategoriesProvider);
-        final categories = categoriesAsync.value ?? [];
-        final matchedId = scanService.matchCategory(result.categoryGuess, categories);
-
-        if (!mounted) return;
-
-        setState(() {
-          _amountController.text = result.total.toString();
-          _selectedDate = result.date;
-          _selectedCategoryId = matchedId;
-          _noteController.text = '${result.merchant}${result.lineItems.isNotEmpty ? '\nItems:\n${result.lineItems.join('\n')}' : ''}';
-          _receiptImagePath = pickedFile.path;
-          _expenseSource = domain.ExpenseSource.aiScan;
-          _aiConfidence = 0.90;
-        });
-
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Receipt scanned! Review and tap Add.')),
-          );
-        }
-      } else {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Could not parse receipt. Enter details manually.')),
-          );
-        }
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Scan error: $e')),
-        );
-      }
-    } finally {
-      if (mounted) setState(() => _isScanning = false);
     }
   }
 
@@ -309,17 +190,10 @@ class _EntryFormViewState extends ConsumerState<EntryFormView> {
   Widget build(BuildContext context) {
     final categoriesAsync = ref.watch(allCategoriesProvider);
     final isEdit = widget.initialIncome != null || widget.initialExpense != null;
-
     return Scaffold(
       appBar: AppBar(
         title: Text(isEdit ? 'Edit ${_isExpense ? "Expense" : "Income"}' : 'New Transaction'),
         actions: [
-          if (_isExpense && !isEdit)
-            IconButton(
-              icon: const Icon(Icons.document_scanner_outlined),
-              onPressed: _isScanning ? null : _scanReceipt,
-              tooltip: 'Scan Receipt',
-            ),
           if (isEdit)
             IconButton(
               icon: const Icon(Icons.delete_outline, color: AppColors.secondary),
@@ -371,7 +245,6 @@ class _EntryFormViewState extends ConsumerState<EntryFormView> {
               ),
             ),
           ),
-          if (_isScanning) _buildScanOverlay(),
         ],
       ),
     );
@@ -439,6 +312,7 @@ class _EntryFormViewState extends ConsumerState<EntryFormView> {
   }
 
   Widget _buildAmountField() {
+    final currencySym = currencySymbol(ref.read(currencyCodeProvider));
     return TextFormField(
       controller: _amountController,
       keyboardType: const TextInputType.numberWithOptions(decimal: true),
@@ -448,7 +322,7 @@ class _EntryFormViewState extends ConsumerState<EntryFormView> {
         hintText: '0.00',
         prefixIcon: Padding(
           padding: const EdgeInsets.only(bottom: 2),
-          child: Text('\$', style: GoogleFonts.fraunces(fontSize: 22, fontWeight: FontWeight.w500, color: AppColors.primary)),
+          child: Text(currencySym, style: GoogleFonts.fraunces(fontSize: 22, fontWeight: FontWeight.w500, color: AppColors.primary)),
         ),
         prefixIconConstraints: const BoxConstraints(minWidth: 36),
       ),
@@ -642,38 +516,6 @@ class _EntryFormViewState extends ConsumerState<EntryFormView> {
           textStyle: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.w600),
         ),
         child: Text(isEdit ? 'Save Changes' : 'Add ${_isExpense ? "Expense" : "Income"}'),
-      ),
-    );
-  }
-
-  Widget _buildScanOverlay() {
-    return Container(
-      color: Colors.black38,
-      child: Center(
-        child: Card(
-          margin: const EdgeInsets.symmetric(horizontal: 48),
-          child: Padding(
-            padding: const EdgeInsets.all(32),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const SizedBox(
-                  width: 40,
-                  height: 40,
-                  child: CircularProgressIndicator(strokeWidth: 3, color: AppColors.primary),
-                ),
-                const SizedBox(height: 20),
-                const Text('Scanning Receipt', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 15, color: AppColors.text)),
-                const SizedBox(height: 6),
-                Text(
-                  'AI is reading the transaction details from your image.',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 12, color: AppColors.text.withValues(alpha: 0.6)),
-                ),
-              ],
-            ),
-          ),
-        ),
       ),
     );
   }

@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import 'package:smart_wallet/domain/models/models.dart' as domain;
 import 'package:smart_wallet/ui/core/theme.dart';
 import 'package:smart_wallet/ui/providers.dart';
+import 'package:smart_wallet/ui/core/currency_utils.dart';
 import 'package:smart_wallet/ui/features/entries/views/entry_form_view.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'goal_form_dialog.dart';
@@ -25,6 +26,7 @@ class _DashboardViewState extends ConsumerState<DashboardView> {
     final incomesAsync = ref.watch(allIncomesProvider);
     final expensesAsync = ref.watch(allExpensesProvider);
     final categoriesAsync = ref.watch(allCategoriesProvider);
+    final code = ref.watch(currencyCodeProvider);
 
     return incomesAsync.when(
       loading: () => const Scaffold(body: Center(child: CircularProgressIndicator())),
@@ -69,6 +71,7 @@ class _DashboardViewState extends ConsumerState<DashboardView> {
                           savingsGoals,
                           bills,
                           categories,
+                          code,
                         );
                         if (constraints.maxWidth > 720) {
                           return Center(
@@ -100,7 +103,7 @@ class _DashboardViewState extends ConsumerState<DashboardView> {
     );
   }
 
-  Widget _buildHeader(double balance, double percent, double income, double expense) {
+  Widget _buildHeader(double balance, double percent, double income, double expense, String symbol) {
     final isPositive = balance >= 0;
     final displayPercent = income > 0 ? (expense / income) : (expense > 0 ? 1.0 : 0.0);
     
@@ -206,7 +209,7 @@ class _DashboardViewState extends ConsumerState<DashboardView> {
               ),
               const SizedBox(height: 20),
               Text(
-                '\$${balance.toStringAsFixed(2)}',
+                '$symbol${balance.toStringAsFixed(2)}',
                 style: GoogleFonts.inter(
                   fontSize: 34,
                   fontWeight: FontWeight.w700,
@@ -230,7 +233,7 @@ class _DashboardViewState extends ConsumerState<DashboardView> {
                         ),
                       ),
                       Text(
-                        '\$${expense.toStringAsFixed(0)} / \$${income.toStringAsFixed(0)}',
+                        '$symbol${expense.toStringAsFixed(0)} / $symbol${income.toStringAsFixed(0)}',
                         style: TextStyle(
                           fontSize: 11,
                           color: Colors.white.withValues(alpha: 0.7),
@@ -262,7 +265,7 @@ class _DashboardViewState extends ConsumerState<DashboardView> {
     );
   }
 
-  Widget _buildSummaryRow(double income, double expense) {
+  Widget _buildSummaryRow(double income, double expense, String symbol) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
       child: Row(
@@ -273,6 +276,7 @@ class _DashboardViewState extends ConsumerState<DashboardView> {
               amount: income,
               color: AppColors.primary,
               prefix: '+',
+              symbol: symbol,
             ),
           ),
           const SizedBox(width: 12),
@@ -282,6 +286,7 @@ class _DashboardViewState extends ConsumerState<DashboardView> {
               amount: expense,
               color: AppColors.secondary,
               prefix: '-',
+              symbol: symbol,
             ),
           ),
         ],
@@ -398,20 +403,23 @@ class _DashboardViewState extends ConsumerState<DashboardView> {
     List<domain.SavingsGoal> savingsGoals,
     List<domain.Bill> bills,
     List<domain.Category> categories,
+    String code,
   ) {
+    final symbol = currencySymbol(code);
+
     return SingleChildScrollView(
       padding: const EdgeInsets.only(bottom: 24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          _buildHeader(netBalance, spentPercent, totalIncome, totalExpense),
+          _buildHeader(netBalance, spentPercent, totalIncome, totalExpense, symbol),
           const SizedBox(height: 8),
-          _buildSummaryRow(totalIncome, totalExpense),
-          _buildFinancialTipCard(totalIncome, totalExpense, categorySpendMap, categoryMap),
-          _buildWeeklyTrendSection(expenses),
-          _buildBudgetLimitsSection(categorySpendMap, categories),
-          _buildSavingsGoalsSection(savingsGoals),
-          _buildUpcomingBillsSection(bills, categoryMap),
+          _buildSummaryRow(totalIncome, totalExpense, symbol),
+          _buildFinancialTipCard(totalIncome, totalExpense, categorySpendMap, categoryMap, symbol),
+          _buildWeeklyTrendSection(expenses, symbol),
+          _buildBudgetLimitsSection(categorySpendMap, categories, symbol),
+          _buildSavingsGoalsSection(savingsGoals, symbol),
+          _buildUpcomingBillsSection(bills, categoryMap, symbol),
           if (totalExpense > 0)
             _buildDonutSection(categorySpendMap, categoryMap),
         ],
@@ -419,7 +427,7 @@ class _DashboardViewState extends ConsumerState<DashboardView> {
     );
   }
 
-  Widget _buildSavingsGoalsSection(List<domain.SavingsGoal> goals) {
+  Widget _buildSavingsGoalsSection(List<domain.SavingsGoal> goals, String symbol) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
       child: Column(
@@ -556,7 +564,7 @@ class _DashboardViewState extends ConsumerState<DashboardView> {
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
                               Text(
-                                '\$${goal.currentAmount.toStringAsFixed(0)}',
+                                '$symbol${goal.currentAmount.toStringAsFixed(0)}',
                                 style: GoogleFonts.inter(
                                   fontWeight: FontWeight.w700,
                                   fontSize: 13,
@@ -564,7 +572,7 @@ class _DashboardViewState extends ConsumerState<DashboardView> {
                                 ),
                               ),
                               Text(
-                                'of \$${goal.targetAmount.toStringAsFixed(0)}',
+                                'of $symbol${goal.targetAmount.toStringAsFixed(0)}',
                                 style: const TextStyle(
                                   fontSize: 11,
                                   color: AppColors.textSecondary,
@@ -594,7 +602,7 @@ class _DashboardViewState extends ConsumerState<DashboardView> {
     );
   }
 
-  Widget _buildUpcomingBillsSection(List<domain.Bill> bills, Map<String, domain.Category> categoryMap) {
+  Widget _buildUpcomingBillsSection(List<domain.Bill> bills, Map<String, domain.Category> categoryMap, String symbol) {
     final upcoming = bills.where((b) => !b.isPaid).toList()
       ..sort((a, b) => a.dueDate.compareTo(b.dueDate));
 
@@ -732,7 +740,7 @@ class _DashboardViewState extends ConsumerState<DashboardView> {
                             crossAxisAlignment: CrossAxisAlignment.end,
                             children: [
                               Text(
-                                '\$${bill.amount.toStringAsFixed(2)}',
+                                '$symbol${bill.amount.toStringAsFixed(2)}',
                                 style: const TextStyle(
                                   fontWeight: FontWeight.w700,
                                   fontSize: 14,
@@ -843,7 +851,7 @@ class _DashboardViewState extends ConsumerState<DashboardView> {
       final categoryName = categoryMap[categoryId]?.name ?? 'Uncategorized';
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Paid! Logged \$${bill.amount.toStringAsFixed(2)} expense for ${bill.name} under $categoryName.'),
+          content: Text('Paid! Logged ${currencySymbol(ref.read(currencyCodeProvider))}${bill.amount.toStringAsFixed(2)} expense for ${bill.name} under $categoryName.'),
           duration: const Duration(seconds: 4),
         ),
       );
@@ -862,6 +870,7 @@ class _DashboardViewState extends ConsumerState<DashboardView> {
   Widget _buildBudgetLimitsSection(
     Map<String, double> categorySpendMap,
     List<domain.Category> categories,
+    String symbol,
   ) {
     final items = <_BudgetItem>[];
     for (final category in categories) {
@@ -1030,7 +1039,7 @@ class _DashboardViewState extends ConsumerState<DashboardView> {
                             ],
                           ),
                           Text(
-                            '\$${item.spend.toStringAsFixed(0)} / \$${item.limit.toStringAsFixed(0)} ($percentLabel)',
+                            '$symbol${item.spend.toStringAsFixed(0)} / $symbol${item.limit.toStringAsFixed(0)} ($percentLabel)',
                             style: GoogleFonts.inter(
                               fontSize: 12,
                               fontWeight: FontWeight.w600,
@@ -1062,7 +1071,7 @@ class _DashboardViewState extends ConsumerState<DashboardView> {
     );
   }
 
-  Widget _buildWeeklyTrendSection(List<domain.Expense> expenses) {
+  Widget _buildWeeklyTrendSection(List<domain.Expense> expenses, String symbol) {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
     
@@ -1125,7 +1134,7 @@ class _DashboardViewState extends ConsumerState<DashboardView> {
                         tooltipPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                         getTooltipItem: (group, groupIndex, rod, rodIndex) {
                           return BarTooltipItem(
-                            '\$${rod.toY.toStringAsFixed(2)}',
+                            '$symbol${rod.toY.toStringAsFixed(2)}',
                             GoogleFonts.inter(
                               color: Colors.white,
                               fontSize: 11,
@@ -1201,6 +1210,7 @@ class _DashboardViewState extends ConsumerState<DashboardView> {
     double totalExpense,
     Map<String, double> categorySpendMap,
     Map<String, domain.Category> categoryMap,
+    String symbol,
   ) {
     String tipTitle = 'Financial Insight';
     String tipBody = 'Start tracking your daily expenses to see smart suggestions here!';
@@ -1213,7 +1223,7 @@ class _DashboardViewState extends ConsumerState<DashboardView> {
       tipIcon = Icons.stars_rounded;
     } else if (totalExpense > totalIncome && totalIncome > 0) {
       tipTitle = 'Budget Alert';
-      tipBody = 'Your spending has exceeded your income this month by \$${(totalExpense - totalIncome).toStringAsFixed(2)}. Try pausing non-essential purchases.';
+      tipBody = 'Your spending has exceeded your income this month by $symbol${(totalExpense - totalIncome).toStringAsFixed(2)}. Try pausing non-essential purchases.';
       tipIcon = Icons.warning_amber_rounded;
       tipColor = AppColors.secondary;
     } else if (totalExpense > 0) {
@@ -1237,7 +1247,7 @@ class _DashboardViewState extends ConsumerState<DashboardView> {
         tipColor = AppColors.primary;
       } else if (topCategory != null && maxSpend > (totalExpense * 0.4)) {
         tipTitle = 'High Category Spend';
-        tipBody = 'You spent \$${maxSpend.toStringAsFixed(2)} on $topCategoryName, which is ${(maxSpend / totalExpense * 100).toStringAsFixed(0)}% of your total spending. Consider setting a monthly limit!';
+        tipBody = 'You spent $symbol${maxSpend.toStringAsFixed(2)} on $topCategoryName, which is ${(maxSpend / totalExpense * 100).toStringAsFixed(0)}% of your total spending. Consider setting a monthly limit!';
         tipIcon = Icons.pie_chart_outline_rounded;
         tipColor = AppColors.secondary;
       } else {
@@ -1315,12 +1325,14 @@ class _SummaryCard extends StatelessWidget {
   final double amount;
   final Color color;
   final String prefix;
+  final String symbol;
 
   const _SummaryCard({
     required this.label,
     required this.amount,
     required this.color,
     required this.prefix,
+    required this.symbol,
   });
 
   @override
@@ -1342,7 +1354,7 @@ class _SummaryCard extends StatelessWidget {
             ),
             const SizedBox(height: 6),
             Text(
-              '$prefix\$${amount.toStringAsFixed(2)}',
+              '$prefix$symbol${amount.toStringAsFixed(2)}',
               style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.w700,
@@ -1357,7 +1369,7 @@ class _SummaryCard extends StatelessWidget {
   }
 }
 
-class ExpenseTile extends StatelessWidget {
+class ExpenseTile extends ConsumerWidget {
   final domain.Expense expense;
   final domain.Category? category;
   final VoidCallback onTap;
@@ -1370,10 +1382,11 @@ class ExpenseTile extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final catColorStr = category?.color ?? '#9E9E9E';
     final catColor = Color(int.parse(catColorStr.replaceAll('#', '0xFF')));
     final iconData = getCategoryIcon(category?.icon);
+    final symbol = currencySymbol(ref.watch(currencyCodeProvider));
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
@@ -1409,7 +1422,7 @@ class ExpenseTile extends StatelessWidget {
                             ),
                           ),
                           Text(
-                            '-\$${expense.amount.toStringAsFixed(2)}',
+                            '-$symbol${expense.amount.toStringAsFixed(2)}',
                             style: const TextStyle(
                               fontWeight: FontWeight.w700,
                               fontSize: 14,
@@ -1475,7 +1488,7 @@ IconData getCategoryIcon(String? iconName) {
   }
 }
 
-class IncomeTile extends StatelessWidget {
+class IncomeTile extends ConsumerWidget {
   final domain.Income income;
   final VoidCallback onTap;
 
@@ -1486,7 +1499,8 @@ class IncomeTile extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final symbol = currencySymbol(ref.watch(currencyCodeProvider));
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
       child: Card(
@@ -1522,7 +1536,7 @@ class IncomeTile extends StatelessWidget {
                             ),
                           ),
                           Text(
-                            '+\$${income.amount.toStringAsFixed(2)}',
+                            '+$symbol${income.amount.toStringAsFixed(2)}',
                             style: const TextStyle(
                               fontWeight: FontWeight.w700,
                               fontSize: 14,

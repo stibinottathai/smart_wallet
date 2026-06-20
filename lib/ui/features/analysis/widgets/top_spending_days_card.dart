@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../../domain/models/models.dart' as domain;
 import 'package:smart_wallet/ui/core/theme.dart';
+import 'package:smart_wallet/ui/core/currency_utils.dart';
 
-class TopSpendingDaysCard extends StatelessWidget {
+class TopSpendingDaysCard extends ConsumerWidget {
   final List<domain.Expense> expenses;
   final Map<String, domain.Category> catMap;
 
@@ -15,7 +17,8 @@ class TopSpendingDaysCard extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final code = ref.watch(currencyCodeProvider);
     final dayMap = <DateTime, List<domain.Expense>>{};
     for (final exp in expenses) {
       final day = DateTime(exp.date.year, exp.date.month, exp.date.day);
@@ -83,7 +86,7 @@ class TopSpendingDaysCard extends StatelessWidget {
                             borderRadius: BorderRadius.circular(4),
                           ),
                           child: Text(
-                            '${cat?.name ?? '?'} \$${c.value.toStringAsFixed(0)}',
+                            '${cat?.name ?? '?'} ${currencySymbol(code)}${c.value.toStringAsFixed(0)}',
                             style: TextStyle(
                               fontSize: 9,
                               color: cat != null ? Color(int.parse(cat.color.replaceAll('#', '0xFF'))) : AppColors.textSecondary,
@@ -96,7 +99,7 @@ class TopSpendingDaysCard extends StatelessWidget {
                 ),
               ),
               Text(
-                '\$${item.total.toStringAsFixed(2)}',
+                '${currencySymbol(code)}${item.total.toStringAsFixed(2)}',
                 style: GoogleFonts.fraunces(fontSize: 16, fontWeight: FontWeight.w500, color: AppColors.text),
               ),
             ],

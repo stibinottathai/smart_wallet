@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../../domain/models/models.dart' as domain;
 import '../../../core/theme.dart';
+import '../../../core/currency_utils.dart';
 import '../../../providers.dart';
 import 'dashboard_view.dart' show getCategoryIcon;
 
@@ -100,6 +101,7 @@ class _BudgetFormDialogState extends ConsumerState<BudgetFormDialog> {
   @override
   Widget build(BuildContext context) {
     final bottomInset = MediaQuery.of(context).viewInsets.bottom;
+    final currencySym = currencySymbol(ref.watch(currencyCodeProvider));
     final expenseCategories = widget.categories
         .where((c) => c.id != 'cat_income')
         .toList();
@@ -208,7 +210,7 @@ class _BudgetFormDialogState extends ConsumerState<BudgetFormDialog> {
                                   ),
                                   style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
                                   decoration: InputDecoration(
-                                    prefixText: '\$ ',
+                                    prefixText: '$currencySym ',
                                     prefixStyle: TextStyle(
                                       color: AppColors.text.withValues(alpha: 0.5),
                                       fontWeight: FontWeight.w600,

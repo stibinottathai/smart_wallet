@@ -9,6 +9,7 @@ import '../data/services/insights_service.dart';
 import '../data/services/notification_service.dart';
 import '../data/services/pdf_report_service.dart';
 import '../data/services/receipt_scan_service.dart';
+import 'core/currency_utils.dart';
 import '../domain/models/models.dart' as domain;
 import '../domain/repositories/expense_repository.dart';
 import '../domain/repositories/income_repository.dart';
@@ -58,7 +59,8 @@ final notificationServiceProvider = Provider<NotificationService>((ref) {
 
 final pdfReportServiceProvider = Provider<PdfReportService>((ref) {
   final db = ref.watch(databaseProvider);
-  return PdfReportService(db);
+  final currencyCode = ref.watch(currencyCodeProvider);
+  return PdfReportService(db, currencyCode: currencyCode);
 });
 
 // Streams

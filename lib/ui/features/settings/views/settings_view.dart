@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:smart_wallet/data/services/notification_service.dart';
+import 'package:smart_wallet/ui/core/currency_utils.dart';
 import 'package:smart_wallet/ui/core/theme.dart';
 import 'package:smart_wallet/ui/features/reports/views/report_view.dart';
 import 'package:smart_wallet/ui/providers.dart';
@@ -122,6 +123,8 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
                 ],
               ),
             ),
+            const SizedBox(height: 12),
+            _CurrencySection(),
             const SizedBox(height: 12),
             _SectionCard(
               icon: isConfigured ? Icons.vpn_key_rounded : Icons.vpn_key_off_rounded,
@@ -298,6 +301,101 @@ class _SectionCard extends StatelessWidget {
             ),
             const SizedBox(height: 16),
             child,
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _CurrencySection extends ConsumerWidget {
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final code = ref.watch(currencyCodeProvider);
+    final sym = currencySymbol(code);
+    return _SectionCard(
+      icon: Icons.currency_exchange_rounded,
+      title: 'Currency',
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: () => _showPicker(context, ref, code),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 4),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  '$sym ($code)',
+                  style: const TextStyle(
+                    fontSize: 13,
+                    color: AppColors.textSecondary,
+                    height: 1.4,
+                  ),
+                ),
+              ),
+              const Icon(
+                Icons.chevron_right_rounded,
+                size: 20,
+                color: AppColors.textSecondary,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showPicker(BuildContext context, WidgetRef ref, String current) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(height: 12),
+            Container(
+              width: 36,
+              height: 4,
+              decoration: BoxDecoration(
+                color: AppColors.textSecondary.withValues(alpha: 0.3),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Select Currency',
+              style: GoogleFonts.inter(
+                fontSize: 17,
+                fontWeight: FontWeight.w600,
+                color: AppColors.text,
+              ),
+            ),
+            const SizedBox(height: 8),
+            ListView(
+              shrinkWrap: true,
+              padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
+              children: [
+                for (final c in supportedCurrencies)
+                  ListTile(
+                    leading: Text(
+                      currencySymbol(c).trim(),
+                      style: const TextStyle(fontSize: 20),
+                    ),
+                    title: Text(c, style: const TextStyle(fontWeight: FontWeight.w500)),
+                    trailing: c == current
+                        ? const Icon(Icons.check_rounded, color: AppColors.primary)
+                        : null,
+                    onTap: () {
+                      ref.read(currencyCodeProvider.notifier).state = c;
+                      saveCurrencyPref(c);
+                      Navigator.pop(context);
+                    },
+                  ),
+              ],
+            ),
           ],
         ),
       ),

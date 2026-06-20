@@ -1,16 +1,19 @@
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../domain/models/models.dart' as domain;
 import 'package:smart_wallet/ui/core/theme.dart';
+import 'package:smart_wallet/ui/core/currency_utils.dart';
 
 
-class IncomeBreakdownPie extends StatelessWidget {
+class IncomeBreakdownPie extends ConsumerWidget {
   final List<domain.Income> incomes;
 
   const IncomeBreakdownPie({super.key, required this.incomes});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final code = ref.watch(currencyCodeProvider);
     final sourceMap = <String, double>{};
     for (final inc in incomes) {
       sourceMap[inc.source] = (sourceMap[inc.source] ?? 0) + inc.amount;
@@ -62,7 +65,7 @@ class IncomeBreakdownPie extends StatelessWidget {
                     ),
                     const SizedBox(width: 6),
                     Expanded(child: Text(e.key, style: const TextStyle(fontSize: 12, color: AppColors.textSecondary), overflow: TextOverflow.ellipsis)),
-                    Text('\$${e.value.toStringAsFixed(0)}', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.text)),
+                    Text('${currencySymbol(code)}${e.value.toStringAsFixed(0)}', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.text)),
                     const SizedBox(width: 4),
                     Text('(${pct.toStringAsFixed(0)}%)', style: const TextStyle(fontSize: 11, color: AppColors.textSecondary)),
                   ],

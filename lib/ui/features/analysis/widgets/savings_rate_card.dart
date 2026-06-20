@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:smart_wallet/ui/core/theme.dart';
+import 'package:smart_wallet/ui/core/currency_utils.dart';
 
-class SavingsRateCard extends StatelessWidget {
+class SavingsRateCard extends ConsumerWidget {
   final double totalIncome;
   final double totalExpense;
   final double lastIncome;
@@ -17,7 +19,8 @@ class SavingsRateCard extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final code = ref.watch(currencyCodeProvider);
     final rate = totalIncome > 0 ? ((totalIncome - totalExpense) / totalIncome) * 100 : 0.0;
     final lastRate = lastIncome > 0 ? ((lastIncome - lastExpense) / lastIncome) * 100 : 0.0;
     final delta = rate - lastRate;
@@ -84,7 +87,7 @@ class SavingsRateCard extends StatelessWidget {
             ),
             const SizedBox(height: 4),
             Text(
-              '${rate >= 0 ? 'Saving' : 'Spending beyond'} \$${(totalIncome - totalExpense).abs().toStringAsFixed(2)} ${rate >= 0 ? 'this period' : 'over income'}',
+              '${rate >= 0 ? 'Saving' : 'Spending beyond'} ${currencySymbol(code)}${(totalIncome - totalExpense).abs().toStringAsFixed(2)} ${rate >= 0 ? 'this period' : 'over income'}',
               style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
             ),
             const SizedBox(height: 12),

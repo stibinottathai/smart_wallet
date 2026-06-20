@@ -6,6 +6,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../../../domain/models/models.dart' as domain;
 import '../../../core/theme.dart';
 import '../../../core/dialogs.dart';
+import '../../../core/currency_utils.dart';
 import '../../../providers.dart';
 
 class GoalFormDialog extends ConsumerStatefulWidget {
@@ -159,6 +160,7 @@ class _GoalFormDialogState extends ConsumerState<GoalFormDialog> {
   Widget build(BuildContext context) {
     final isEdit = widget.initialGoal != null;
     final bottomInset = MediaQuery.of(context).viewInsets.bottom;
+    final currencySym = currencySymbol(ref.watch(currencyCodeProvider));
 
     return Padding(
       padding: EdgeInsets.only(bottom: bottomInset),
@@ -216,10 +218,10 @@ class _GoalFormDialogState extends ConsumerState<GoalFormDialog> {
                           child: TextFormField(
                             controller: _targetAmountCtrl,
                             keyboardType: TextInputType.number,
-                            decoration: const InputDecoration(
+                            decoration: InputDecoration(
                               labelText: 'Target Amount',
                               hintText: '0',
-                              prefixText: '\$',
+                              prefixText: currencySym,
                             ),
                             validator: (v) {
                               if (v == null || v.trim().isEmpty) return 'Enter target';
@@ -233,10 +235,10 @@ class _GoalFormDialogState extends ConsumerState<GoalFormDialog> {
                           child: TextFormField(
                             controller: _currentAmountCtrl,
                             keyboardType: TextInputType.number,
-                            decoration: const InputDecoration(
+                            decoration: InputDecoration(
                               labelText: 'Saved So Far',
                               hintText: '0',
-                              prefixText: '\$',
+                              prefixText: currencySym,
                             ),
                             validator: (v) {
                               if (v == null || v.trim().isEmpty) return 'Enter amount';

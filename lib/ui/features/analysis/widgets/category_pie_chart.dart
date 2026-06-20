@@ -1,12 +1,14 @@
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../../domain/models/models.dart' as domain;
 import 'package:smart_wallet/ui/core/theme.dart';
+import 'package:smart_wallet/ui/core/currency_utils.dart';
 
 
-class CategoryPieChart extends StatelessWidget {
+class CategoryPieChart extends ConsumerWidget {
   final Map<String, double> spend;
   final Map<String, domain.Category> catMap;
   final List<domain.Expense> expenses;
@@ -23,7 +25,8 @@ class CategoryPieChart extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final code = ref.watch(currencyCodeProvider);
     final total = spend.values.fold(0.0, (a, b) => a + b);
     if (total == 0) return const SizedBox();
 
@@ -51,7 +54,7 @@ class CategoryPieChart extends StatelessWidget {
           width: 120,
           height: 120,
           child: GestureDetector(
-            onTapDown: (details) => _onTapPie(context, details, entries, colors),
+            onTapDown: (details) => _onTapPie(context, details, entries, colors, code),
             child: PieChart(PieChartData(
               sections: sections,
               centerSpaceRadius: 28,
@@ -75,7 +78,7 @@ class CategoryPieChart extends StatelessWidget {
                     ),
                     const SizedBox(width: 8),
                     Expanded(child: Text(name, style: const TextStyle(fontSize: 12, color: AppColors.textSecondary), overflow: TextOverflow.ellipsis)),
-                    Text('\$${e.value.toStringAsFixed(0)}', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.text)),
+                    Text('${currencySymbol(code)}${e.value.toStringAsFixed(0)}', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.text)),
                     const SizedBox(width: 4),
                     Text('(${pct.toStringAsFixed(0)}%)', style: const TextStyle(fontSize: 11, color: AppColors.textSecondary)),
                   ],
@@ -88,7 +91,7 @@ class CategoryPieChart extends StatelessWidget {
     );
   }
 
-  void _onTapPie(BuildContext context, TapDownDetails details, List<MapEntry<String, double>> entries, List<Color> colors) {
+  void _onTapPie(BuildContext context, TapDownDetails details, List<MapEntry<String, double>> entries, List<Color> colors, String code) {
     if (entries.isEmpty) return;
     final e = entries.first;
     final name = catMap[e.key]?.name ?? 'Unknown';
@@ -102,6 +105,7 @@ class CategoryPieChart extends StatelessWidget {
         expenses: expenses.where((x) => x.categoryId == e.key).toList(),
         start: start,
         end: end,
+        currencyCode: code,
       ),
     );
   }
@@ -113,6 +117,7 @@ class _CategoryDrillDown extends StatelessWidget {
   final List<domain.Expense> expenses;
   final DateTime start;
   final DateTime end;
+  final String currencyCode;
 
   const _CategoryDrillDown({
     required this.categoryName,
@@ -120,6 +125,7 @@ class _CategoryDrillDown extends StatelessWidget {
     required this.expenses,
     required this.start,
     required this.end,
+    required this.currencyCode,
   });
 
   @override
@@ -233,7 +239,7 @@ class _CategoryDrillDown extends StatelessWidget {
                                 touchTooltipData: LineTouchTooltipData(
                                   getTooltipItems: (touchedSpots) => touchedSpots.map((spot) {
                                     return LineTooltipItem(
-                                      '\$${spot.y.toStringAsFixed(2)}',
+                                      '${currencySymbol(currencyCode)}${spot.y.toStringAsFixed(2)}',
                                       const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600),
                                     );
                                   }).toList(),
