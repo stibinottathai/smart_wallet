@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -9,7 +10,9 @@ import 'package:smart_wallet/ui/features/reports/views/report_view.dart';
 import 'package:smart_wallet/ui/providers.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:smart_wallet/domain/models/models.dart' as domain;
-
+import 'package:smart_wallet/data/services/csv_export_service.dart';
+import 'package:smart_wallet/data/services/csv_import_service.dart';
+import 'package:file_picker/file_picker.dart';
 
 class SettingsView extends ConsumerStatefulWidget {
   const SettingsView({super.key});
@@ -645,6 +648,121 @@ class _GoogleSheetsSyncBottomSheetState
     }
   }
 
+  Future<void> _exportToCsv() async {
+    setState(() => _isSyncing = true);
+    try {
+      List<domain.Income> incomes = [];
+      List<domain.Expense> expenses = [];
+      List<domain.Category> categories = [];
+
+      try {
+        incomes = await ref.read(incomeRepositoryProvider).getAllIncomes();
+        expenses = await ref.read(expenseRepositoryProvider).getAllExpenses();
+        categories = await ref.read(expenseRepositoryProvider).getAllCategories();
+      } catch (_) {
+        incomes = ref.read(allIncomesProvider).value ?? [];
+        expenses = ref.read(allExpensesProvider).value ?? [];
+        categories = ref.read(allCategoriesProvider).value ?? [];
+      }
+
+      await CsvExportService().exportDataToCsv(
+        incomes: incomes,
+        expenses: expenses,
+        categories: categories,
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to export CSV: $e')),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isSyncing = false);
+      }
+    }
+  }
+
+  Future<void> _importFromCsv() async {
+    setState(() => _isSyncing = true);
+    try {
+      final result = await FilePicker.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['csv'],
+      );
+
+      if (result == null || result.files.isEmpty || result.files.single.path == null) {
+        return;
+      }
+
+      final file = File(result.files.single.path!);
+      final importResult = await CsvImportService().importDataFromCsv(
+        file: file,
+        incomeRepository: ref.read(incomeRepositoryProvider),
+        expenseRepository: ref.read(expenseRepositoryProvider),
+      );
+
+      if (!mounted) return;
+
+      if (importResult.success) {
+        ref.invalidate(allIncomesProvider);
+        ref.invalidate(allExpensesProvider);
+        ref.invalidate(allCategoriesProvider);
+        ref.invalidate(allSavingsGoalsProvider);
+        ref.invalidate(allBillsProvider);
+
+        showDialog(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            icon: const Icon(Icons.check_circle_rounded, color: AppColors.primary, size: 40),
+            title: const Text('Import Successful'),
+            content: Text(
+              'Successfully imported:\n'
+              '• ${importResult.incomesImported} incomes\n'
+              '• ${importResult.expensesImported} expenses\n'
+              '• ${importResult.categoriesCreated} new categories.',
+              textAlign: TextAlign.center,
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('OK'),
+              ),
+            ],
+          ),
+        );
+      } else {
+        showDialog(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            icon: const Icon(Icons.error_outline_rounded, color: AppColors.secondary, size: 40),
+            title: const Text('Import Failed'),
+            content: Text(
+              importResult.errorMessage ?? 'An unknown error occurred during import.',
+              textAlign: TextAlign.center,
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Close'),
+              ),
+            ],
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to import CSV: $e')),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isSyncing = false);
+      }
+    }
+  }
+
   Future<void> _triggerSync() async {
     final url = _urlController.text.trim();
     if (url.isEmpty) {
@@ -958,6 +1076,45 @@ class _GoogleSheetsSyncBottomSheetState
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 ),
               ),
+            ),
+            const SizedBox(height: 8),
+            const Divider(height: 32),
+            const Text(
+              'Prefer a manual backup or import?',
+              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.textSecondary),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: SizedBox(
+                    height: 48,
+                    child: FilledButton.tonalIcon(
+                      onPressed: _isSyncing ? null : _exportToCsv,
+                      icon: const Icon(Icons.file_download_rounded, size: 18),
+                      label: const Text('Export CSV'),
+                      style: FilledButton.styleFrom(
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: SizedBox(
+                    height: 48,
+                    child: FilledButton.tonalIcon(
+                      onPressed: _isSyncing ? null : _importFromCsv,
+                      icon: const Icon(Icons.file_upload_rounded, size: 18),
+                      label: const Text('Import CSV'),
+                      style: FilledButton.styleFrom(
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ],
         ),

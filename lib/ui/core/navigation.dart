@@ -75,7 +75,7 @@ class _MainNavigationWrapperState extends ConsumerState<MainNavigationWrapper> w
                   children: [
                     _NavItem(
                       icon: Icons.account_balance_wallet_rounded,
-                      label: 'Ledger',
+                      label: 'Home',
                       isSelected: currentIndex == 0,
                       onTap: () => _onNavTap(0),
                     ),

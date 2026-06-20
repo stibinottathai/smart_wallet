@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:math';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter/foundation.dart';
 import '../../domain/models/models.dart' as domain;
 
 /// Debug flag - set to true to enable verbose logging
@@ -9,7 +10,7 @@ const bool _debugSync = true;
 
 void _log(String message) {
   if (_debugSync) {
-    print('[GoogleSheetsSync] $message');
+    debugPrint('[GoogleSheetsSync] $message');
   }
 }
 
@@ -46,8 +47,8 @@ class GoogleSheetsSyncService {
   static String? validateWebAppUrl(String url) {
     final trimmed = url.trim();
     if (trimmed.isEmpty) return 'URL cannot be empty';
-    if (!trimmed.startsWith('https://script.google.com/macros/s/') && !trimmed.startsWith('https://script.googleusercontent.com/macros/')) {
-      return 'Invalid URL format. Must be a Google Apps Script Web App URL.';
+    if (!trimmed.startsWith('https://script.google.com/macros/s/')) {
+      return 'Invalid URL format. Must start with https://script.google.com/macros/s/. Do not copy the redirected URL from your browser.';
     }
     if (!trimmed.contains('/exec')) {
       return 'URL must end with /exec (not /dev). Deploy a new version in Apps Script to get the production URL.';
@@ -68,7 +69,7 @@ class GoogleSheetsSyncService {
     try {
       final response = await _postWithRedirects(
         webAppUrl,
-        headers: {'Content-Type': 'application/json'},
+        headers: {'Content-Type': 'text/plain'},
         body: jsonEncode({'test': true}),
       );
 
@@ -163,7 +164,7 @@ class GoogleSheetsSyncService {
       final response = await _postWithRedirects(
         webAppUrl,
         headers: {
-          'Content-Type': 'application/json',
+          'Content-Type': 'text/plain',
         },
         body: jsonEncode({
           'incomes': incomesPayload,
@@ -220,7 +221,6 @@ class GoogleSheetsSyncService {
     }
   }
 
-  /// Performs a POST request and manually follows redirects (such as Google Apps Script 302 Found)
   Future<http.Response> _postWithRedirects(
     String url, {
     required Map<String, String> headers,
