@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:smart_wallet/data/services/notification_service.dart';
 import 'package:smart_wallet/ui/core/theme.dart';
+import 'package:smart_wallet/ui/core/animations.dart';
 import 'package:smart_wallet/ui/features/reports/views/report_view.dart';
 import 'package:smart_wallet/ui/providers.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -68,7 +69,9 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
                   _StatusRow(
                     icon: Icons.auto_awesome_rounded,
                     title: 'AI Intelligence',
-                    subtitle: isConfigured ? 'OpenRouter Activated' : 'Not Configured',
+                    subtitle: isConfigured
+                        ? 'OpenRouter Activated'
+                        : 'Not Configured',
                     subtitleColor: isConfigured ? null : AppColors.secondary,
                   ),
                   const SizedBox(height: 12),
@@ -79,11 +82,17 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
                   ),
                 ],
               ),
-            ),
+            ).fadeSlideIn(),
             const SizedBox(height: 12),
             _SectionCard(
               icon: Icons.notifications_rounded,
               title: 'Reminders',
+              trailing: Switch(
+                value: remindersOn,
+                onChanged: _toggleReminders,
+                activeTrackColor: AppColors.primary.withValues(alpha: 0.4),
+                activeThumbColor: AppColors.primary,
+              ),
               child: Row(
                 children: [
                   Expanded(
@@ -91,26 +100,29 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          remindersOn ? 'Daily reminders on' : 'Daily reminders off',
-                          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.text),
+                          remindersOn
+                              ? 'Daily reminders on'
+                              : 'Daily reminders off',
+                          style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.text,
+                          ),
                         ),
                         const SizedBox(height: 2),
                         Text(
                           '12:00 PM & 8:00 PM notifications',
-                          style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: AppColors.textSecondary,
+                          ),
                         ),
                       ],
                     ),
                   ),
-                  Switch(
-                    value: remindersOn,
-                    onChanged: _toggleReminders,
-                    activeTrackColor: AppColors.primary.withValues(alpha: 0.4),
-                    activeThumbColor: AppColors.primary,
-                  ),
                 ],
               ),
-            ),
+            ).fadeSlideIn(delayMs: 60),
             const SizedBox(height: 12),
             _SectionCard(
               icon: isConfigured ? Icons.vpn_key_rounded : Icons.vpn_key_off_rounded,
@@ -144,16 +156,16 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
                   ),
                 ],
               ),
-            ),
+            ).fadeSlideIn(delayMs: 120),
             const SizedBox(height: 12),
             _SectionCard(
               icon: Icons.description_rounded,
               title: 'Reports',
               child: InkWell(
                 borderRadius: BorderRadius.circular(12),
-                onTap: () => Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => const ReportView()),
-                ),
+                onTap: () => Navigator.of(
+                  context,
+                ).push(AppAnimations.fadeSlideUp(const ReportView())),
                 child: Padding(
                   padding: const EdgeInsets.symmetric(vertical: 4),
                   child: Row(
@@ -161,25 +173,38 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
                       Expanded(
                         child: Text(
                           'Generate monthly financial reports as PDF',
-                          style: const TextStyle(fontSize: 13, color: AppColors.textSecondary, height: 1.4),
+                          style: const TextStyle(
+                            fontSize: 13,
+                            color: AppColors.textSecondary,
+                            height: 1.4,
+                          ),
                         ),
                       ),
-                      const Icon(Icons.chevron_right_rounded, size: 20, color: AppColors.textSecondary),
+                      const Icon(
+                        Icons.chevron_right_rounded,
+                        size: 20,
+                        color: AppColors.textSecondary,
+                      ),
                     ],
                   ),
                 ),
               ),
-            ),
+            ).fadeSlideIn(delayMs: 180),
             const SizedBox(height: 12),
             _SectionCard(
               icon: Icons.info_outline_rounded,
               title: 'About',
+              trailing: Icon(Icons.more_horiz_rounded, size: 18, color: AppColors.text.withValues(alpha: 0.3)),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const Text(
                     'Your personal income & expense ledger. Add income or scan receipts to pre-fill expense entries. Get AI-powered spending insights.',
-                    style: TextStyle(fontSize: 13, color: AppColors.textSecondary, height: 1.5),
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: AppColors.textSecondary,
+                      height: 1.5,
+                    ),
                   ),
                   const SizedBox(height: 16),
                   const Divider(),
@@ -187,21 +212,47 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text('Version', style: TextStyle(fontSize: 13, color: AppColors.text.withValues(alpha: 0.6))),
-                      const Text('1.0.0', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.text)),
+                      Text(
+                        'Version',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: AppColors.text.withValues(alpha: 0.6),
+                        ),
+                      ),
+                      const Text(
+                        '1.0.0',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.text,
+                        ),
+                      ),
                     ],
                   ),
                   const SizedBox(height: 8),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text('Data', style: TextStyle(fontSize: 13, color: AppColors.text.withValues(alpha: 0.6))),
-                      const Text('Offline-First', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.text)),
+                      Text(
+                        'Data',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: AppColors.text.withValues(alpha: 0.6),
+                        ),
+                      ),
+                      const Text(
+                        'Offline-First',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.text,
+                        ),
+                      ),
                     ],
                   ),
                 ],
               ),
-            ),
+            ).fadeSlideIn(delayMs: 240),
           ],
         ),
       ),
@@ -235,7 +286,14 @@ class _SectionCard extends StatelessWidget {
               children: [
                 Icon(icon, size: 20, color: AppColors.primary),
                 const SizedBox(width: 8),
-                Text(title, style: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.w600, color: AppColors.text)),
+                Text(
+                  title,
+                  style: GoogleFonts.inter(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.text,
+                  ),
+                ),
                 if (trailing != null) ...[const Spacer(), trailing!],
               ],
             ),
@@ -272,16 +330,33 @@ class _StatusRow extends StatelessWidget {
             color: AppColors.surface,
             borderRadius: BorderRadius.circular(8),
           ),
-          child: Icon(icon, size: 16, color: AppColors.text.withValues(alpha: 0.5)),
+          child: Icon(
+            icon,
+            size: 16,
+            color: AppColors.text.withValues(alpha: 0.5),
+          ),
         ),
         const SizedBox(width: 12),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(title, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13, color: AppColors.text)),
+              Text(
+                title,
+                style: const TextStyle(
+                  fontWeight: FontWeight.w600,
+                  fontSize: 13,
+                  color: AppColors.text,
+                ),
+              ),
               const SizedBox(height: 1),
-              Text(subtitle, style: TextStyle(fontSize: 12, color: subtitleColor ?? AppColors.textSecondary)),
+              Text(
+                subtitle,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: subtitleColor ?? AppColors.textSecondary,
+                ),
+              ),
             ],
           ),
         ),

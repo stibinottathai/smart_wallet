@@ -23,9 +23,40 @@ class SmartWalletApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Smart Wallet',
-      theme: appTheme,
+      theme: appTheme.copyWith(
+        pageTransitionsTheme: const PageTransitionsTheme(
+          builders: {
+            TargetPlatform.android: _FadeSlideTransitionBuilder(),
+            TargetPlatform.iOS: _FadeSlideTransitionBuilder(),
+          },
+        ),
+      ),
       debugShowCheckedModeBanner: false,
       home: const SplashScreen(),
+    );
+  }
+}
+
+class _FadeSlideTransitionBuilder extends PageTransitionsBuilder {
+  const _FadeSlideTransitionBuilder();
+
+  @override
+  Widget buildTransitions<T>(
+    PageRoute<T> route,
+    BuildContext context,
+    Animation<double> animation,
+    Animation<double> secondaryAnimation,
+    Widget child,
+  ) {
+    return FadeTransition(
+      opacity: CurvedAnimation(parent: animation, curve: Curves.easeOut),
+      child: SlideTransition(
+        position: Tween<Offset>(
+          begin: const Offset(0, 0.03),
+          end: Offset.zero,
+        ).animate(CurvedAnimation(parent: animation, curve: Curves.easeOut)),
+        child: child,
+      ),
     );
   }
 }

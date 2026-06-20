@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:smart_wallet/domain/models/models.dart' as domain;
 import 'package:smart_wallet/ui/core/theme.dart';
+import 'package:smart_wallet/ui/core/animations.dart';
 import 'package:smart_wallet/ui/providers.dart';
 import '../widgets/section_card.dart';
 import '../widgets/income_expense_bar_chart.dart';
@@ -193,12 +194,12 @@ class _AnalysisViewState extends ConsumerState<AnalysisView> {
                           onChipTap: _applyChip,
                           onPickStart: _pickStart,
                           onPickEnd: _pickEnd,
-                        ),
+                        ).fadeSlideIn(),
                         const SizedBox(height: 12),
                         MoMCard(
                           currentMonthExpenses: _currentMonthExpenses(filteredExpenses),
                           lastMonthExpenses: _lastMonthExpenses(filteredExpenses),
-                        ),
+                        ).fadeSlideIn(delayMs: 50),
                         const SizedBox(height: 16),
                         if (totalIncome > 0 || totalExpense > 0)
                           SavingsRateCard(
@@ -206,12 +207,12 @@ class _AnalysisViewState extends ConsumerState<AnalysisView> {
                             totalExpense: totalExpense,
                             lastIncome: lastIncomeTotal,
                             lastExpense: lastExpenseTotal,
-                          ),
+                          ).fadeSlideIn(delayMs: 100),
                         if (totalIncome > 0 || totalExpense > 0) const SizedBox(height: 16),
                         SectionCard(
                           title: 'Net Worth Trend',
                           child: NetWorthLineChart(incomes: filteredIncomes, expenses: filteredExpenses),
-                        ),
+                        ).fadeSlideIn(delayMs: 150),
                         const SizedBox(height: 16),
                         SectionCard(
                           title: 'Income vs Expense',
@@ -219,7 +220,7 @@ class _AnalysisViewState extends ConsumerState<AnalysisView> {
                             incomes: filteredIncomes, expenses: filteredExpenses,
                             start: start, end: end,
                           ),
-                        ),
+                        ).fadeSlideIn(delayMs: 200),
                         const SizedBox(height: 16),
                         if (categorySpend.isNotEmpty)
                           SectionCard(
@@ -228,35 +229,35 @@ class _AnalysisViewState extends ConsumerState<AnalysisView> {
                               spend: categorySpend, catMap: catMap,
                               expenses: filteredExpenses, start: start, end: end,
                             ),
-                          ),
+                          ).fadeSlideIn(delayMs: 250),
                         if (categorySpend.isNotEmpty) const SizedBox(height: 16),
                         SectionCard(
                           title: 'Income Breakdown',
                           child: IncomeBreakdownPie(incomes: filteredIncomes),
-                        ),
+                        ).fadeSlideIn(delayMs: 300),
                         const SizedBox(height: 16),
                         if (filteredExpenses.isNotEmpty)
                           SectionCard(
                             title: 'Spending by Weekday',
                             child: WeekdaySpendingChart(expenses: filteredExpenses),
-                          ),
+                          ).fadeSlideIn(delayMs: 350),
                         if (filteredExpenses.isNotEmpty) const SizedBox(height: 16),
                         if (categories.any((c) => c.budgetLimit != null))
                           SectionCard(
                             title: 'Budget Utilization',
                             child: BudgetUtilizationChart(spend: categorySpend, categories: categories),
-                          ),
+                          ).fadeSlideIn(delayMs: 400),
                         if (categories.any((c) => c.budgetLimit != null)) const SizedBox(height: 16),
                         SectionCard(
                           title: 'Expense Source',
                           child: ExpenseSourcePie(expenses: filteredExpenses),
-                        ),
+                        ).fadeSlideIn(delayMs: 450),
                         const SizedBox(height: 16),
                         if (filteredExpenses.isNotEmpty)
                           SectionCard(
                             title: 'Top Spending Days',
                             child: TopSpendingDaysCard(expenses: filteredExpenses, catMap: catMap),
-                          ),
+                          ).fadeSlideIn(delayMs: 500),
                       ],
                     ),
                   );

@@ -1,9 +1,11 @@
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:intl/intl.dart';
 import 'package:smart_wallet/domain/models/models.dart' as domain;
 import 'package:smart_wallet/ui/core/theme.dart';
+import 'package:smart_wallet/ui/core/animations.dart';
 import 'package:smart_wallet/ui/providers.dart';
 import 'package:smart_wallet/ui/features/entries/views/entry_form_view.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -19,7 +21,29 @@ class DashboardView extends ConsumerStatefulWidget {
   ConsumerState<DashboardView> createState() => _DashboardViewState();
 }
 
-class _DashboardViewState extends ConsumerState<DashboardView> {
+class _DashboardViewState extends ConsumerState<DashboardView>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _fabCtrl;
+  late Animation<double> _fabPulse;
+
+  @override
+  void initState() {
+    super.initState();
+    _fabCtrl = AnimationController(
+      vsync: this,
+      duration: 2000.ms,
+    )..repeat(reverse: true);
+    _fabPulse = Tween(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _fabCtrl, curve: Curves.easeInOut),
+    );
+  }
+
+  @override
+  void dispose() {
+    _fabCtrl.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     final incomesAsync = ref.watch(allIncomesProvider);
@@ -83,13 +107,36 @@ class _DashboardViewState extends ConsumerState<DashboardView> {
                       },
                     ),
                   ),
-                  floatingActionButton: FloatingActionButton(
-                    onPressed: () {
-                      Navigator.of(context).push(
-                        MaterialPageRoute(builder: (context) => const EntryFormView()),
+                  floatingActionButton: AnimatedBuilder(
+                    animation: _fabPulse,
+                    builder: (context, child) {
+                      return Transform.scale(
+                        scale: 1.0 + (_fabPulse.value * 0.06),
+                        child: Container(
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            boxShadow: [
+                              BoxShadow(
+                                color: AppColors.primary.withValues(
+                                  alpha: 0.15 + (_fabPulse.value * 0.15),
+                                ),
+                                blurRadius: 8 + (_fabPulse.value * 8),
+                                spreadRadius: 0,
+                              ),
+                            ],
+                          ),
+                          child: child,
+                        ),
                       );
                     },
-                    child: const Icon(Icons.add, size: 26),
+                    child: FloatingActionButton(
+                      onPressed: () {
+                        Navigator.of(context).push(
+                          AppAnimations.fadeSlideUp(const EntryFormView()),
+                        );
+                      },
+                      child: const Icon(Icons.add, size: 26),
+                    ),
                   ),
                 );
               },
@@ -404,15 +451,16 @@ class _DashboardViewState extends ConsumerState<DashboardView> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          _buildHeader(netBalance, spentPercent, totalIncome, totalExpense),
-          _buildSummaryRow(totalIncome, totalExpense),
-          _buildFinancialTipCard(totalIncome, totalExpense, categorySpendMap, categoryMap),
-          _buildWeeklyTrendSection(expenses),
-          _buildBudgetLimitsSection(categorySpendMap, categories),
-          _buildSavingsGoalsSection(savingsGoals),
-          _buildUpcomingBillsSection(bills, categoryMap),
+          _buildHeader(netBalance, spentPercent, totalIncome, totalExpense).fadeSlideIn(),
+          const SizedBox(height: 8),
+          _buildSummaryRow(totalIncome, totalExpense).fadeSlideIn(delayMs: 60),
+          _buildFinancialTipCard(totalIncome, totalExpense, categorySpendMap, categoryMap).fadeSlideIn(delayMs: 120),
+          _buildWeeklyTrendSection(expenses).fadeSlideIn(delayMs: 180),
+          _buildBudgetLimitsSection(categorySpendMap, categories).fadeSlideIn(delayMs: 240),
+          _buildSavingsGoalsSection(savingsGoals).fadeSlideIn(delayMs: 300),
+          _buildUpcomingBillsSection(bills, categoryMap).fadeSlideIn(delayMs: 360),
           if (totalExpense > 0)
-            _buildDonutSection(categorySpendMap, categoryMap),
+            _buildDonutSection(categorySpendMap, categoryMap).fadeSlideIn(delayMs: 420),
         ],
       ),
     );

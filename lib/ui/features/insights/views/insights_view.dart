@@ -3,6 +3,7 @@ import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:smart_wallet/ui/core/theme.dart';
+import 'package:smart_wallet/ui/core/animations.dart';
 import 'package:smart_wallet/ui/providers.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../models/chat_message.dart';
@@ -152,7 +153,7 @@ class _InsightsViewState extends ConsumerState<InsightsView> {
               controller: _scrollCtrl,
               padding: const EdgeInsets.fromLTRB(16, 20, 16, 8),
               itemCount: _messages.length,
-              itemBuilder: (_, i) => _ChatBubble(message: _messages[i]),
+              itemBuilder: (_, i) => _ChatBubble(message: _messages[i]).fadeSlideIn(delayMs: i > _messages.length - 5 ? 0 : 20),
             ),
           ),
           if (_isTyping) _TypingIndicator(),
