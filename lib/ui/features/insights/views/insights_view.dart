@@ -3,6 +3,7 @@ import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:smart_wallet/ui/core/theme.dart';
+import 'package:smart_wallet/ui/core/currency_utils.dart';
 import 'package:smart_wallet/ui/providers.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../models/chat_message.dart';
@@ -62,6 +63,8 @@ class _InsightsViewState extends ConsumerState<InsightsView> {
     final expenses = ref.read(allExpensesProvider).value ?? [];
     final categories = ref.read(allCategoriesProvider).value ?? [];
     final apiKey = ref.read(openRouterApiKeyProvider);
+    final currencyCode = ref.read(currencyCodeProvider);
+    final currencySym = currencySymbol(currencyCode);
 
     if (apiKey.isEmpty) {
       setState(() { _isTyping = false; });
@@ -84,6 +87,7 @@ class _InsightsViewState extends ConsumerState<InsightsView> {
       await for (final chunk in service.streamAssistant(
         expenses: expenses, incomes: incomes, categories: categories,
         chatHistory: chatHistory, userQuery: query, apiKey: apiKey,
+        currencySymbol: currencySym,
       )) {
         if (!mounted) return;
         buf.write(chunk);

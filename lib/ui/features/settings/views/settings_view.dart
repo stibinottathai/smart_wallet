@@ -374,11 +374,11 @@ class _CurrencySection extends ConsumerWidget {
               ),
             ),
             const SizedBox(height: 8),
-            ListView(
-              shrinkWrap: true,
-              padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
-              children: [
-                for (final c in supportedCurrencies)
+            Flexible(
+              child: ListView(
+                padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
+                children: [
+                  for (final c in supportedCurrencies)
                   ListTile(
                     leading: Text(
                       currencySymbol(c).trim(),
@@ -396,9 +396,10 @@ class _CurrencySection extends ConsumerWidget {
                   ),
               ],
             ),
-          ],
-        ),
+          ),
+        ],
       ),
+     ),
     );
   }
 }

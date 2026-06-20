@@ -56,6 +56,7 @@ class InsightsService {
     required List<domain.Expense> expenses,
     required List<domain.Category> categories,
     required String apiKey,
+    String currencySymbol = '\$',
   }) async {
     if (expenses.isEmpty) {
       return [
@@ -111,7 +112,9 @@ class InsightsService {
     try {
       final prompt = 'Analyze the following aggregated local spending summary. '
           'Identify the 2-3 biggest drivers of spend or month-over-month growth, and provide direct, actionable advice on where to cut back. '
-          'Observation cards must state facts plainly (e.g., "Dining is up 32% this month"). Suggestions must offer concrete, specific numbers/actions.\n\n'
+          'Observation cards must state facts plainly (e.g., "Dining is up 32% this month"). '
+          'Suggestions must offer concrete, specific numbers/actions. '
+          'Crucial: Always use $currencySymbol as the currency symbol for all monetary amounts in the response. Do not use \$ or USD unless that is the active currency.\n\n'
           '${buffer.toString()}\n\n'
           'Respond with ONLY a JSON array matching this schema:\n'
           '[\n'
@@ -189,8 +192,8 @@ class InsightsService {
         SpendingInsight(
           title: 'Insights Offline',
           observation: topGrowthId != null
-              ? '$topGrowthName is currently your leading spend area at $topGrowthVal.'
-              : 'Total spend for the past 30 days is $totalCurrent.',
+              ? '$topGrowthName is currently your leading spend area at $currencySymbol$topGrowthVal.'
+              : 'Total spend for the past 30 days is $currencySymbol$totalCurrent.',
           suggestion: 'Ensure your OpenRouter API key is configured and check your network connection to generate advanced on-demand insights.',
         )
       ];
@@ -216,6 +219,7 @@ class InsightsService {
     required List<domain.Expense> expenses,
     required List<domain.Income> incomes,
     required List<domain.Category> categories,
+    required String currencySymbol,
   }) {
     final categoryMap = {for (var c in categories) c.id: c.name};
     final now = DateTime.now();
@@ -245,20 +249,20 @@ class InsightsService {
 
     final buf = StringBuffer();
     buf.writeln('Financial Summary (last 90 days):');
-    buf.writeln('Total Income: \$${totalIncome.toStringAsFixed(2)}');
-    buf.writeln('Total Expenses: \$${totalExpense.toStringAsFixed(2)}');
-    buf.writeln('Net Balance: \$${(totalIncome - totalExpense).toStringAsFixed(2)}');
+    buf.writeln('Total Income: $currencySymbol${totalIncome.toStringAsFixed(2)}');
+    buf.writeln('Total Expenses: $currencySymbol${totalExpense.toStringAsFixed(2)}');
+    buf.writeln('Net Balance: $currencySymbol${(totalIncome - totalExpense).toStringAsFixed(2)}');
     buf.writeln();
     buf.writeln('Spending by Category:');
     final sortedCats = categoryTotals.entries.toList()
       ..sort((a, b) => b.value.compareTo(a.value));
     for (final entry in sortedCats) {
-      buf.writeln('- ${entry.key}: \$${entry.value.toStringAsFixed(2)} (${categoryCounts[entry.key]} transactions)');
+      buf.writeln('- ${entry.key}: $currencySymbol${entry.value.toStringAsFixed(2)} (${categoryCounts[entry.key]} transactions)');
     }
     buf.writeln();
     buf.writeln('Income by Source:');
     for (final entry in sourceTotals.entries) {
-      buf.writeln('- ${entry.key}: \$${entry.value.toStringAsFixed(2)}');
+      buf.writeln('- ${entry.key}: $currencySymbol${entry.value.toStringAsFixed(2)}');
     }
 
     // Include only the 10 most recent individual transactions for context
@@ -270,7 +274,7 @@ class InsightsService {
       for (final e in recentTxns.take(10)) {
         final catName = categoryMap[e.categoryId] ?? 'Uncategorized';
         final noteStr = e.note != null ? ' - ${e.note}' : '';
-        buf.writeln('- ${e.date.toString().substring(0, 10)}: \$${e.amount.toStringAsFixed(2)} ($catName$noteStr)');
+        buf.writeln('- ${e.date.toString().substring(0, 10)}: $currencySymbol${e.amount.toStringAsFixed(2)} ($catName$noteStr)');
       }
     }
 
@@ -287,6 +291,7 @@ class InsightsService {
     required List<Map<String, String>> chatHistory,
     required String userQuery,
     required String apiKey,
+    String currencySymbol = '\$',
   }) async* {
     if (apiKey.trim().isEmpty) {
       throw ArgumentError('API key is empty. Please configure a valid OpenRouter API key.');
@@ -296,9 +301,11 @@ class InsightsService {
       expenses: expenses,
       incomes: incomes,
       categories: categories,
+      currencySymbol: currencySymbol,
     );
 
     final systemPrompt = "You are a concise, friendly AI financial assistant for Smart Wallet.\n"
+        "The user's configured currency is $currencySymbol. Always format monetary values using this currency symbol.\n"
         "Use the data below to answer questions. Be brief and practical.\n\n"
         "$financialContext\n\n"
         "Rules: Keep replies short (2-4 bullet points max). Use Markdown formatting.";
@@ -403,6 +410,7 @@ class InsightsService {
     required List<Map<String, String>> chatHistory,
     required String userQuery,
     required String apiKey,
+    String currencySymbol = '\$',
   }) async {
     final buffer = StringBuffer();
     await for (final chunk in streamAssistant(
@@ -412,6 +420,7 @@ class InsightsService {
       chatHistory: chatHistory,
       userQuery: userQuery,
       apiKey: apiKey,
+      currencySymbol: currencySymbol,
     )) {
       buffer.write(chunk);
     }
