@@ -1,0 +1,11 @@
+import '../models/models.dart';
+
+abstract class ExpenseRepository {
+  Stream<List<Expense>> watchAllExpenses();
+  Future<void> addExpense(Expense expense);
+  Future<void> updateExpense(Expense expense);
+  Future<void> deleteExpense(String id);
+  Stream<List<Category>> watchAllCategories();
+  Future<void> addCategory(Category category);
+  Future<Category?> getCategoryById(String id);
+}

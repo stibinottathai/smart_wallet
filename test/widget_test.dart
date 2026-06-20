@@ -1,30 +1,37 @@
-// This is a basic Flutter widget test.
-//
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
-
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-
-import 'package:smart_wallet/main.dart';
+import 'package:smart_wallet/domain/models/models.dart' as domain;
+import 'package:smart_wallet/data/services/receipt_scan_service.dart';
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const MyApp());
+  group('Smart Wallet Domain and Services Tests', () {
+    test('IncomeFrequency serialization and deserialization', () {
+      expect(domain.IncomeFrequency.fromJson('monthly'), domain.IncomeFrequency.monthly);
+      expect(domain.IncomeFrequency.fromJson('weekly'), domain.IncomeFrequency.weekly);
+      expect(domain.IncomeFrequency.fromJson('oneOff'), domain.IncomeFrequency.oneOff);
+      expect(domain.IncomeFrequency.fromJson('invalid'), domain.IncomeFrequency.oneOff); // fallback
+    });
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
+    test('ExpenseSource serialization and deserialization', () {
+      expect(domain.ExpenseSource.fromJson('manual'), domain.ExpenseSource.manual);
+      expect(domain.ExpenseSource.fromJson('aiScan'), domain.ExpenseSource.aiScan);
+      expect(domain.ExpenseSource.fromJson('invalid'), domain.ExpenseSource.manual); // fallback
+    });
 
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
-    await tester.pump();
+    test('Category fuzzy matching rules', () {
+      final scanService = ReceiptScanService();
+      
+      final mockCategories = [
+        const domain.Category(id: 'cat_uncategorized', name: 'Uncategorized', icon: 'help', color: '#999'),
+        const domain.Category(id: 'cat_dining', name: 'Dining & Drinks', icon: 'rest', color: '#B56'),
+        const domain.Category(id: 'cat_groceries', name: 'Groceries', icon: 'shop', color: '#A3A'),
+        const domain.Category(id: 'cat_transport', name: 'Transport', icon: 'car', color: '#688'),
+      ];
 
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+      // Exact matches and sub-strings
+      expect(scanService.matchCategory('dining at restaurant', mockCategories), 'cat_dining');
+      expect(scanService.matchCategory('groceries purchase', mockCategories), 'cat_groceries');
+      expect(scanService.matchCategory('uber taxi ride', mockCategories), 'cat_transport');
+      expect(scanService.matchCategory('unknown billing category', mockCategories), 'cat_uncategorized');
+    });
   });
 }
