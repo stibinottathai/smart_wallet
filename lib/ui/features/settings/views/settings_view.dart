@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:smart_wallet/data/services/notification_service.dart';
 import 'package:smart_wallet/ui/core/theme.dart';
-import 'package:smart_wallet/ui/core/animations.dart';
 import 'package:smart_wallet/ui/features/reports/views/report_view.dart';
 import 'package:smart_wallet/ui/providers.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -82,7 +81,7 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
                   ),
                 ],
               ),
-            ).fadeSlideIn(),
+            ),
             const SizedBox(height: 12),
             _SectionCard(
               icon: Icons.notifications_rounded,
@@ -122,7 +121,7 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
                   ),
                 ],
               ),
-            ).fadeSlideIn(delayMs: 60),
+            ),
             const SizedBox(height: 12),
             _SectionCard(
               icon: isConfigured ? Icons.vpn_key_rounded : Icons.vpn_key_off_rounded,
@@ -156,7 +155,7 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
                   ),
                 ],
               ),
-            ).fadeSlideIn(delayMs: 120),
+            ),
             const SizedBox(height: 12),
             _SectionCard(
               icon: Icons.description_rounded,
@@ -165,7 +164,7 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
                 borderRadius: BorderRadius.circular(12),
                 onTap: () => Navigator.of(
                   context,
-                ).push(AppAnimations.fadeSlideUp(const ReportView())),
+                ).push(MaterialPageRoute(builder: (_) => const ReportView())),
                 child: Padding(
                   padding: const EdgeInsets.symmetric(vertical: 4),
                   child: Row(
@@ -189,7 +188,7 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
                   ),
                 ),
               ),
-            ).fadeSlideIn(delayMs: 180),
+            ),
             const SizedBox(height: 12),
             _SectionCard(
               icon: Icons.info_outline_rounded,
@@ -252,7 +251,7 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
                   ),
                 ],
               ),
-            ).fadeSlideIn(delayMs: 240),
+            ),
           ],
         ),
       ),

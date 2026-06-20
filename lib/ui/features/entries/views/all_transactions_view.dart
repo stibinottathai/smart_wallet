@@ -1,11 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import 'package:smart_wallet/domain/models/models.dart' as domain;
 import 'package:smart_wallet/ui/core/theme.dart';
-import 'package:smart_wallet/ui/core/animations.dart';
 import 'package:smart_wallet/ui/core/dialogs.dart';
 import 'package:smart_wallet/ui/providers.dart';
 import 'package:smart_wallet/ui/features/entries/views/entry_form_view.dart';
@@ -460,11 +458,11 @@ class _AllTransactionsViewState extends ConsumerState<AllTransactionsView> {
             category: cat,
             onTap: () {
               Navigator.of(context).push(
-                AppAnimations.fadeSlideUp(EntryFormView(initialExpense: exp)),
+                MaterialPageRoute(builder: (_) => EntryFormView(initialExpense: exp)),
               );
             },
           ),
-        ).fadeSlideIn(delayMs: index * 30);
+        );
       },
     );
   }
@@ -519,11 +517,11 @@ class _AllTransactionsViewState extends ConsumerState<AllTransactionsView> {
             income: inc,
             onTap: () {
               Navigator.of(context).push(
-                AppAnimations.fadeSlideUp(EntryFormView(initialIncome: inc)),
+                MaterialPageRoute(builder: (_) => EntryFormView(initialIncome: inc)),
               );
             },
           ),
-        ).fadeSlideIn(delayMs: index * 30);
+        );
       },
     );
   }
@@ -535,33 +533,29 @@ class _AllTransactionsViewState extends ConsumerState<AllTransactionsView> {
         mainAxisSize: MainAxisSize.min,
         children: [
           Container(
-            width: 80,
-            height: 80,
+            width: 64,
+            height: 64,
             decoration: BoxDecoration(
               color: AppColors.surface,
-              borderRadius: BorderRadius.circular(24),
+              borderRadius: BorderRadius.circular(20),
             ),
             child: Icon(
               _showExpenses ? Icons.receipt_long_rounded : Icons.account_balance_wallet_rounded,
-              size: 36,
-              color: AppColors.text.withValues(alpha: 0.25),
+              size: 28,
+              color: AppColors.text.withValues(alpha: 0.3),
             ),
-          )
-              .animate()
-              .scaleXY(begin: 0, end: 1, duration: 500.ms, curve: Curves.easeOutBack)
-              .then()
-              .shimmer(duration: 1500.ms, color: const Color(0x08000000)),
+          ),
           const SizedBox(height: 16),
           Text(
             title,
             style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: AppColors.textSecondary),
-          ).animate().fadeIn(duration: 400.ms, delay: 200.ms).slideX(begin: 0.03, end: 0),
+          ),
           const SizedBox(height: 4),
           Text(
             subtitle,
             textAlign: TextAlign.center,
             style: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
-          ).animate().fadeIn(duration: 400.ms, delay: 300.ms).slideX(begin: 0.03, end: 0),
+          ),
         ],
       ),
     );

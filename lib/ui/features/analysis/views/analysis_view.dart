@@ -4,7 +4,6 @@ import 'package:intl/intl.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:smart_wallet/domain/models/models.dart' as domain;
 import 'package:smart_wallet/ui/core/theme.dart';
-import 'package:smart_wallet/ui/core/animations.dart';
 import 'package:smart_wallet/ui/providers.dart';
 import '../widgets/section_card.dart';
 import '../widgets/income_expense_bar_chart.dart';
@@ -194,12 +193,12 @@ class _AnalysisViewState extends ConsumerState<AnalysisView> {
                           onChipTap: _applyChip,
                           onPickStart: _pickStart,
                           onPickEnd: _pickEnd,
-                        ).fadeSlideIn(),
+                        ),
                         const SizedBox(height: 12),
                         MoMCard(
                           currentMonthExpenses: _currentMonthExpenses(filteredExpenses),
                           lastMonthExpenses: _lastMonthExpenses(filteredExpenses),
-                        ).fadeSlideIn(delayMs: 50),
+                        ),
                         const SizedBox(height: 16),
                         if (totalIncome > 0 || totalExpense > 0)
                           SavingsRateCard(
@@ -207,12 +206,12 @@ class _AnalysisViewState extends ConsumerState<AnalysisView> {
                             totalExpense: totalExpense,
                             lastIncome: lastIncomeTotal,
                             lastExpense: lastExpenseTotal,
-                          ).fadeSlideIn(delayMs: 100),
+                          ),
                         if (totalIncome > 0 || totalExpense > 0) const SizedBox(height: 16),
                         SectionCard(
                           title: 'Net Worth Trend',
                           child: NetWorthLineChart(incomes: filteredIncomes, expenses: filteredExpenses),
-                        ).fadeSlideIn(delayMs: 150),
+                        ),
                         const SizedBox(height: 16),
                         SectionCard(
                           title: 'Income vs Expense',
@@ -220,7 +219,7 @@ class _AnalysisViewState extends ConsumerState<AnalysisView> {
                             incomes: filteredIncomes, expenses: filteredExpenses,
                             start: start, end: end,
                           ),
-                        ).fadeSlideIn(delayMs: 200),
+                        ),
                         const SizedBox(height: 16),
                         if (categorySpend.isNotEmpty)
                           SectionCard(
@@ -229,35 +228,35 @@ class _AnalysisViewState extends ConsumerState<AnalysisView> {
                               spend: categorySpend, catMap: catMap,
                               expenses: filteredExpenses, start: start, end: end,
                             ),
-                          ).fadeSlideIn(delayMs: 250),
+                          ),
                         if (categorySpend.isNotEmpty) const SizedBox(height: 16),
                         SectionCard(
                           title: 'Income Breakdown',
                           child: IncomeBreakdownPie(incomes: filteredIncomes),
-                        ).fadeSlideIn(delayMs: 300),
+                        ),
                         const SizedBox(height: 16),
                         if (filteredExpenses.isNotEmpty)
                           SectionCard(
                             title: 'Spending by Weekday',
                             child: WeekdaySpendingChart(expenses: filteredExpenses),
-                          ).fadeSlideIn(delayMs: 350),
+                          ),
                         if (filteredExpenses.isNotEmpty) const SizedBox(height: 16),
                         if (categories.any((c) => c.budgetLimit != null))
                           SectionCard(
                             title: 'Budget Utilization',
                             child: BudgetUtilizationChart(spend: categorySpend, categories: categories),
-                          ).fadeSlideIn(delayMs: 400),
+                          ),
                         if (categories.any((c) => c.budgetLimit != null)) const SizedBox(height: 16),
                         SectionCard(
                           title: 'Expense Source',
                           child: ExpenseSourcePie(expenses: filteredExpenses),
-                        ).fadeSlideIn(delayMs: 450),
+                        ),
                         const SizedBox(height: 16),
                         if (filteredExpenses.isNotEmpty)
                           SectionCard(
                             title: 'Top Spending Days',
                             child: TopSpendingDaysCard(expenses: filteredExpenses, catMap: catMap),
-                          ).fadeSlideIn(delayMs: 500),
+                          ),
                       ],
                     ),
                   );
@@ -423,30 +422,38 @@ class _DateRangeBar extends StatelessWidget {
           children: [
             Row(
               children: [
-                ...chips.map((chip) => Padding(
-                  padding: const EdgeInsets.only(right: 6),
-                  child: ChoiceChip(
-                    label: Text(chip, style: const TextStyle(fontSize: 12)),
-                    selected: activeChip == chip,
-                    selectedColor: AppColors.primary,
-                    labelStyle: TextStyle(
-                      color: activeChip == chip ? Colors.white : AppColors.text,
-                      fontSize: 12,
+                Expanded(
+                  child: SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      children: chips.map((chip) => Padding(
+                        padding: const EdgeInsets.only(right: 6),
+                        child: ChoiceChip(
+                          label: Text(chip, style: const TextStyle(fontSize: 12)),
+                          selected: activeChip == chip,
+                          selectedColor: AppColors.primary,
+                          labelStyle: TextStyle(
+                            color: activeChip == chip ? Colors.white : AppColors.text,
+                            fontSize: 12,
+                          ),
+                          onSelected: (_) => onChipTap(chip),
+                          visualDensity: VisualDensity.compact,
+                          materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        ),
+                      )).toList(),
                     ),
-                    onSelected: (_) => onChipTap(chip),
-                    visualDensity: VisualDensity.compact,
-                    materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                   ),
-                )),
-                const Spacer(),
-                if (customStart != null || customEnd != null)
+                ),
+                if (customStart != null || customEnd != null) ...[
+                  const SizedBox(width: 8),
                   GestureDetector(
                     onTap: () => onChipTap('6M'),
                     child: const Padding(
-                      padding: EdgeInsets.only(left: 4),
+                      padding: EdgeInsets.symmetric(horizontal: 4),
                       child: Icon(Icons.clear_rounded, size: 18, color: AppColors.textSecondary),
                     ),
                   ),
+                ],
               ],
             ),
             const SizedBox(height: 8),
@@ -463,11 +470,15 @@ class _DateRangeBar extends StatelessWidget {
                         labelText: 'From',
                         border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
                       ),
-                      child: Text(
-                        customStart != null ? DateFormat('MMM d, yyyy').format(customStart!) : 'Start',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: customStart != null ? AppColors.text : AppColors.textSecondary,
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          customStart != null ? DateFormat('MMM d, yyyy').format(customStart!) : 'Start',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: customStart != null ? AppColors.text : AppColors.textSecondary,
+                          ),
                         ),
                       ),
                     ),
@@ -488,11 +499,15 @@ class _DateRangeBar extends StatelessWidget {
                         labelText: 'To',
                         border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
                       ),
-                      child: Text(
-                        customEnd != null ? DateFormat('MMM d, yyyy').format(customEnd!) : 'End',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: customEnd != null ? AppColors.text : AppColors.textSecondary,
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          customEnd != null ? DateFormat('MMM d, yyyy').format(customEnd!) : 'End',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: customEnd != null ? AppColors.text : AppColors.textSecondary,
+                          ),
                         ),
                       ),
                     ),

@@ -1,12 +1,10 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_animate/flutter_animate.dart';
 import 'package:intl/intl.dart';
 import 'package:open_file/open_file.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:smart_wallet/ui/core/theme.dart';
-import 'package:smart_wallet/ui/core/animations.dart';
 import 'package:smart_wallet/ui/providers.dart';
 import 'package:google_fonts/google_fonts.dart';
 
@@ -176,21 +174,21 @@ class _ReportViewState extends ConsumerState<ReportView> {
                           borderRadius: BorderRadius.circular(16),
                         ),
                         child: const Icon(Icons.check_circle_rounded, size: 28, color: AppColors.success),
-                      ).scaleIn(),
+                      ),
                       const SizedBox(height: 12),
                       Text(
                         'Report Ready',
                         style: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.w600, color: AppColors.text),
-                      ).animate().fadeIn(duration: 400.ms, delay: 200.ms),
+                      ),
                       const SizedBox(height: 2),
                       Text(
                         DateFormat('MMM d, yyyy').format(_startDate),
                         style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
-                      ).animate().fadeIn(duration: 400.ms, delay: 300.ms),
+                      ),
                       Text(
                         'to ${DateFormat('MMM d, yyyy').format(_endDate)}',
                         style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
-                      ).animate().fadeIn(duration: 400.ms, delay: 350.ms),
+                      ),
                       const SizedBox(height: 20),
                       Row(
                         children: [
@@ -229,11 +227,11 @@ class _ReportViewState extends ConsumerState<ReportView> {
                             ),
                           ),
                         ],
-                      ).animate().fadeIn(duration: 400.ms, delay: 450.ms).slideX(begin: 0.04, end: 0),
+                      ),
                     ],
                   ),
                 ),
-              ).scaleIn(delayMs: 100),
+              ),
             ],
           ],
         ),
