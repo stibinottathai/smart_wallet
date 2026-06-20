@@ -130,12 +130,17 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
                       onPressed: () {
                         NotificationService().showTestNotification();
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Test notification sent')),
+                          const SnackBar(
+                            content: Text('Test notification sent'),
+                          ),
                         );
                       },
                       style: TextButton.styleFrom(
                         foregroundColor: AppColors.primary,
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 8,
+                        ),
                         minimumSize: Size.zero,
                         tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                       ),
@@ -147,39 +152,7 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
             const SizedBox(height: 12),
             _CurrencySection(),
             const SizedBox(height: 12),
-            _SectionCard(
-              icon: isConfigured ? Icons.vpn_key_rounded : Icons.vpn_key_off_rounded,
-              title: 'OpenRouter API',
-              trailing: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: isConfigured
-                      ? AppColors.primary.withValues(alpha: 0.1)
-                      : AppColors.secondary.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: Text(
-                  isConfigured ? 'Active' : 'Missing',
-                  style: TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w700,
-                    color: isConfigured ? AppColors.primary : AppColors.secondary,
-                    letterSpacing: 0.3,
-                  ),
-                ),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    isConfigured
-                        ? 'Your OpenRouter API key is configured. AI features are ready.'
-                        : 'No API key found. Add it to your .env file and restart.',
-                    style: const TextStyle(fontSize: 13, color: AppColors.textSecondary, height: 1.4),
-                  ),
-                ],
-              ),
-            ),
+
             const SizedBox(height: 12),
             _SectionCard(
               icon: Icons.description_rounded,
@@ -223,7 +196,11 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
             _SectionCard(
               icon: Icons.info_outline_rounded,
               title: 'About',
-              trailing: Icon(Icons.more_horiz_rounded, size: 18, color: AppColors.text.withValues(alpha: 0.3)),
+              trailing: Icon(
+                Icons.more_horiz_rounded,
+                size: 18,
+                color: AppColors.text.withValues(alpha: 0.3),
+              ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -406,27 +383,33 @@ class _CurrencySection extends ConsumerWidget {
                 padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
                 children: [
                   for (final c in supportedCurrencies)
-                  ListTile(
-                    leading: Text(
-                      currencySymbol(c).trim(),
-                      style: const TextStyle(fontSize: 20),
+                    ListTile(
+                      leading: Text(
+                        currencySymbol(c).trim(),
+                        style: const TextStyle(fontSize: 20),
+                      ),
+                      title: Text(
+                        c,
+                        style: const TextStyle(fontWeight: FontWeight.w500),
+                      ),
+                      trailing: c == current
+                          ? const Icon(
+                              Icons.check_rounded,
+                              color: AppColors.primary,
+                            )
+                          : null,
+                      onTap: () {
+                        ref.read(currencyCodeProvider.notifier).state = c;
+                        saveCurrencyPref(c);
+                        Navigator.pop(context);
+                      },
                     ),
-                    title: Text(c, style: const TextStyle(fontWeight: FontWeight.w500)),
-                    trailing: c == current
-                        ? const Icon(Icons.check_rounded, color: AppColors.primary)
-                        : null,
-                    onTap: () {
-                      ref.read(currencyCodeProvider.notifier).state = c;
-                      saveCurrencyPref(c);
-                      Navigator.pop(context);
-                    },
-                  ),
-              ],
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
-     ),
     );
   }
 }
@@ -494,10 +477,12 @@ class _CsvImportExportSection extends ConsumerStatefulWidget {
   const _CsvImportExportSection();
 
   @override
-  ConsumerState<_CsvImportExportSection> createState() => _CsvImportExportSectionState();
+  ConsumerState<_CsvImportExportSection> createState() =>
+      _CsvImportExportSectionState();
 }
 
-class _CsvImportExportSectionState extends ConsumerState<_CsvImportExportSection> {
+class _CsvImportExportSectionState
+    extends ConsumerState<_CsvImportExportSection> {
   bool _isProcessing = false;
 
   Future<void> _exportToCsv() async {
@@ -510,7 +495,9 @@ class _CsvImportExportSectionState extends ConsumerState<_CsvImportExportSection
       try {
         incomes = await ref.read(incomeRepositoryProvider).getAllIncomes();
         expenses = await ref.read(expenseRepositoryProvider).getAllExpenses();
-        categories = await ref.read(expenseRepositoryProvider).getAllCategories();
+        categories = await ref
+            .read(expenseRepositoryProvider)
+            .getAllCategories();
       } catch (_) {
         incomes = ref.read(allIncomesProvider).value ?? [];
         expenses = ref.read(allExpensesProvider).value ?? [];
@@ -524,9 +511,9 @@ class _CsvImportExportSectionState extends ConsumerState<_CsvImportExportSection
       );
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to export CSV: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Failed to export CSV: $e')));
       }
     } finally {
       if (mounted) {
@@ -543,7 +530,9 @@ class _CsvImportExportSectionState extends ConsumerState<_CsvImportExportSection
         allowedExtensions: ['csv'],
       );
 
-      if (result == null || result.files.isEmpty || result.files.single.path == null) {
+      if (result == null ||
+          result.files.isEmpty ||
+          result.files.single.path == null) {
         return;
       }
 
@@ -566,7 +555,11 @@ class _CsvImportExportSectionState extends ConsumerState<_CsvImportExportSection
         showDialog(
           context: context,
           builder: (ctx) => AlertDialog(
-            icon: const Icon(Icons.check_circle_rounded, color: AppColors.primary, size: 40),
+            icon: const Icon(
+              Icons.check_circle_rounded,
+              color: AppColors.primary,
+              size: 40,
+            ),
             title: const Text('Import Successful'),
             content: Text(
               'Successfully imported:\n'
@@ -587,10 +580,15 @@ class _CsvImportExportSectionState extends ConsumerState<_CsvImportExportSection
         showDialog(
           context: context,
           builder: (ctx) => AlertDialog(
-            icon: const Icon(Icons.error_outline_rounded, color: AppColors.secondary, size: 40),
+            icon: const Icon(
+              Icons.error_outline_rounded,
+              color: AppColors.secondary,
+              size: 40,
+            ),
             title: const Text('Import Failed'),
             content: Text(
-              importResult.errorMessage ?? 'An unknown error occurred during import.',
+              importResult.errorMessage ??
+                  'An unknown error occurred during import.',
               textAlign: TextAlign.center,
             ),
             actions: [
@@ -604,9 +602,9 @@ class _CsvImportExportSectionState extends ConsumerState<_CsvImportExportSection
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to import CSV: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Failed to import CSV: $e')));
       }
     } finally {
       if (mounted) {
@@ -640,14 +638,19 @@ class _CsvImportExportSectionState extends ConsumerState<_CsvImportExportSection
                       ? const SizedBox(
                           width: 16,
                           height: 16,
-                          child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary),
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: AppColors.primary,
+                          ),
                         )
                       : const Icon(Icons.file_download_rounded, size: 18),
                   label: const Text('Export CSV'),
                   style: OutlinedButton.styleFrom(
                     foregroundColor: AppColors.primary,
                     side: const BorderSide(color: AppColors.primary),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
                   ),
                 ),
               ),
@@ -663,7 +666,9 @@ class _CsvImportExportSectionState extends ConsumerState<_CsvImportExportSection
                   style: FilledButton.styleFrom(
                     backgroundColor: AppColors.primary,
                     foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
                   ),
                 ),
               ),
@@ -674,4 +679,3 @@ class _CsvImportExportSectionState extends ConsumerState<_CsvImportExportSection
     );
   }
 }
-
