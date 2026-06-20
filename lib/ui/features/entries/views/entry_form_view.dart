@@ -6,7 +6,9 @@ import 'package:intl/intl.dart';
 import 'package:uuid/uuid.dart';
 import 'package:smart_wallet/domain/models/models.dart' as domain;
 import 'package:smart_wallet/ui/core/theme.dart';
+import 'package:smart_wallet/ui/core/dialogs.dart';
 import 'package:smart_wallet/ui/providers.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 class EntryFormView extends ConsumerStatefulWidget {
   final domain.Income? initialIncome;
@@ -25,17 +27,14 @@ class EntryFormView extends ConsumerStatefulWidget {
 class _EntryFormViewState extends ConsumerState<EntryFormView> {
   final _formKey = GlobalKey<FormState>();
 
-  // Shared fields
   bool _isExpense = true;
   final _amountController = TextEditingController();
   DateTime _selectedDate = DateTime.now();
 
-  // Income specific fields
   final _sourceController = TextEditingController();
   bool _isRecurring = false;
   domain.IncomeFrequency _frequency = domain.IncomeFrequency.oneOff;
 
-  // Expense specific fields
   String? _selectedCategoryId;
   final _noteController = TextEditingController();
   String? _receiptImagePath;
@@ -74,8 +73,8 @@ class _EntryFormViewState extends ConsumerState<EntryFormView> {
     super.dispose();
   }
 
-  Future<void> _selectDate(BuildContext context) async {
-    final DateTime? picked = await showDatePicker(
+  Future<void> _selectDate() async {
+    final picked = await showDatePicker(
       context: context,
       initialDate: _selectedDate,
       firstDate: DateTime(2020),
@@ -83,9 +82,10 @@ class _EntryFormViewState extends ConsumerState<EntryFormView> {
       builder: (context, child) {
         return Theme(
           data: Theme.of(context).copyWith(
-            colorScheme: const ColorScheme.light(
+            colorScheme: Theme.of(context).colorScheme.copyWith(
               primary: AppColors.primary,
               onPrimary: Colors.white,
+              surface: AppColors.card,
               onSurface: AppColors.text,
             ),
           ),
@@ -94,9 +94,7 @@ class _EntryFormViewState extends ConsumerState<EntryFormView> {
       },
     );
     if (picked != null && picked != _selectedDate) {
-      setState(() {
-        _selectedDate = picked;
-      });
+      setState(() => _selectedDate = picked);
     }
   }
 
@@ -104,32 +102,60 @@ class _EntryFormViewState extends ConsumerState<EntryFormView> {
     final apiKey = ref.read(openRouterApiKeyProvider);
     if (apiKey.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please configure an OpenRouter API Key to scan receipts.'),
-          backgroundColor: AppColors.secondary,
-        ),
+        const SnackBar(content: Text('Configure an OpenRouter API key to scan receipts.')),
       );
       return;
     }
 
-    final picker = ImagePicker();
     final source = await showModalBottomSheet<ImageSource>(
       context: context,
-      backgroundColor: AppColors.background,
+      backgroundColor: AppColors.card,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
       builder: (context) => SafeArea(
-        child: Wrap(
-          children: [
-            ListTile(
-              leading: const Icon(Icons.photo_library, color: AppColors.primary),
-              title: const Text('Photo Gallery'),
-              onTap: () => Navigator.of(context).pop(ImageSource.gallery),
-            ),
-            ListTile(
-              leading: const Icon(Icons.camera_alt, color: AppColors.primary),
-              title: const Text('Camera'),
-              onTap: () => Navigator.of(context).pop(ImageSource.camera),
-            ),
-          ],
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 36,
+                height: 4,
+                margin: const EdgeInsets.only(bottom: 12),
+                decoration: BoxDecoration(
+                  color: AppColors.divider,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              ListTile(
+                leading: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: AppColors.primaryLight,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(Icons.photo_library_rounded, color: AppColors.primary, size: 22),
+                ),
+                title: const Text('Photo Gallery', style: TextStyle(fontWeight: FontWeight.w600)),
+                subtitle: const Text('Choose an existing receipt photo'),
+                onTap: () => Navigator.of(context).pop(ImageSource.gallery),
+              ),
+              ListTile(
+                leading: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: AppColors.secondaryLight,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(Icons.camera_alt_rounded, color: AppColors.secondary, size: 22),
+                ),
+                title: const Text('Camera', style: TextStyle(fontWeight: FontWeight.w600)),
+                subtitle: const Text('Take a photo of your receipt'),
+                onTap: () => Navigator.of(context).pop(ImageSource.camera),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -137,12 +163,11 @@ class _EntryFormViewState extends ConsumerState<EntryFormView> {
     if (source == null) return;
 
     try {
+      final picker = ImagePicker();
       final pickedFile = await picker.pickImage(source: source);
       if (pickedFile == null) return;
 
-      setState(() {
-        _isScanning = true;
-      });
+      setState(() => _isScanning = true);
 
       final scanService = ref.read(receiptScanServiceProvider);
       final result = await scanService.scanReceipt(
@@ -151,10 +176,8 @@ class _EntryFormViewState extends ConsumerState<EntryFormView> {
       );
 
       if (result != null) {
-        // Fetch categories to fuzzy match
         final categoriesAsync = ref.read(allCategoriesProvider);
         final categories = categoriesAsync.value ?? [];
-
         final matchedId = scanService.matchCategory(result.categoryGuess, categories);
 
         if (!mounted) return;
@@ -166,38 +189,29 @@ class _EntryFormViewState extends ConsumerState<EntryFormView> {
           _noteController.text = '${result.merchant}${result.lineItems.isNotEmpty ? '\nItems:\n${result.lineItems.join('\n')}' : ''}';
           _receiptImagePath = pickedFile.path;
           _expenseSource = domain.ExpenseSource.aiScan;
-          _aiConfidence = 0.90; // Default placeholder for successful scan
+          _aiConfidence = 0.90;
         });
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Form pre-filled from receipt details! Review and tap Add.'),
-            backgroundColor: AppColors.primary,
-          ),
-        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Receipt scanned! Review and tap Add.')),
+          );
+        }
       } else {
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Failed to parse receipt. Please enter details manually.'),
-            backgroundColor: AppColors.secondary,
-          ),
-        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Could not parse receipt. Enter details manually.')),
+          );
+        }
       }
     } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error: $e'),
-          backgroundColor: AppColors.secondary,
-        ),
-      );
-    } finally {
       if (mounted) {
-        setState(() {
-          _isScanning = false;
-        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Scan error: $e')),
+        );
       }
+    } finally {
+      if (mounted) setState(() => _isScanning = false);
     }
   }
 
@@ -207,10 +221,7 @@ class _EntryFormViewState extends ConsumerState<EntryFormView> {
     final amount = double.tryParse(_amountController.text) ?? 0.0;
     if (amount <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please enter an amount greater than 0.'),
-          backgroundColor: AppColors.secondary,
-        ),
+        const SnackBar(content: Text('Enter an amount greater than 0.')),
       );
       return;
     }
@@ -261,6 +272,39 @@ class _EntryFormViewState extends ConsumerState<EntryFormView> {
     Navigator.of(context).pop();
   }
 
+  Future<void> _deleteEntry() async {
+    final isConfirmed = await showDeleteConfirmationDialog(
+      context: context,
+      itemType: _isExpense ? 'expense' : 'income',
+    );
+
+    if (!isConfirmed) return;
+
+    if (_isExpense) {
+      if (widget.initialExpense != null) {
+        await ref.read(expenseRepositoryProvider).deleteExpense(widget.initialExpense!.id);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Expense deleted')),
+          );
+        }
+      }
+    } else {
+      if (widget.initialIncome != null) {
+        await ref.read(incomeRepositoryProvider).deleteIncome(widget.initialIncome!.id);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Income deleted')),
+          );
+        }
+      }
+    }
+
+    if (mounted) {
+      Navigator.of(context).pop();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final categoriesAsync = ref.watch(allCategoriesProvider);
@@ -268,314 +312,368 @@ class _EntryFormViewState extends ConsumerState<EntryFormView> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(isEdit
-            ? 'Edit ${_isExpense ? "Expense" : "Income"}'
-            : 'Add transaction'),
+        title: Text(isEdit ? 'Edit ${_isExpense ? "Expense" : "Income"}' : 'New Transaction'),
         actions: [
           if (_isExpense && !isEdit)
             IconButton(
-              icon: const Icon(Icons.document_scanner),
+              icon: const Icon(Icons.document_scanner_outlined),
               onPressed: _isScanning ? null : _scanReceipt,
               tooltip: 'Scan Receipt',
+            ),
+          if (isEdit)
+            IconButton(
+              icon: const Icon(Icons.delete_outline, color: AppColors.secondary),
+              onPressed: _deleteEntry,
+              tooltip: 'Delete Transaction',
             ),
         ],
       ),
       body: Stack(
         children: [
           SingleChildScrollView(
-            padding: const EdgeInsets.all(24.0),
+            padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
             child: Form(
               key: _formKey,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  // Toggle pill if not editing
-                  if (!isEdit) ...[
-                    Row(
-                      children: [
-                        Expanded(
-                          child: GestureDetector(
-                            onTap: () => setState(() => _isExpense = false),
-                            child: Container(
-                              alignment: Alignment.center,
-                              padding: const EdgeInsets.symmetric(vertical: 12.0),
-                              decoration: BoxDecoration(
-                                color: !_isExpense ? AppColors.primary : AppColors.surface,
-                                borderRadius: const BorderRadius.horizontal(left: Radius.circular(8.0)),
-                              ),
-                              child: Text(
-                                'Income',
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  color: !_isExpense ? Colors.white : AppColors.text,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                        Expanded(
-                          child: GestureDetector(
-                            onTap: () => setState(() => _isExpense = true),
-                            child: Container(
-                              alignment: Alignment.center,
-                              padding: const EdgeInsets.symmetric(vertical: 12.0),
-                              decoration: BoxDecoration(
-                                color: _isExpense ? AppColors.secondary : AppColors.surface,
-                                borderRadius: const BorderRadius.horizontal(right: Radius.circular(8.0)),
-                              ),
-                              child: Text(
-                                'Expense',
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  color: _isExpense ? Colors.white : AppColors.text,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
+                  if (!isEdit) _buildTypeToggle(),
+                  const SizedBox(height: 20),
+                  _buildSectionCard([
+                    _buildAmountField(),
+                    const SizedBox(height: 14),
+                    _buildDateField(),
+                  ]),
+                  const SizedBox(height: 12),
+                  if (!_isExpense)
+                    _buildSectionCard([
+                      _buildSourceField(),
+                      const SizedBox(height: 14),
+                      _buildRecurringSection(),
+                    ])
+                  else
+                    _buildSectionCard([
+                      categoriesAsync.when(
+                        loading: () => const SizedBox(height: 56, child: Center(child: CircularProgressIndicator(strokeWidth: 2))),
+                        error: (err, _) => Text('$err', style: const TextStyle(color: AppColors.error)),
+                        data: (categories) => _buildCategoryDropdown(categories),
+                      ),
+                      const SizedBox(height: 14),
+                      _buildNoteField(),
+                      if (_receiptImagePath != null) ...[
+                        const SizedBox(height: 14),
+                        _buildReceiptPreview(),
                       ],
-                    ),
-                    const SizedBox(height: 24.0),
-                  ],
-
-                  // Common amount field
-                  TextFormField(
-                    controller: _amountController,
-                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                    style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-                    decoration: InputDecoration(
-                      labelText: 'Amount',
-                      prefixIcon: const Icon(Icons.attach_money, color: AppColors.primary),
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8.0)),
-                    ),
-                    validator: (value) {
-                      if (value == null || value.trim().isEmpty) return 'Enter an amount';
-                      if (double.tryParse(value) == null) return 'Enter a valid number';
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 16.0),
-
-                  // Common Date selector
-                  InkWell(
-                    onTap: () => _selectDate(context),
-                    borderRadius: BorderRadius.circular(8.0),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(vertical: 16.0, horizontal: 12.0),
-                      decoration: BoxDecoration(
-                        color: AppColors.surface,
-                        borderRadius: BorderRadius.circular(8.0),
-                        border: Border.all(color: AppColors.divider),
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Row(
-                            children: [
-                              const Icon(Icons.calendar_today, color: AppColors.primary, size: 20),
-                              const SizedBox(width: 12),
-                              Text(
-                                DateFormat('EEEE, d MMMM yyyy').format(_selectedDate),
-                                style: const TextStyle(fontSize: 16.0),
-                              ),
-                            ],
-                          ),
-                          const Icon(Icons.arrow_drop_down, color: AppColors.text),
-                        ],
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 16.0),
-
-                  // Form details based on type
-                  if (!_isExpense) ...[
-                    // Income Form
-                    TextFormField(
-                      controller: _sourceController,
-                      decoration: const InputDecoration(
-                        labelText: 'Source (e.g. Salary, Client, Sale)',
-                        prefixIcon: Icon(Icons.business, color: AppColors.primary),
-                      ),
-                    ),
-                    const SizedBox(height: 16.0),
-                    SwitchListTile(
-                      title: const Text('Recurring Income'),
-                      value: _isRecurring,
-                      activeThumbColor: AppColors.primary,
-                      onChanged: (val) => setState(() => _isRecurring = val),
-                    ),
-                    if (_isRecurring) ...[
-                      const SizedBox(height: 8.0),
-                      DropdownButtonFormField<domain.IncomeFrequency>(
-                        initialValue: _frequency,
-                        decoration: const InputDecoration(
-                          labelText: 'Frequency',
-                          prefixIcon: Icon(Icons.repeat, color: AppColors.primary),
-                        ),
-                        items: domain.IncomeFrequency.values.map((freq) {
-                          return DropdownMenuItem(
-                            value: freq,
-                            child: Text(freq.displayName),
-                          );
-                        }).toList(),
-                        onChanged: (val) {
-                          if (val != null) setState(() => _frequency = val);
-                        },
-                      ),
-                    ],
-                  ] else ...[
-                    // Expense Form
-                    categoriesAsync.when(
-                      loading: () => const Center(child: CircularProgressIndicator()),
-                      error: (err, stack) => Text('Error loading categories: $err'),
-                      data: (categories) {
-                        // Exclude Income category from expense list
-                        final expenseCategories = categories.where((c) => c.id != 'cat_income').toList();
-
-                        if (_selectedCategoryId == null && expenseCategories.isNotEmpty) {
-                          _selectedCategoryId = expenseCategories.first.id;
-                        }
-
-                        return DropdownButtonFormField<String>(
-                          initialValue: _selectedCategoryId,
-                          decoration: const InputDecoration(
-                            labelText: 'Category',
-                            prefixIcon: Icon(Icons.category, color: AppColors.primary),
-                          ),
-                          items: expenseCategories.map((cat) {
-                            return DropdownMenuItem(
-                              value: cat.id,
-                              child: Row(
-                                children: [
-                                  Container(
-                                    width: 12,
-                                    height: 12,
-                                    decoration: BoxDecoration(
-                                      color: Color(int.parse(cat.color.replaceAll('#', '0xFF'))),
-                                      shape: BoxShape.circle,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 12),
-                                  Text(cat.name),
-                                ],
-                              ),
-                            );
-                          }).toList(),
-                          onChanged: (val) {
-                            setState(() => _selectedCategoryId = val);
-                          },
-                        );
-                      },
-                    ),
-                    const SizedBox(height: 16.0),
-                    TextFormField(
-                      controller: _noteController,
-                      maxLines: 3,
-                      decoration: const InputDecoration(
-                        labelText: 'Note / Merchant / Details',
-                        prefixIcon: Icon(Icons.note, color: AppColors.primary),
-                        alignLabelWithHint: true,
-                      ),
-                    ),
-                    if (_receiptImagePath != null) ...[
-                      const SizedBox(height: 16.0),
-                      Container(
-                        padding: const EdgeInsets.all(8.0),
-                        decoration: BoxDecoration(
-                          color: AppColors.surface,
-                          borderRadius: BorderRadius.circular(8.0),
-                          border: Border.all(color: AppColors.divider),
-                        ),
-                        child: Row(
-                          children: [
-                            ClipRRect(
-                              borderRadius: BorderRadius.circular(4.0),
-                              child: Image.file(
-                                File(_receiptImagePath!),
-                                width: 60,
-                                height: 60,
-                                fit: BoxFit.cover,
-                                errorBuilder: (c, e, s) => const Icon(Icons.receipt_long, size: 40),
-                              ),
-                            ),
-                            const SizedBox(width: 12.0),
-                            const Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    'Receipt Attached',
-                                    style: TextStyle(fontWeight: FontWeight.bold),
-                                  ),
-                                  Text('OCR details scanned'),
-                                ],
-                              ),
-                            ),
-                            IconButton(
-                              icon: const Icon(Icons.delete, color: AppColors.secondary),
-                              onPressed: () {
-                                setState(() {
-                                  _receiptImagePath = null;
-                                  _expenseSource = domain.ExpenseSource.manual;
-                                  _aiConfidence = null;
-                                });
-                              },
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ],
-
-                  const SizedBox(height: 32.0),
-                  ElevatedButton(
-                    onPressed: _saveForm,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: _isExpense ? AppColors.secondary : AppColors.primary,
-                      padding: const EdgeInsets.symmetric(vertical: 16.0),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8.0)),
-                    ),
-                    child: Text(
-                      isEdit ? 'Save Changes' : 'Add ${_isExpense ? "Expense" : "Income"}',
-                      style: const TextStyle(fontSize: 16.0, fontWeight: FontWeight.bold, color: Colors.white),
-                    ),
-                  ),
+                    ]),
+                  const SizedBox(height: 24),
+                  _buildSaveButton(isEdit),
                 ],
               ),
             ),
           ),
-          if (_isScanning)
-            Container(
-              color: Colors.black54,
-              child: Center(
-                child: Container(
-                  padding: const EdgeInsets.all(24.0),
-                  margin: const EdgeInsets.symmetric(horizontal: 40.0),
-                  decoration: BoxDecoration(
-                    color: AppColors.background,
-                    borderRadius: BorderRadius.circular(12.0),
-                  ),
-                  child: const Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      CircularProgressIndicator(color: AppColors.primary),
-                      SizedBox(height: 16.0),
-                      Text(
-                        'Scanning Receipt...',
-                        style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.text),
-                      ),
-                      SizedBox(height: 8.0),
-                      Text(
-                        'AI is reading transaction totals and categories from your image.',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(fontSize: 12.0, color: Colors.grey),
-                      ),
-                    ],
-                  ),
-                ),
+          if (_isScanning) _buildScanOverlay(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTypeToggle() {
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.card,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.divider.withValues(alpha: 0.5)),
+      ),
+      padding: const EdgeInsets.all(4),
+      child: Row(
+        children: [
+          Expanded(child: _toggleBtn('Income', false, AppColors.primary)),
+          Expanded(child: _toggleBtn('Expense', true, AppColors.secondary)),
+        ],
+      ),
+    );
+  }
+
+  Widget _toggleBtn(String label, bool isExpense, Color color) {
+    final selected = _isExpense == isExpense;
+    return GestureDetector(
+      onTap: () => setState(() => _isExpense = isExpense),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        decoration: BoxDecoration(
+          color: selected ? color : Colors.transparent,
+          borderRadius: BorderRadius.circular(11),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              isExpense ? Icons.trending_down_rounded : Icons.trending_up_rounded,
+              size: 16,
+              color: selected ? Colors.white : color.withValues(alpha: 0.6),
+            ),
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: TextStyle(
+                fontWeight: FontWeight.w600,
+                fontSize: 13,
+                color: selected ? Colors.white : AppColors.text.withValues(alpha: 0.5),
               ),
             ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSectionCard(List<Widget> children) {
+    return Card(
+      margin: EdgeInsets.zero,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(children: children),
+      ),
+    );
+  }
+
+  Widget _buildAmountField() {
+    return TextFormField(
+      controller: _amountController,
+      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+      style: GoogleFonts.fraunces(fontSize: 28, fontWeight: FontWeight.w500, color: AppColors.text),
+      decoration: InputDecoration(
+        labelText: 'Amount',
+        hintText: '0.00',
+        prefixIcon: Padding(
+          padding: const EdgeInsets.only(bottom: 2),
+          child: Text('\$', style: GoogleFonts.fraunces(fontSize: 22, fontWeight: FontWeight.w500, color: AppColors.primary)),
+        ),
+        prefixIconConstraints: const BoxConstraints(minWidth: 36),
+      ),
+      validator: (v) {
+        if (v == null || v.trim().isEmpty) return 'Enter an amount';
+        if (double.tryParse(v) == null) return 'Enter a valid number';
+        return null;
+      },
+    );
+  }
+
+  Widget _buildDateField() {
+    return InkWell(
+      onTap: _selectDate,
+      borderRadius: BorderRadius.circular(12),
+      child: InputDecorator(
+        decoration: InputDecoration(
+          labelText: 'Date',
+          prefixIcon: const Icon(Icons.calendar_today_rounded, size: 20, color: AppColors.primary),
+          suffixIcon: const Icon(Icons.expand_more, color: AppColors.textSecondary),
+        ),
+        child: Text(
+          DateFormat('EEE, MMM d, yyyy').format(_selectedDate),
+          style: const TextStyle(fontSize: 15, color: AppColors.text),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSourceField() {
+    return TextFormField(
+      controller: _sourceController,
+      decoration: const InputDecoration(
+        labelText: 'Source',
+        hintText: 'e.g. Salary, Freelance, Sale',
+        prefixIcon: Icon(Icons.business_rounded, size: 20, color: AppColors.primary),
+      ),
+    );
+  }
+
+  Widget _buildRecurringSection() {
+    return Column(
+      children: [
+        Container(
+          decoration: BoxDecoration(
+            border: Border.all(color: AppColors.divider),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: SwitchListTile(
+            title: const Text('Recurring Income', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
+            subtitle: _isRecurring ? const Text('Paid on a regular schedule') : null,
+            value: _isRecurring,
+            activeThumbColor: AppColors.primary,
+            contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            onChanged: (v) => setState(() => _isRecurring = v),
+          ),
+        ),
+        if (_isRecurring) ...[
+          const SizedBox(height: 12),
+          DropdownButtonFormField<domain.IncomeFrequency>(
+            initialValue: _frequency,
+            decoration: const InputDecoration(
+              labelText: 'Frequency',
+              prefixIcon: Icon(Icons.repeat_rounded, size: 20, color: AppColors.primary),
+            ),
+            items: domain.IncomeFrequency.values.map((f) {
+              return DropdownMenuItem(value: f, child: Text(f.displayName));
+            }).toList(),
+            onChanged: (v) {
+              if (v != null) setState(() => _frequency = v);
+            },
+          ),
         ],
+      ],
+    );
+  }
+
+  Widget _buildCategoryDropdown(List<domain.Category> categories) {
+    final expenseCategories = categories.where((c) => c.id != 'cat_income').toList();
+
+    if (_selectedCategoryId == null && expenseCategories.isNotEmpty) {
+      _selectedCategoryId = expenseCategories.first.id;
+    }
+
+    return DropdownButtonFormField<String>(
+      initialValue: _selectedCategoryId,
+      decoration: const InputDecoration(
+        labelText: 'Category',
+        prefixIcon: Icon(Icons.category_rounded, size: 20, color: AppColors.primary),
+      ),
+      items: expenseCategories.map((cat) {
+        final catColor = Color(int.parse(cat.color.replaceAll('#', '0xFF')));
+        return DropdownMenuItem(
+          value: cat.id,
+          child: Row(
+            children: [
+              Container(
+                width: 10,
+                height: 10,
+                decoration: BoxDecoration(color: catColor, shape: BoxShape.circle),
+              ),
+              const SizedBox(width: 12),
+              Text(cat.name),
+            ],
+          ),
+        );
+      }).toList(),
+      onChanged: (v) => setState(() => _selectedCategoryId = v),
+    );
+  }
+
+  Widget _buildNoteField() {
+    return TextFormField(
+      controller: _noteController,
+      maxLines: 3,
+      decoration: const InputDecoration(
+        labelText: 'Note / Merchant',
+        hintText: 'Optional details...',
+        prefixIcon: Padding(
+          padding: EdgeInsets.only(bottom: 48),
+          child: Icon(Icons.note_rounded, size: 20, color: AppColors.primary),
+        ),
+        alignLabelWithHint: true,
+      ),
+    );
+  }
+
+  Widget _buildReceiptPreview() {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.primaryLight.withValues(alpha: 0.3),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.primary.withValues(alpha: 0.2)),
+      ),
+      child: Row(
+        children: [
+          ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: Image.file(
+              File(_receiptImagePath!),
+              width: 48,
+              height: 48,
+              fit: BoxFit.cover,
+              errorBuilder: (_, __, ___) => Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  color: AppColors.surface,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(Icons.receipt_long_rounded, color: AppColors.primary, size: 24),
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          const Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Receipt attached', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                SizedBox(height: 2),
+                Text('Scanned with AI', style: TextStyle(fontSize: 11, color: AppColors.textSecondary)),
+              ],
+            ),
+          ),
+          IconButton(
+            icon: const Icon(Icons.close_rounded, size: 20, color: AppColors.textSecondary),
+            onPressed: () => setState(() {
+              _receiptImagePath = null;
+              _expenseSource = domain.ExpenseSource.manual;
+              _aiConfidence = null;
+            }),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSaveButton(bool isEdit) {
+    return SizedBox(
+      height: 52,
+      child: ElevatedButton(
+        onPressed: _saveForm,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: _isExpense ? AppColors.secondary : AppColors.primary,
+          foregroundColor: Colors.white,
+          elevation: 0,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+          textStyle: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.w600),
+        ),
+        child: Text(isEdit ? 'Save Changes' : 'Add ${_isExpense ? "Expense" : "Income"}'),
+      ),
+    );
+  }
+
+  Widget _buildScanOverlay() {
+    return Container(
+      color: Colors.black38,
+      child: Center(
+        child: Card(
+          margin: const EdgeInsets.symmetric(horizontal: 48),
+          child: Padding(
+            padding: const EdgeInsets.all(32),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const SizedBox(
+                  width: 40,
+                  height: 40,
+                  child: CircularProgressIndicator(strokeWidth: 3, color: AppColors.primary),
+                ),
+                const SizedBox(height: 20),
+                const Text('Scanning Receipt', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 15, color: AppColors.text)),
+                const SizedBox(height: 6),
+                Text(
+                  'AI is reading the transaction details from your image.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 12, color: AppColors.text.withValues(alpha: 0.6)),
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }

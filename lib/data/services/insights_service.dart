@@ -145,7 +145,8 @@ class InsightsService {
       );
 
       if (response.statusCode != 200) {
-        throw Exception('OpenRouter responded with code ${response.statusCode}');
+        final detail = _extractErrorDetail(response.body, response.statusCode);
+        throw Exception('OpenRouter responded with code ${response.statusCode}: $detail');
       }
 
       final Map<String, dynamic> body = jsonDecode(response.body);
@@ -196,6 +197,205 @@ class InsightsService {
     }
   }
 
+  /// Extracts a user-friendly error detail from a non-200 OpenRouter response.
+  String _extractErrorDetail(String body, int statusCode) {
+    try {
+      final decoded = jsonDecode(body);
+      final err = decoded['error'];
+      if (err is Map) {
+        final message = err['message'] ?? err['code'] ?? body;
+        return message.toString();
+      }
+    } catch (_) {}
+    return body.length > 200 ? 'HTTP $statusCode (see logs)' : body;
+  }
+
+  /// Builds a compact, aggregated financial summary instead of listing
+  /// every individual transaction. This dramatically reduces prompt size.
+  String _buildFinancialContext({
+    required List<domain.Expense> expenses,
+    required List<domain.Income> incomes,
+    required List<domain.Category> categories,
+  }) {
+    final categoryMap = {for (var c in categories) c.id: c.name};
+    final now = DateTime.now();
+    final cutoff = now.subtract(const Duration(days: 90));
+
+    // Filter to recent data only
+    final recentExpenses = expenses.where((e) => e.date.isAfter(cutoff)).toList();
+    final recentIncomes = incomes.where((e) => e.date.isAfter(cutoff)).toList();
+
+    // Aggregate expenses by category
+    final Map<String, double> categoryTotals = {};
+    final Map<String, int> categoryCounts = {};
+    for (final e in recentExpenses) {
+      final name = categoryMap[e.categoryId] ?? 'Uncategorized';
+      categoryTotals[name] = (categoryTotals[name] ?? 0.0) + e.amount;
+      categoryCounts[name] = (categoryCounts[name] ?? 0) + 1;
+    }
+
+    // Aggregate incomes by source
+    final Map<String, double> sourceTotals = {};
+    for (final i in recentIncomes) {
+      sourceTotals[i.source] = (sourceTotals[i.source] ?? 0.0) + i.amount;
+    }
+
+    double totalIncome = recentIncomes.fold(0.0, (sum, item) => sum + item.amount);
+    double totalExpense = recentExpenses.fold(0.0, (sum, item) => sum + item.amount);
+
+    final buf = StringBuffer();
+    buf.writeln('Financial Summary (last 90 days):');
+    buf.writeln('Total Income: \$${totalIncome.toStringAsFixed(2)}');
+    buf.writeln('Total Expenses: \$${totalExpense.toStringAsFixed(2)}');
+    buf.writeln('Net Balance: \$${(totalIncome - totalExpense).toStringAsFixed(2)}');
+    buf.writeln();
+    buf.writeln('Spending by Category:');
+    final sortedCats = categoryTotals.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+    for (final entry in sortedCats) {
+      buf.writeln('- ${entry.key}: \$${entry.value.toStringAsFixed(2)} (${categoryCounts[entry.key]} transactions)');
+    }
+    buf.writeln();
+    buf.writeln('Income by Source:');
+    for (final entry in sourceTotals.entries) {
+      buf.writeln('- ${entry.key}: \$${entry.value.toStringAsFixed(2)}');
+    }
+
+    // Include only the 10 most recent individual transactions for context
+    final recentTxns = recentExpenses.toList()
+      ..sort((a, b) => b.date.compareTo(a.date));
+    if (recentTxns.isNotEmpty) {
+      buf.writeln();
+      buf.writeln('Recent Transactions (last ${recentTxns.length > 10 ? 10 : recentTxns.length}):');
+      for (final e in recentTxns.take(10)) {
+        final catName = categoryMap[e.categoryId] ?? 'Uncategorized';
+        final noteStr = e.note != null ? ' - ${e.note}' : '';
+        buf.writeln('- ${e.date.toString().substring(0, 10)}: \$${e.amount.toStringAsFixed(2)} ($catName$noteStr)');
+      }
+    }
+
+    return buf.toString();
+  }
+
+  /// Streams the assistant response token-by-token via SSE.
+  /// This provides a much faster perceived response time since the user
+  /// sees text appearing immediately instead of waiting for the full reply.
+  Stream<String> streamAssistant({
+    required List<domain.Expense> expenses,
+    required List<domain.Income> incomes,
+    required List<domain.Category> categories,
+    required List<Map<String, String>> chatHistory,
+    required String userQuery,
+    required String apiKey,
+  }) async* {
+    if (apiKey.trim().isEmpty) {
+      throw ArgumentError('API key is empty. Please configure a valid OpenRouter API key.');
+    }
+
+    final financialContext = _buildFinancialContext(
+      expenses: expenses,
+      incomes: incomes,
+      categories: categories,
+    );
+
+    final systemPrompt = "You are a concise, friendly AI financial assistant for Smart Wallet.\n"
+        "Use the data below to answer questions. Be brief and practical.\n\n"
+        "$financialContext\n\n"
+        "Rules: Keep replies short (2-4 bullet points max). Use Markdown formatting.";
+
+    // Build payload messages
+    final List<Map<String, String>> messages = [
+      {'role': 'system', 'content': systemPrompt}
+    ];
+
+    // Limit chat history to last 10 messages to keep payload small
+    final recentHistory = chatHistory.length > 10
+        ? chatHistory.sublist(chatHistory.length - 10)
+        : chatHistory;
+
+    for (final msg in recentHistory) {
+      messages.add({
+        'role': msg['role'] == 'model' ? 'assistant' : 'user',
+        'content': msg['text']!,
+      });
+    }
+
+    messages.add({'role': 'user', 'content': userQuery});
+
+    // Retry logic for transient errors
+    const maxRetries = 2;
+    const retryableStatusCodes = {429, 500, 502, 503};
+
+    for (int attempt = 0; attempt <= maxRetries; attempt++) {
+      final client = http.Client();
+      try {
+        final request = http.Request(
+          'POST',
+          Uri.parse('https://openrouter.ai/api/v1/chat/completions'),
+        );
+        request.headers.addAll({
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $apiKey',
+          'HTTP-Referer': 'https://github.com/stibinottathai/smart_wallet',
+          'X-Title': 'Smart Wallet',
+        });
+        request.body = jsonEncode({
+          'model': dotenv.env['OPENROUTER_MODEL'] ?? 'deepseek/deepseek-chat-v3-0324',
+          'messages': messages,
+          'stream': true,
+          'max_tokens': 512,
+        });
+
+        final streamedResponse = await client.send(request);
+
+        if (streamedResponse.statusCode != 200) {
+          final body = await streamedResponse.stream.bytesToString();
+          if (retryableStatusCodes.contains(streamedResponse.statusCode) && attempt < maxRetries) {
+            await Future.delayed(Duration(seconds: (attempt + 1) * 2));
+            continue;
+          }
+          final detail = _extractErrorDetail(body, streamedResponse.statusCode);
+          throw Exception('OpenRouter responded with code ${streamedResponse.statusCode}: $detail');
+        }
+
+        // Parse SSE stream
+        String buffer = '';
+        await for (final chunk in streamedResponse.stream.transform(utf8.decoder)) {
+          buffer += chunk;
+          // SSE events are separated by double newlines
+          while (buffer.contains('\n')) {
+            final lineEnd = buffer.indexOf('\n');
+            final line = buffer.substring(0, lineEnd).trim();
+            buffer = buffer.substring(lineEnd + 1);
+
+            if (line.startsWith('data: ')) {
+              final data = line.substring(6).trim();
+              if (data == '[DONE]') return;
+
+              try {
+                final json = jsonDecode(data) as Map<String, dynamic>;
+                final choices = json['choices'] as List<dynamic>?;
+                if (choices != null && choices.isNotEmpty) {
+                  final delta = choices[0]['delta'] as Map<String, dynamic>?;
+                  final content = delta?['content'] as String?;
+                  if (content != null && content.isNotEmpty) {
+                    yield content;
+                  }
+                }
+              } catch (_) {
+                // Skip malformed JSON chunks
+              }
+            }
+          }
+        }
+        return; // Successfully streamed, exit retry loop
+      } finally {
+        client.close();
+      }
+    }
+  }
+
+  /// Non-streaming fallback — kept for backward compatibility with tests.
   Future<String> askAssistant({
     required List<domain.Expense> expenses,
     required List<domain.Income> incomes,
@@ -204,96 +404,20 @@ class InsightsService {
     required String userQuery,
     required String apiKey,
   }) async {
-    try {
-      final categoryMap = {for (var c in categories) c.id: c.name};
-
-      // 1. Build a text-based ledger log context of the user's data
-      final expenseSummary = expenses.isEmpty
-          ? "No expense records."
-          : expenses.map((e) {
-              final catName = categoryMap[e.categoryId] ?? 'Uncategorized';
-              final noteStr = e.note != null ? " (Note: ${e.note})" : "";
-              return "- Date: ${e.date.toString().substring(0, 10)}, Amount: \$${e.amount.toStringAsFixed(2)}, Category: $catName$noteStr";
-            }).join('\n');
-
-      final incomeSummary = incomes.isEmpty
-          ? "No income records."
-          : incomes.map((e) {
-              final recurringStr = e.isRecurring ? " (Recurring, Frequency: ${e.frequency.displayName})" : " (One-off)";
-              return "- Date: ${e.date.toString().substring(0, 10)}, Amount: \$${e.amount.toStringAsFixed(2)}, Source: ${e.source}$recurringStr";
-            }).join('\n');
-
-      // Calculate totals
-      double totalIncome = incomes.fold(0.0, (sum, item) => sum + item.amount);
-      double totalExpense = expenses.fold(0.0, (sum, item) => sum + item.amount);
-      double balance = totalIncome - totalExpense;
-
-      // 2. Formulate the system instruction
-      final systemPrompt = "You are a helpful, professional, and friendly AI financial assistant for Smart Wallet.\n"
-          "The user's transaction data is stored locally offline, and privacy is fully respected. "
-          "Use the following transaction summary context to answer the user's questions and provide custom money-saving suggestions.\n\n"
-          "Financial Summary:\n"
-          "- Total Income: \$${totalIncome.toStringAsFixed(2)}\n"
-          "- Total Expenses: \$${totalExpense.toStringAsFixed(2)}\n"
-          "- Net Balance: \$${balance.toStringAsFixed(2)}\n\n"
-          "Incomes Log:\n"
-          "$incomeSummary\n\n"
-          "Expenses Log:\n"
-          "$expenseSummary\n\n"
-          "Guidelines:\n"
-          "1. Give concise, friendly, and practical replies. Avoid long walls of text.\n"
-          "2. Answer custom user questions using their transaction lists.\n"
-          "3. Provide realistic ideas on how they can save money (e.g. identify high categories, recurring leaks, etc.).\n"
-          "4. Output format should use standard Markdown (bold, lists, etc.) for visual formatting in the app.";
-
-      // Build payload messages
-      final List<Map<String, String>> messages = [
-        {
-          'role': 'system',
-          'content': systemPrompt,
-        }
-      ];
-
-      for (final msg in chatHistory) {
-        messages.add({
-          'role': msg['role'] == 'model' ? 'assistant' : 'user',
-          'content': msg['text']!,
-        });
-      }
-
-      messages.add({
-        'role': 'user',
-        'content': userQuery,
-      });
-
-      final response = await http.post(
-        Uri.parse('https://openrouter.ai/api/v1/chat/completions'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $apiKey',
-          'HTTP-Referer': 'https://github.com/stibinottathai/smart_wallet',
-          'X-Title': 'Smart Wallet',
-        },
-        body: jsonEncode({
-          'model': dotenv.env['OPENROUTER_MODEL'] ?? 'deepseek/deepseek-chat-v3-0324',
-          'messages': messages,
-        }),
-      );
-
-      if (response.statusCode != 200) {
-        throw Exception('OpenRouter responded with code ${response.statusCode}');
-      }
-
-      final Map<String, dynamic> body = jsonDecode(response.body);
-      final choices = body['choices'] as List<dynamic>?;
-      if (choices == null || choices.isEmpty) {
-        throw Exception('Empty choices returned from OpenRouter');
-      }
-
-      final content = choices[0]['message']['content'] as String?;
-      return content ?? "I'm sorry, I couldn't formulate a response. Please try again.";
-    } catch (e) {
-      return "Error contacting financial assistant: $e\n\nPlease check your network connection and try again.";
+    final buffer = StringBuffer();
+    await for (final chunk in streamAssistant(
+      expenses: expenses,
+      incomes: incomes,
+      categories: categories,
+      chatHistory: chatHistory,
+      userQuery: userQuery,
+      apiKey: apiKey,
+    )) {
+      buffer.write(chunk);
     }
+    final result = buffer.toString();
+    return result.isEmpty
+        ? "I'm sorry, I couldn't formulate a response. Please try again."
+        : result;
   }
 }

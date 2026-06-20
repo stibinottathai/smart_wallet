@@ -8,6 +8,13 @@ class IncomeRepositoryImpl implements IncomeRepository {
 
   IncomeRepositoryImpl(this._db);
 
+  @override
+  Future<List<domain.Income>> getIncomesBetween(DateTime start, DateTime end) async {
+    final rows = await (_db.select(_db.incomes)
+      ..where((t) => t.date.isBetweenValues(start, end))).get();
+    return rows.map(_mapToDomain).toList();
+  }
+
   domain.Income _mapToDomain(Income dbIncome) {
     return domain.Income(
       id: dbIncome.id,

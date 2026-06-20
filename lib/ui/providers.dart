@@ -1,14 +1,18 @@
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import '../data/repositories/expense_repository_impl.dart';
 import '../data/repositories/income_repository_impl.dart';
+import '../data/repositories/savings_goal_repository_impl.dart';
+import '../data/repositories/bill_repository_impl.dart';
 import '../data/services/database.dart';
 import '../data/services/insights_service.dart';
+import '../data/services/pdf_report_service.dart';
 import '../data/services/receipt_scan_service.dart';
 import '../domain/models/models.dart' as domain;
 import '../domain/repositories/expense_repository.dart';
 import '../domain/repositories/income_repository.dart';
+import '../domain/repositories/savings_goal_repository.dart';
+import '../domain/repositories/bill_repository.dart';
 
 // Database Provider
 final databaseProvider = Provider<AppDatabase>((ref) {
@@ -28,6 +32,16 @@ final expenseRepositoryProvider = Provider<ExpenseRepository>((ref) {
   return ExpenseRepositoryImpl(db);
 });
 
+final savingsGoalRepositoryProvider = Provider<SavingsGoalRepository>((ref) {
+  final db = ref.watch(databaseProvider);
+  return SavingsGoalRepositoryImpl(db);
+});
+
+final billRepositoryProvider = Provider<BillRepository>((ref) {
+  final db = ref.watch(databaseProvider);
+  return BillRepositoryImpl(db);
+});
+
 // Services
 final receiptScanServiceProvider = Provider<ReceiptScanService>((ref) {
   return ReceiptScanService();
@@ -35,6 +49,11 @@ final receiptScanServiceProvider = Provider<ReceiptScanService>((ref) {
 
 final insightsServiceProvider = Provider<InsightsService>((ref) {
   return InsightsService();
+});
+
+final pdfReportServiceProvider = Provider<PdfReportService>((ref) {
+  final db = ref.watch(databaseProvider);
+  return PdfReportService(db);
 });
 
 // Streams
@@ -53,53 +72,17 @@ final allCategoriesProvider = StreamProvider<List<domain.Category>>((ref) {
   return repo.watchAllCategories();
 });
 
-// OpenRouter API Key State Management
-final isUsingCustomKeyProvider = StateProvider<bool>((ref) => false);
-
-final openRouterApiKeyProvider = StateNotifierProvider<OpenRouterApiKeyNotifier, String>((ref) {
-  return OpenRouterApiKeyNotifier(ref);
+final allSavingsGoalsProvider = StreamProvider<List<domain.SavingsGoal>>((ref) {
+  final repo = ref.watch(savingsGoalRepositoryProvider);
+  return repo.watchAllGoals();
 });
 
-class OpenRouterApiKeyNotifier extends StateNotifier<String> {
-  static const _key = 'openrouter_api_key_pref';
-  final Ref _ref;
+final allBillsProvider = StreamProvider<List<domain.Bill>>((ref) {
+  final repo = ref.watch(billRepositoryProvider);
+  return repo.watchAllBills();
+});
 
-  OpenRouterApiKeyNotifier(this._ref) : super(dotenv.env['OPENROUTER_API_KEY'] ?? '') {
-    _loadKey();
-  }
-
-  Future<void> _loadKey() async {
-    final prefs = await SharedPreferences.getInstance();
-    var savedKey = prefs.getString(_key);
-    if (savedKey == null || savedKey.isEmpty) {
-      // Migrate from legacy Gemini preference if it exists
-      final legacyKey = prefs.getString('gemini_api_key_pref');
-      if (legacyKey != null && legacyKey.isNotEmpty) {
-        savedKey = legacyKey;
-        await prefs.setString(_key, legacyKey);
-        await prefs.remove('gemini_api_key_pref'); // clean up legacy key
-      }
-    }
-    if (savedKey != null && savedKey.isNotEmpty) {
-      state = savedKey;
-      _ref.read(isUsingCustomKeyProvider.notifier).state = true;
-    } else {
-      state = dotenv.env['OPENROUTER_API_KEY'] ?? '';
-      _ref.read(isUsingCustomKeyProvider.notifier).state = false;
-    }
-  }
-
-  Future<void> saveKey(String newKey) async {
-    final prefs = await SharedPreferences.getInstance();
-    if (newKey.trim().isEmpty) {
-      await prefs.remove(_key);
-      state = dotenv.env['OPENROUTER_API_KEY'] ?? '';
-      _ref.read(isUsingCustomKeyProvider.notifier).state = false;
-    } else {
-      await prefs.setString(_key, newKey.trim());
-      state = newKey.trim();
-      _ref.read(isUsingCustomKeyProvider.notifier).state = true;
-    }
-  }
-}
-
+// OpenRouter API Key — reads directly from the .env file
+final openRouterApiKeyProvider = Provider<String>((ref) {
+  return dotenv.env['OPENROUTER_API_KEY'] ?? '';
+});

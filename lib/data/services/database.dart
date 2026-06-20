@@ -44,18 +44,49 @@ class Expenses extends Table {
   Set<Column> get primaryKey => {id};
 }
 
-@DriftDatabase(tables: [Categories, Incomes, Expenses])
+class SavingsGoals extends Table {
+  TextColumn get id => text()();
+  TextColumn get name => text()();
+  RealColumn get targetAmount => real()();
+  RealColumn get currentAmount => real()();
+  DateTimeColumn get targetDate => dateTime()();
+  TextColumn get color => text()();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
+class Bills extends Table {
+  TextColumn get id => text()();
+  TextColumn get name => text()();
+  RealColumn get amount => real()();
+  DateTimeColumn get dueDate => dateTime()();
+  BoolColumn get isPaid => boolean().withDefault(const Constant(false))();
+  TextColumn get frequency => text()();
+  TextColumn get categoryId => text().nullable()();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
+@DriftDatabase(tables: [Categories, Incomes, Expenses, SavingsGoals, Bills])
 class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(driftDatabase(name: 'smart_wallet'));
 
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2;
 
   @override
   MigrationStrategy get migration {
     return MigrationStrategy(
       onCreate: (Migrator m) async {
         await m.createAll();
+      },
+      onUpgrade: (Migrator m, int from, int to) async {
+        if (from < 2) {
+          await m.createTable(savingsGoals);
+          await m.createTable(bills);
+        }
       },
       beforeOpen: (details) async {
         if (details.wasCreated) {

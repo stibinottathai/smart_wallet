@@ -8,6 +8,13 @@ class ExpenseRepositoryImpl implements ExpenseRepository {
 
   ExpenseRepositoryImpl(this._db);
 
+  @override
+  Future<List<domain.Expense>> getExpensesBetween(DateTime start, DateTime end) async {
+    final rows = await (_db.select(_db.expenses)
+      ..where((t) => t.date.isBetweenValues(start, end))).get();
+    return rows.map(_mapExpenseToDomain).toList();
+  }
+
   domain.Expense _mapExpenseToDomain(Expense dbExpense) {
     return domain.Expense(
       id: dbExpense.id,

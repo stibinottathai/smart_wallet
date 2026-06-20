@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -7,6 +8,9 @@ import 'package:smart_wallet/ui/core/theme.dart';
 import 'package:smart_wallet/ui/providers.dart';
 import 'package:smart_wallet/ui/features/entries/views/entry_form_view.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'goal_form_dialog.dart';
+import 'bill_form_dialog.dart';
+import 'package:uuid/uuid.dart';
 
 class DashboardView extends ConsumerStatefulWidget {
   const DashboardView({super.key});
@@ -16,8 +20,6 @@ class DashboardView extends ConsumerStatefulWidget {
 }
 
 class _DashboardViewState extends ConsumerState<DashboardView> {
-  bool _showExpenses = true; // Switch between Incomes and Expenses ledger
-
   @override
   Widget build(BuildContext context) {
     final incomesAsync = ref.watch(allIncomesProvider);
@@ -26,170 +28,59 @@ class _DashboardViewState extends ConsumerState<DashboardView> {
 
     return incomesAsync.when(
       loading: () => const Scaffold(body: Center(child: CircularProgressIndicator())),
-      error: (err, stack) => Scaffold(body: Center(child: Text('Error loading incomes: $err'))),
+      error: (err, stack) => Scaffold(body: Center(child: Text('$err'))),
       data: (incomes) {
         return expensesAsync.when(
           loading: () => const Scaffold(body: Center(child: CircularProgressIndicator())),
-          error: (err, stack) => Scaffold(body: Center(child: Text('Error loading expenses: $err'))),
+          error: (err, stack) => Scaffold(body: Center(child: Text('$err'))),
           data: (expenses) {
             return categoriesAsync.when(
               loading: () => const Scaffold(body: Center(child: CircularProgressIndicator())),
-              error: (err, stack) => Scaffold(body: Center(child: Text('Error loading categories: $err'))),
+              error: (err, stack) => Scaffold(body: Center(child: Text('$err'))),
               data: (categories) {
-                // Calculations
                 final totalIncome = incomes.fold<double>(0.0, (sum, item) => sum + item.amount);
                 final totalExpense = expenses.fold<double>(0.0, (sum, item) => sum + item.amount);
                 final netBalance = totalIncome - totalExpense;
+                final spentPercent = totalIncome > 0
+                    ? (totalExpense / totalIncome).clamp(0.0, 1.0)
+                    : (totalExpense > 0 ? 1.0 : 0.0);
 
-                // Arc percent calculation
-                double spentPercent = 0.0;
-                if (totalIncome > 0) {
-                  spentPercent = (totalExpense / totalIncome).clamp(0.0, 1.0);
-                } else if (totalExpense > 0) {
-                  spentPercent = 1.0;
-                }
-
-                // Category map for category details
                 final categoryMap = {for (var c in categories) c.id: c};
-
-                // Group expenses for the Donut Chart
-                final Map<String, double> categorySpendMap = {};
+                final categorySpendMap = <String, double>{};
                 for (final exp in expenses) {
-                  categorySpendMap[exp.categoryId] = (categorySpendMap[exp.categoryId] ?? 0.0) + exp.amount;
+                  categorySpendMap[exp.categoryId] =
+                      (categorySpendMap[exp.categoryId] ?? 0.0) + exp.amount;
                 }
 
                 return Scaffold(
                   body: SafeArea(
-                    child: SingleChildScrollView(
-                      padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 16.0),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          const SizedBox(height: 12.0),
-                          // Signature Header: Balance inside thin arc
-                          Center(
-                            child: Stack(
-                              alignment: Alignment.center,
-                              children: [
-                                CustomPaint(
-                                  size: const Size(240, 120),
-                                  painter: ArcPainter(percent: spentPercent),
-                                ),
-                                Column(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    const SizedBox(height: 35),
-                                    Text(
-                                      '\$${netBalance.toStringAsFixed(2)}',
-                                      style: GoogleFonts.fraunces(
-                                        fontSize: 38,
-                                        fontWeight: FontWeight.w400,
-                                        color: AppColors.text,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      'net balance',
-                                      style: TextStyle(
-                                        fontSize: 11,
-                                        color: AppColors.text.withValues(alpha: 0.5),
-                                        fontWeight: FontWeight.w600,
-                                        letterSpacing: 1.2,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ],
+                    child: LayoutBuilder(
+                      builder: (context, constraints) {
+                        final savingsGoals = ref.watch(allSavingsGoalsProvider).value ?? [];
+                        final bills = ref.watch(allBillsProvider).value ?? [];
+                        final content = _buildDashboardContent(
+                          netBalance,
+                          spentPercent,
+                          totalIncome,
+                          totalExpense,
+                          categorySpendMap,
+                          categoryMap,
+                          expenses,
+                          savingsGoals,
+                          bills,
+                          categories,
+                        );
+                        if (constraints.maxWidth > 720) {
+                          return Center(
+                            child: ConstrainedBox(
+                              constraints: const BoxConstraints(maxWidth: 680),
+                              child: content,
                             ),
-                          ),
-                          const SizedBox(height: 28.0),
-
-                          // Donut Chart showing category breakdown
-                          if (totalExpense > 0) ...[
-                            const Center(
-                              child: Text(
-                                'Spending Breakdown',
-                                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AppColors.text),
-                              ),
-                            ),
-                            const SizedBox(height: 16.0),
-                            SizedBox(
-                              height: 140,
-                              child: _buildDonutChart(categorySpendMap, categoryMap),
-                            ),
-                            const SizedBox(height: 24.0),
-                          ],
-
-                          // Switch Ledger Pill Toggle
-                          Center(
-                            child: Container(
-                              decoration: BoxDecoration(
-                                color: AppColors.surface,
-                                borderRadius: BorderRadius.circular(20.0),
-                              ),
-                              padding: const EdgeInsets.all(4.0),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  GestureDetector(
-                                    onTap: () => setState(() => _showExpenses = false),
-                                    child: Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 8.0),
-                                      decoration: BoxDecoration(
-                                        color: !_showExpenses ? AppColors.primary : Colors.transparent,
-                                        borderRadius: BorderRadius.circular(16.0),
-                                      ),
-                                      child: Text(
-                                        'Income',
-                                        style: TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 13.0,
-                                          color: !_showExpenses ? Colors.white : AppColors.text.withValues(alpha: 0.6),
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                  GestureDetector(
-                                    onTap: () => setState(() => _showExpenses = true),
-                                    child: Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 8.0),
-                                      decoration: BoxDecoration(
-                                        color: _showExpenses ? AppColors.secondary : Colors.transparent,
-                                        borderRadius: BorderRadius.circular(16.0),
-                                      ),
-                                      child: Text(
-                                        'Expenses',
-                                        style: TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 13.0,
-                                          color: _showExpenses ? Colors.white : AppColors.text.withValues(alpha: 0.6),
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 20.0),
-
-                          // Ledger Rows Header
-                          Padding(
-                            padding: const EdgeInsets.only(bottom: 8.0),
-                            child: Text(
-                              _showExpenses ? 'Expense History' : 'Income History',
-                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14.0, letterSpacing: 0.5),
-                            ),
-                          ),
-                          const Divider(),
-
-                          // Flat ledger transaction rows
-                          if (_showExpenses)
-                            _buildExpenseList(expenses, categoryMap)
-                          else
-                            _buildIncomeList(incomes),
-                        ],
-                      ),
+                          );
+                        } else {
+                          return content;
+                        }
+                      },
                     ),
                   ),
                   floatingActionButton: FloatingActionButton(
@@ -198,7 +89,7 @@ class _DashboardViewState extends ConsumerState<DashboardView> {
                         MaterialPageRoute(builder: (context) => const EntryFormView()),
                       );
                     },
-                    child: const Icon(Icons.add),
+                    child: const Icon(Icons.add, size: 26),
                   ),
                 );
               },
@@ -209,299 +100,1277 @@ class _DashboardViewState extends ConsumerState<DashboardView> {
     );
   }
 
-  Widget _buildDonutChart(Map<String, double> categorySpendMap, Map<String, domain.Category> categoryMap) {
-    final List<PieChartSectionData> sections = [];
-    int index = 0;
-
-    final baseColors = [
-      AppColors.primary,
-      AppColors.secondary,
-      AppColors.primary.withValues(alpha: 0.7),
-      AppColors.secondary.withValues(alpha: 0.7),
-      AppColors.primary.withValues(alpha: 0.5),
-      AppColors.secondary.withValues(alpha: 0.5),
-      AppColors.primary.withValues(alpha: 0.3),
-      AppColors.secondary.withValues(alpha: 0.3),
-    ];
-
-    categorySpendMap.forEach((catId, amount) {
-      final name = categoryMap[catId]?.name ?? 'Uncategorized';
-      sections.add(
-        PieChartSectionData(
-          value: amount,
-          title: name,
-          radius: 35,
-          showTitle: false,
-          color: baseColors[index % baseColors.length],
+  Widget _buildHeader(double balance, double percent, double income, double expense) {
+    final isPositive = balance >= 0;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+      child: Card(
+        margin: EdgeInsets.zero,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 20),
+          child: Column(
+            children: [
+              Stack(
+                alignment: Alignment.center,
+                children: [
+                  CustomPaint(
+                    size: const Size(200, 100),
+                    painter: _ArcPainter(percent: percent),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.only(top: 30),
+                    child: Column(
+                      children: [
+                        Text(
+                          '\$${balance.toStringAsFixed(2)}',
+                          style: GoogleFonts.fraunces(
+                            fontSize: 36,
+                            fontWeight: FontWeight.w400,
+                            color: isPositive ? AppColors.text : AppColors.secondary,
+                            letterSpacing: -1.0,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          'net balance',
+                          style: TextStyle(
+                            fontSize: 10,
+                            color: AppColors.text.withValues(alpha: 0.45),
+                            fontWeight: FontWeight.w600,
+                            letterSpacing: 1.5,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
-      );
-      index++;
-    });
-
-    return PieChart(
-      PieChartData(
-        sections: sections,
-        centerSpaceRadius: 40,
-        sectionsSpace: 2,
       ),
     );
   }
 
-  Widget _buildExpenseList(List<domain.Expense> expenses, Map<String, domain.Category> categoryMap) {
-    if (expenses.isEmpty) {
-      return const Padding(
-        padding: EdgeInsets.symmetric(vertical: 40.0),
-        child: Center(
-          child: Text(
-            'No expenses yet. Tap + to add your first one.',
-            style: TextStyle(color: Colors.grey, fontSize: 13),
+  Widget _buildSummaryRow(double income, double expense) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+      child: Row(
+        children: [
+          Expanded(
+            child: _SummaryCard(
+              label: 'Income',
+              amount: income,
+              color: AppColors.primary,
+              prefix: '+',
+            ),
           ),
-        ),
-      );
-    }
-
-    final sortedExpenses = List<domain.Expense>.from(expenses)..sort((a, b) => b.date.compareTo(a.date));
-
-    return ListView.separated(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      itemCount: sortedExpenses.length,
-      separatorBuilder: (context, index) => const Divider(),
-      itemBuilder: (context, index) {
-        final expense = sortedExpenses[index];
-        final cat = categoryMap[expense.categoryId];
-        final catColorStr = cat?.color ?? '#9E9E9E';
-        final catColor = Color(int.parse(catColorStr.replaceAll('#', '0xFF')));
-
-        return Dismissible(
-          key: Key(expense.id),
-          direction: DismissDirection.endToStart,
-          background: Container(
-            color: AppColors.secondary,
-            alignment: Alignment.centerRight,
-            padding: const EdgeInsets.only(right: 20.0),
-            child: const Icon(Icons.delete, color: Colors.white),
+          const SizedBox(width: 12),
+          Expanded(
+            child: _SummaryCard(
+              label: 'Expenses',
+              amount: expense,
+              color: AppColors.secondary,
+              prefix: '-',
+            ),
           ),
-          onDismissed: (direction) async {
-            await ref.read(expenseRepositoryProvider).deleteExpense(expense.id);
-            if (!context.mounted) return;
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Expense deleted')),
-            );
-          },
-          child: ListTile(
-            contentPadding: EdgeInsets.zero,
-            onTap: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (context) => EntryFormView(initialExpense: expense),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDonutSection(Map<String, double> spendMap, Map<String, domain.Category> catMap) {
+    final total = spendMap.values.fold(0.0, (a, b) => a + b);
+    final entries = spendMap.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 8, 20, 4),
+      child: Card(
+        margin: EdgeInsets.zero,
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Spending Breakdown',
+                style: GoogleFonts.inter(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.text,
                 ),
-              );
-            },
-            leading: CircleAvatar(
-              backgroundColor: catColor.withValues(alpha: 0.15),
-              child: Icon(
-                _getIconData(cat?.icon),
-                color: catColor,
-                size: 20,
               ),
-            ),
-            title: Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    cat?.name ?? 'Uncategorized',
-                    style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14.0),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  SizedBox(
+                    width: 120,
+                    height: 120,
+                    child: PieChart(
+                      PieChartData(
+                        sections: entries.asMap().entries.map((e) {
+                          final colors = [
+                            AppColors.primary,
+                            AppColors.secondary,
+                            AppColors.primary.withValues(alpha: 0.7),
+                            AppColors.secondary.withValues(alpha: 0.7),
+                            AppColors.primary.withValues(alpha: 0.5),
+                            AppColors.secondary.withValues(alpha: 0.5),
+                            AppColors.primary.withValues(alpha: 0.35),
+                            AppColors.secondary.withValues(alpha: 0.35),
+                          ];
+                          return PieChartSectionData(
+                            value: e.value.value,
+                            color: colors[e.key % colors.length],
+                            radius: 28,
+                            showTitle: false,
+                          );
+                        }).toList(),
+                        centerSpaceRadius: 28,
+                        sectionsSpace: 2,
+                      ),
+                    ),
                   ),
-                ),
-                Text(
-                  '-\$${expense.amount.toStringAsFixed(2)}',
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 14.0,
-                    color: AppColors.secondary,
-                  ),
-                ),
-              ],
-            ),
-            subtitle: Row(
-              children: [
-                Text(
-                  DateFormat('d MMM yyyy').format(expense.date),
-                  style: const TextStyle(fontSize: 12.0, color: Colors.grey),
-                ),
-                if (expense.note != null) ...[
-                  const SizedBox(width: 8),
+                  const SizedBox(width: 20),
                   Expanded(
-                    child: Text(
-                      '•  ${expense.note}',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(fontSize: 12.0, color: Colors.grey),
+                    child: Column(
+                      children: entries.take(5).map((e) {
+                        final name = catMap[e.key]?.name ?? 'Unknown';
+                        final pct = total > 0 ? (e.value / total * 100) : 0.0;
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 6),
+                          child: Row(
+                            children: [
+                              Container(
+                                width: 8,
+                                height: 8,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: AppColors.primary.withValues(alpha: 0.5 + (e.value / (total > 0 ? total : 1)) * 0.5),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  name,
+                                  style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              Text(
+                                '${pct.toStringAsFixed(0)}%',
+                                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.text),
+                              ),
+                            ],
+                          ),
+                        );
+                      }).toList(),
                     ),
                   ),
                 ],
-                if (expense.source == domain.ExpenseSource.aiScan) ...[
-                  const SizedBox(width: 8),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-                    decoration: BoxDecoration(
-                      color: AppColors.primary.withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(4.0),
-                    ),
-                    child: const Text(
-                      'AI',
-                      style: TextStyle(fontSize: 9.0, fontWeight: FontWeight.bold, color: AppColors.primary),
-                    ),
-                  ),
-                ],
-              ],
-            ),
+              ),
+            ],
           ),
-        );
-      },
+        ),
+      ),
     );
   }
 
-  Widget _buildIncomeList(List<domain.Income> incomes) {
-    if (incomes.isEmpty) {
-      return const Padding(
-        padding: EdgeInsets.symmetric(vertical: 40.0),
-        child: Center(
-          child: Text(
-            'No incomes yet. Tap + to add your first one.',
-            style: TextStyle(color: Colors.grey, fontSize: 13),
+  Widget _buildDashboardContent(
+    double netBalance,
+    double spentPercent,
+    double totalIncome,
+    double totalExpense,
+    Map<String, double> categorySpendMap,
+    Map<String, domain.Category> categoryMap,
+    List<domain.Expense> expenses,
+    List<domain.SavingsGoal> savingsGoals,
+    List<domain.Bill> bills,
+    List<domain.Category> categories,
+  ) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.only(bottom: 24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _buildHeader(netBalance, spentPercent, totalIncome, totalExpense),
+          _buildSummaryRow(totalIncome, totalExpense),
+          _buildFinancialTipCard(totalIncome, totalExpense, categorySpendMap, categoryMap),
+          _buildWeeklyTrendSection(expenses),
+          _buildBudgetLimitsSection(categorySpendMap, categoryMap),
+          _buildSavingsGoalsSection(savingsGoals),
+          _buildUpcomingBillsSection(bills, categoryMap),
+          if (totalExpense > 0)
+            _buildDonutSection(categorySpendMap, categoryMap),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSavingsGoalsSection(List<domain.SavingsGoal> goals) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Savings Goals',
+                style: GoogleFonts.inter(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.text,
+                ),
+              ),
+              IconButton(
+                icon: const Icon(Icons.add_circle_outline_rounded, size: 20, color: AppColors.primary),
+                onPressed: () {
+                  showDialog(
+                    context: context,
+                    builder: (context) => const GoalFormDialog(),
+                  );
+                },
+                constraints: const BoxConstraints(),
+                padding: EdgeInsets.zero,
+              ),
+            ],
           ),
+          const SizedBox(height: 12),
+          if (goals.isEmpty)
+            Card(
+              margin: EdgeInsets.zero,
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: AppColors.primary.withValues(alpha: 0.12),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.track_changes_rounded, color: AppColors.primary, size: 20),
+                    ),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Save for what matters',
+                            style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13, color: AppColors.text),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            'Tap the plus icon to set saving targets for milestones like an emergency fund or tech upgrades.',
+                            style: TextStyle(fontSize: 11, color: AppColors.textSecondary, height: 1.3),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            )
+          else
+            SizedBox(
+              height: 128,
+              child: ListView.builder(
+                scrollDirection: Axis.horizontal,
+                itemCount: goals.length,
+                itemBuilder: (context, index) {
+                  final goal = goals[index];
+                  final goalColor = Color(int.parse(goal.color.replaceAll('#', '0xFF')));
+                  final percent = goal.targetAmount > 0 ? (goal.currentAmount / goal.targetAmount).clamp(0.0, 1.0) : 0.0;
+                  final formattedDate = DateFormat('MMM yyyy').format(goal.targetDate);
+
+                  return GestureDetector(
+                    onTap: () {
+                      showDialog(
+                        context: context,
+                        builder: (context) => GoalFormDialog(initialGoal: goal),
+                      );
+                    },
+                    child: Container(
+                      width: 180,
+                      margin: EdgeInsets.only(right: 12),
+                      decoration: BoxDecoration(
+                        color: goalColor.withValues(alpha: 0.08),
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: goalColor.withValues(alpha: 0.2)),
+                      ),
+                      padding: const EdgeInsets.all(14),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  goal.name,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: GoogleFonts.inter(
+                                    fontWeight: FontWeight.w700,
+                                    fontSize: 13,
+                                    color: AppColors.text,
+                                  ),
+                                ),
+                              ),
+                              Text(
+                                '${(percent * 100).toStringAsFixed(0)}%',
+                                style: GoogleFonts.inter(
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 11,
+                                  color: goalColor,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            'By $formattedDate',
+                            style: const TextStyle(fontSize: 10, color: AppColors.textSecondary),
+                          ),
+                          const Spacer(),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                '\$${goal.currentAmount.toStringAsFixed(0)}',
+                                style: GoogleFonts.inter(
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 13,
+                                  color: AppColors.text,
+                                ),
+                              ),
+                              Text(
+                                'of \$${goal.targetAmount.toStringAsFixed(0)}',
+                                style: const TextStyle(
+                                  fontSize: 11,
+                                  color: AppColors.textSecondary,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 6),
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(3),
+                            child: LinearProgressIndicator(
+                              value: percent,
+                              minHeight: 4,
+                              backgroundColor: goalColor.withValues(alpha: 0.15),
+                              valueColor: AlwaysStoppedAnimation<Color>(goalColor),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildUpcomingBillsSection(List<domain.Bill> bills, Map<String, domain.Category> categoryMap) {
+    final upcoming = bills.where((b) => !b.isPaid).toList()
+      ..sort((a, b) => a.dueDate.compareTo(b.dueDate));
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Upcoming Bills & Subs',
+                style: GoogleFonts.inter(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.text,
+                ),
+              ),
+              IconButton(
+                icon: const Icon(Icons.add_circle_outline_rounded, size: 20, color: AppColors.primary),
+                onPressed: () {
+                  showDialog(
+                    context: context,
+                    builder: (context) => const BillFormDialog(),
+                  );
+                },
+                constraints: const BoxConstraints(),
+                padding: EdgeInsets.zero,
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          if (upcoming.isEmpty)
+            Card(
+              margin: EdgeInsets.zero,
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: AppColors.primary.withValues(alpha: 0.12),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.receipt_long_rounded, color: AppColors.primary, size: 20),
+                    ),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'No upcoming payments',
+                            style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13, color: AppColors.text),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            'Tap the plus icon to track subscriptions like Netflix, Rent, utilities, and more.',
+                            style: TextStyle(fontSize: 11, color: AppColors.textSecondary, height: 1.3),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            )
+          else
+            ...upcoming.take(4).map((bill) {
+              final cat = bill.categoryId != null ? categoryMap[bill.categoryId] : null;
+              final catColorStr = cat?.color ?? '#9E9E9E';
+              final catColor = Color(int.parse(catColorStr.replaceAll('#', '0xFF')));
+              final iconData = getCategoryIcon(cat?.icon);
+              final dueLabel = _getDueDateLabel(bill.dueDate);
+              final isOverdue = bill.dueDate.isBefore(DateTime.now()) &&
+                  !DateUtils.isSameDay(bill.dueDate, DateTime.now());
+
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Card(
+                  margin: EdgeInsets.zero,
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(14),
+                    onTap: () {
+                      showDialog(
+                        context: context,
+                        builder: (context) => BillFormDialog(initialBill: bill),
+                      );
+                    },
+                    child: Padding(
+                      padding: const EdgeInsets.all(12),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 38,
+                            height: 38,
+                            decoration: BoxDecoration(
+                              color: catColor.withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Icon(iconData, color: catColor, size: 18),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  bill.name,
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 13.5,
+                                    color: AppColors.text,
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  dueLabel,
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: isOverdue ? AppColors.secondary : AppColors.textSecondary,
+                                    fontWeight: isOverdue ? FontWeight.w600 : FontWeight.normal,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: [
+                              Text(
+                                '\$${bill.amount.toStringAsFixed(2)}',
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 14,
+                                  color: AppColors.text,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                bill.frequency.displayName,
+                                style: const TextStyle(fontSize: 10, color: AppColors.textSecondary),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(width: 12),
+                          GestureDetector(
+                            onTap: () => _toggleBillPaid(bill, categoryMap),
+                            child: Container(
+                              width: 24,
+                              height: 24,
+                              decoration: BoxDecoration(
+                                border: Border.all(
+                                  color: AppColors.primary.withValues(alpha: 0.4),
+                                  width: 1.5,
+                                ),
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(
+                                Icons.check_rounded,
+                                size: 16,
+                                color: Colors.transparent,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            }),
+        ],
+      ),
+    );
+  }
+
+  String _getDueDateLabel(DateTime dueDate) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final due = DateTime(dueDate.year, dueDate.month, dueDate.day);
+    final diff = due.difference(today).inDays;
+
+    if (diff == 0) return 'Due today';
+    if (diff == 1) return 'Due tomorrow';
+    if (diff == -1) return 'Overdue by 1 day';
+    if (diff < -1) return 'Overdue by ${-diff} days';
+    return 'Due in $diff days';
+  }
+
+  void _toggleBillPaid(domain.Bill bill, Map<String, domain.Category> categoryMap) async {
+    final repo = ref.read(billRepositoryProvider);
+    final expenseRepo = ref.read(expenseRepositoryProvider);
+
+    final now = DateTime.now();
+    final categoryId = bill.categoryId ?? 'cat_uncategorized';
+
+    final expense = domain.Expense(
+      id: const Uuid().v4(),
+      amount: bill.amount,
+      categoryId: categoryId,
+      date: now,
+      note: 'Auto-logged bill payment: ${bill.name}',
+      source: domain.ExpenseSource.manual,
+    );
+    await expenseRepo.addExpense(expense);
+
+    if (bill.frequency == domain.BillFrequency.oneOff) {
+      final updated = bill.copyWith(isPaid: true);
+      await repo.updateBill(updated);
+    } else {
+      DateTime nextDueDate;
+      switch (bill.frequency) {
+        case domain.BillFrequency.weekly:
+          nextDueDate = bill.dueDate.add(const Duration(days: 7));
+          break;
+        case domain.BillFrequency.monthly:
+          nextDueDate = DateTime(
+            bill.dueDate.year,
+            bill.dueDate.month + 1,
+            bill.dueDate.day,
+          );
+          break;
+        case domain.BillFrequency.yearly:
+          nextDueDate = DateTime(
+            bill.dueDate.year + 1,
+            bill.dueDate.month,
+            bill.dueDate.day,
+          );
+          break;
+        case domain.BillFrequency.oneOff:
+          nextDueDate = bill.dueDate;
+          break;
+      }
+      final updated = bill.copyWith(dueDate: nextDueDate, isPaid: false);
+      await repo.updateBill(updated);
+    }
+
+    if (mounted) {
+      final categoryName = categoryMap[categoryId]?.name ?? 'Uncategorized';
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Paid! Logged \$${bill.amount.toStringAsFixed(2)} expense for ${bill.name} under $categoryName.'),
+          duration: const Duration(seconds: 4),
         ),
       );
     }
+  }
 
-    final sortedIncomes = List<domain.Income>.from(incomes)..sort((a, b) => b.date.compareTo(a.date));
+  Widget _buildBudgetLimitsSection(
+    Map<String, double> categorySpendMap,
+    Map<String, domain.Category> categoryMap,
+  ) {
+    const budgetLimits = {
+      'cat_dining': 200.0,
+      'cat_groceries': 150.0,
+      'cat_transport': 80.0,
+      'cat_housing': 1000.0,
+      'cat_entertainment': 100.0,
+      'cat_utilities': 200.0,
+      'cat_uncategorized': 100.0,
+    };
 
-    return ListView.separated(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      itemCount: sortedIncomes.length,
-      separatorBuilder: (context, index) => const Divider(),
-      itemBuilder: (context, index) {
-        final income = sortedIncomes[index];
+    final items = <_BudgetItem>[];
+    categorySpendMap.forEach((catId, spend) {
+      final limit = budgetLimits[catId] ?? 100.0;
+      final category = categoryMap[catId];
+      if (category != null) {
+        items.add(_BudgetItem(
+          category: category,
+          spend: spend,
+          limit: limit,
+        ));
+      }
+    });
 
-        return Dismissible(
-          key: Key(income.id),
-          direction: DismissDirection.endToStart,
-          background: Container(
-            color: AppColors.secondary,
-            alignment: Alignment.centerRight,
-            padding: const EdgeInsets.only(right: 20.0),
-            child: const Icon(Icons.delete, color: Colors.white),
-          ),
-          onDismissed: (direction) async {
-            await ref.read(incomeRepositoryProvider).deleteIncome(income.id);
-            if (!context.mounted) return;
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Income deleted')),
-            );
-          },
-          child: ListTile(
-            contentPadding: EdgeInsets.zero,
-            onTap: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (context) => EntryFormView(initialIncome: income),
+    items.sort((a, b) => b.percent.compareTo(a.percent));
+
+    if (items.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+      child: Card(
+        margin: EdgeInsets.zero,
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Monthly Budget Limits',
+                style: GoogleFonts.inter(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.text,
                 ),
-              );
-            },
-            leading: CircleAvatar(
-              backgroundColor: AppColors.primary.withValues(alpha: 0.15),
-              child: const Icon(
-                Icons.attach_money,
-                color: AppColors.primary,
-                size: 20,
               ),
-            ),
-            title: Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    income.source,
-                    style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14.0),
-                  ),
+              const SizedBox(height: 2),
+              Text(
+                'Spending progress against category caps',
+                style: TextStyle(
+                  fontSize: 11,
+                  color: AppColors.textSecondary,
                 ),
-                Text(
-                  '+\$${income.amount.toStringAsFixed(2)}',
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 14.0,
-                    color: AppColors.primary,
+              ),
+              const SizedBox(height: 20),
+              ...items.take(3).map((item) {
+                final catColor = Color(int.parse(item.category.color.replaceAll('#', '0xFF')));
+                final percentLabel = '${(item.percent * 100).toStringAsFixed(0)}%';
+                final isOverBudget = item.spend > item.limit;
+                
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            item.category.name,
+                            style: GoogleFonts.inter(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.text,
+                            ),
+                          ),
+                          Text(
+                            '\$${item.spend.toStringAsFixed(0)} / \$${item.limit.toStringAsFixed(0)} ($percentLabel)',
+                            style: GoogleFonts.inter(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: isOverBudget ? AppColors.secondary : AppColors.textSecondary,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(4),
+                        child: LinearProgressIndicator(
+                          value: item.percent.clamp(0.0, 1.0),
+                          backgroundColor: AppColors.divider.withValues(alpha: 0.3),
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                            isOverBudget ? AppColors.secondary : catColor,
+                          ),
+                          minHeight: 6,
+                        ),
+                      ),
+                    ],
                   ),
-                ),
-              ],
-            ),
-            subtitle: Text(
-              '${DateFormat('d MMM yyyy').format(income.date)}${income.isRecurring ? " • Recurring (${income.frequency.displayName})" : ""}',
-              style: const TextStyle(fontSize: 12.0, color: Colors.grey),
-            ),
+                );
+              }),
+            ],
           ),
-        );
-      },
+        ),
+      ),
     );
   }
 
-  IconData _getIconData(String? iconName) {
-    switch (iconName) {
-      case 'restaurant':
-        return Icons.restaurant;
-      case 'shopping_basket':
-        return Icons.shopping_basket;
-      case 'directions_car':
-        return Icons.directions_car;
-      case 'home':
-        return Icons.home;
-      case 'movie':
-        return Icons.movie;
-      case 'power':
-        return Icons.power;
-      case 'attach_money':
-        return Icons.attach_money;
-      case 'help_outline':
-      default:
-        return Icons.help_outline;
+  Widget _buildWeeklyTrendSection(List<domain.Expense> expenses) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    
+    final last7Days = List.generate(7, (index) {
+      return today.subtract(Duration(days: 6 - index));
+    });
+
+    final dailyTotals = <DateTime, double>{};
+    for (final day in last7Days) {
+      dailyTotals[day] = 0.0;
     }
+
+    for (final exp in expenses) {
+      final expDay = DateTime(exp.date.year, exp.date.month, exp.date.day);
+      if (dailyTotals.containsKey(expDay)) {
+        dailyTotals[expDay] = (dailyTotals[expDay] ?? 0.0) + exp.amount;
+      }
+    }
+
+    final maxSpend = dailyTotals.values.fold<double>(0.0, (max, val) => val > max ? val : max);
+    final yAxisLimit = maxSpend > 0 ? (maxSpend * 1.25) : 10.0;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+      child: Card(
+        margin: EdgeInsets.zero,
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Weekly Spending Trend',
+                style: GoogleFonts.inter(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.text,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                'Daily expenses over the last 7 days',
+                style: TextStyle(
+                  fontSize: 11,
+                  color: AppColors.textSecondary,
+                ),
+              ),
+              const SizedBox(height: 24),
+              SizedBox(
+                height: 150,
+                child: BarChart(
+                  BarChartData(
+                    alignment: BarChartAlignment.spaceAround,
+                    maxY: yAxisLimit,
+                    barTouchData: BarTouchData(
+                      enabled: true,
+                      touchTooltipData: BarTouchTooltipData(
+                        getTooltipColor: (_) => AppColors.text,
+                        tooltipRoundedRadius: 8,
+                        tooltipPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        getTooltipItem: (group, groupIndex, rod, rodIndex) {
+                          return BarTooltipItem(
+                            '\$${rod.toY.toStringAsFixed(2)}',
+                            GoogleFonts.inter(
+                              color: Colors.white,
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                    titlesData: FlTitlesData(
+                      show: true,
+                      bottomTitles: AxisTitles(
+                        sideTitles: SideTitles(
+                          showTitles: true,
+                          reservedSize: 22,
+                          getTitlesWidget: (value, meta) {
+                            final index = value.toInt();
+                            if (index < 0 || index >= 7) return const SizedBox.shrink();
+                            final day = last7Days[index];
+                            final label = DateFormat('E').format(day)[0];
+                            return Padding(
+                              padding: const EdgeInsets.only(top: 4),
+                              child: Text(
+                                label,
+                                style: const TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColors.textSecondary,
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                      leftTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                      topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                      rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                    ),
+                    gridData: const FlGridData(show: false),
+                    borderData: FlBorderData(show: false),
+                    barGroups: List.generate(7, (index) {
+                      final day = last7Days[index];
+                      final total = dailyTotals[day] ?? 0.0;
+                      return BarChartGroupData(
+                        x: index,
+                        barRods: [
+                          BarChartRodData(
+                            toY: total,
+                            color: AppColors.secondary,
+                            width: 14,
+                            borderRadius: const BorderRadius.vertical(top: Radius.circular(4)),
+                            backDrawRodData: BackgroundBarChartRodData(
+                              show: true,
+                              toY: yAxisLimit,
+                              color: AppColors.divider.withValues(alpha: 0.25),
+                            ),
+                          ),
+                        ],
+                      );
+                    }),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFinancialTipCard(
+    double totalIncome,
+    double totalExpense,
+    Map<String, double> categorySpendMap,
+    Map<String, domain.Category> categoryMap,
+  ) {
+    String tipTitle = 'Financial Insight';
+    String tipBody = 'Start tracking your daily expenses to see smart suggestions here!';
+    IconData tipIcon = Icons.lightbulb_outline_rounded;
+    Color tipColor = AppColors.primary;
+
+    if (totalIncome == 0 && totalExpense == 0) {
+      tipTitle = 'Welcome to Smart Wallet!';
+      tipBody = 'Add your first transaction using the "+" button below to get personalized insights.';
+      tipIcon = Icons.stars_rounded;
+    } else if (totalExpense > totalIncome && totalIncome > 0) {
+      tipTitle = 'Budget Alert';
+      tipBody = 'Your spending has exceeded your income this month by \$${(totalExpense - totalIncome).toStringAsFixed(2)}. Try pausing non-essential purchases.';
+      tipIcon = Icons.warning_amber_rounded;
+      tipColor = AppColors.secondary;
+    } else if (totalExpense > 0) {
+      String? topCategoryId;
+      double maxSpend = 0.0;
+      categorySpendMap.forEach((catId, amount) {
+        if (amount > maxSpend) {
+          maxSpend = amount;
+          topCategoryId = catId;
+        }
+      });
+
+      final topCategory = topCategoryId != null ? categoryMap[topCategoryId] : null;
+      final topCategoryName = topCategory?.name ?? 'Discretionary';
+      final savingsRate = totalIncome > 0 ? ((totalIncome - totalExpense) / totalIncome * 100) : 0.0;
+
+      if (savingsRate < 10) {
+        tipTitle = 'Savings Booster';
+        tipBody = 'Your savings rate is at ${savingsRate.toStringAsFixed(0)}%. Financial planners recommend saving 20% of your monthly income for emergencies.';
+        tipIcon = Icons.trending_up_rounded;
+        tipColor = AppColors.primary;
+      } else if (topCategory != null && maxSpend > (totalExpense * 0.4)) {
+        tipTitle = 'High Category Spend';
+        tipBody = 'You spent \$${maxSpend.toStringAsFixed(2)} on $topCategoryName, which is ${(maxSpend / totalExpense * 100).toStringAsFixed(0)}% of your total spending. Consider setting a monthly limit!';
+        tipIcon = Icons.pie_chart_outline_rounded;
+        tipColor = AppColors.secondary;
+      } else {
+        final tips = [
+          'Review your subscription services this week. Canceling unused plans is the easiest way to save.',
+          'Consider the 50/30/20 rule: 50% for Needs, 30% for Wants, and 20% for Savings.',
+          'Create a shopping list before buying groceries to avoid impulse food purchases.',
+          'Great job keeping a healthy savings rate of ${savingsRate.toStringAsFixed(0)}%! Consider investing the surplus.',
+        ];
+        final tipIndex = (totalExpense.toInt()) % tips.length;
+        tipTitle = 'Smart Tip';
+        tipBody = tips[tipIndex];
+        tipIcon = Icons.tips_and_updates_rounded;
+        tipColor = AppColors.primary;
+      }
+    }
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+      child: Card(
+        margin: EdgeInsets.zero,
+        elevation: 0,
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: tipColor.withValues(alpha: 0.12),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  tipIcon,
+                  color: tipColor,
+                  size: 24,
+                ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      tipTitle,
+                      style: GoogleFonts.inter(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 14,
+                        color: AppColors.text,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      tipBody,
+                      style: GoogleFonts.inter(
+                        fontSize: 12,
+                        color: AppColors.textSecondary,
+                        height: 1.4,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }
 
-class ArcPainter extends CustomPainter {
-  final double percent; // 0.0 to 1.0
+class _SummaryCard extends StatelessWidget {
+  final String label;
+  final double amount;
+  final Color color;
+  final String prefix;
 
-  ArcPainter({required this.percent});
+  const _SummaryCard({
+    required this.label,
+    required this.amount,
+    required this.color,
+    required this.prefix,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      margin: EdgeInsets.zero,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 12,
+                color: AppColors.text.withValues(alpha: 0.5),
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              '$prefix\$${amount.toStringAsFixed(2)}',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+                color: color,
+                letterSpacing: -0.3,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class ExpenseTile extends StatelessWidget {
+  final domain.Expense expense;
+  final domain.Category? category;
+  final VoidCallback onTap;
+
+  const ExpenseTile({
+    super.key,
+    required this.expense,
+    required this.category,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final catColorStr = category?.color ?? '#9E9E9E';
+    final catColor = Color(int.parse(catColorStr.replaceAll('#', '0xFF')));
+    final iconData = getCategoryIcon(category?.icon);
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+      child: Card(
+        margin: EdgeInsets.zero,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(14),
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.all(14),
+            child: Row(
+              children: [
+                Container(
+                  width: 42,
+                  height: 42,
+                  decoration: BoxDecoration(
+                    color: catColor.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(iconData, color: catColor, size: 20),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              category?.name ?? 'Uncategorized',
+                              style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: AppColors.text),
+                            ),
+                          ),
+                          Text(
+                            '-\$${expense.amount.toStringAsFixed(2)}',
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w700,
+                              fontSize: 14,
+                              color: AppColors.secondary,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 3),
+                      Row(
+                        children: [
+                          Text(
+                            DateFormat('MMM d, yyyy').format(expense.date),
+                            style: const TextStyle(fontSize: 11, color: AppColors.textSecondary),
+                          ),
+                          if (expense.note != null) ...[
+                            const SizedBox(width: 6),
+                            Text(
+                              '• ${expense.note}',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(fontSize: 11, color: AppColors.textSecondary),
+                            ),
+                          ],
+                          if (expense.source == domain.ExpenseSource.aiScan) ...[
+                            const SizedBox(width: 6),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                              decoration: BoxDecoration(
+                                color: AppColors.primaryLight,
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: const Text(
+                                'AI',
+                                style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: AppColors.primary),
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+IconData getCategoryIcon(String? iconName) {
+  switch (iconName) {
+    case 'restaurant': return Icons.restaurant;
+    case 'shopping_basket': return Icons.shopping_basket;
+    case 'directions_car': return Icons.directions_car;
+    case 'home': return Icons.home;
+    case 'movie': return Icons.movie;
+    case 'power': return Icons.power;
+    case 'attach_money': return Icons.attach_money;
+    default: return Icons.help_outline;
+  }
+}
+
+class IncomeTile extends StatelessWidget {
+  final domain.Income income;
+  final VoidCallback onTap;
+
+  const IncomeTile({
+    super.key,
+    required this.income,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+      child: Card(
+        margin: EdgeInsets.zero,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(14),
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.all(14),
+            child: Row(
+              children: [
+                Container(
+                  width: 42,
+                  height: 42,
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(Icons.attach_money_rounded, color: AppColors.primary, size: 22),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              income.source,
+                              style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: AppColors.text),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          Text(
+                            '+\$${income.amount.toStringAsFixed(2)}',
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w700,
+                              fontSize: 14,
+                              color: AppColors.primary,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        '${DateFormat('MMM d, yyyy').format(income.date)}${income.isRecurring ? " • ${income.frequency.displayName}" : ""}',
+                        style: const TextStyle(fontSize: 11, color: AppColors.textSecondary),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ArcPainter extends CustomPainter {
+  final double percent;
+
+  _ArcPainter({required this.percent});
 
   @override
   void paint(Canvas canvas, Size size) {
-    // 1. Draw Remaining (Pine Green) background arc
-    final paintBg = Paint()
-      ..color = AppColors.primary
+    final bgPaint = Paint()
+      ..color = AppColors.divider.withValues(alpha: 0.5)
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 2.0
+      ..strokeWidth = 2.5
       ..strokeCap = StrokeCap.round;
 
-    // 2. Draw Spent (Terracotta) foreground arc
-    final paintFg = Paint()
-      ..color = AppColors.secondary
+    final fgPaint = Paint()
+      ..color = percent > 0.6 ? AppColors.secondary : AppColors.primary
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 3.0
+      ..strokeWidth = 3.5
       ..strokeCap = StrokeCap.round;
 
-    final rect = Rect.fromLTWH(0, 0, size.width, size.height * 2);
+    final rect = Rect.fromLTWH(10, 0, size.width - 20, size.height * 2 - 20);
 
-    // Draw total semi-circle (from 180 degrees to 360 degrees)
-    canvas.drawArc(rect, 3.14159, 3.14159, false, paintBg);
-
-    // Draw spent portion over it
+    canvas.drawArc(rect, math.pi, math.pi, false, bgPaint);
     if (percent > 0) {
-      canvas.drawArc(rect, 3.14159, 3.14159 * percent, false, paintFg);
+      canvas.drawArc(rect, math.pi, math.pi * percent, false, fgPaint);
     }
   }
 
   @override
-  bool shouldRepaint(covariant ArcPainter oldDelegate) => oldDelegate.percent != percent;
+  bool shouldRepaint(covariant _ArcPainter oldDelegate) => oldDelegate.percent != percent;
+}
+
+class _BudgetItem {
+  final domain.Category category;
+  final double spend;
+  final double limit;
+
+  _BudgetItem({
+    required this.category,
+    required this.spend,
+    required this.limit,
+  });
+
+  double get percent => limit > 0 ? (spend / limit) : 0.0;
 }

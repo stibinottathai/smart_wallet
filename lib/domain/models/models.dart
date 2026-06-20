@@ -165,3 +165,109 @@ class Expense {
     );
   }
 }
+
+enum BillFrequency {
+  weekly,
+  monthly,
+  yearly,
+  oneOff;
+
+  String toJson() => name;
+
+  static BillFrequency fromJson(String value) {
+    return BillFrequency.values.firstWhere(
+      (e) => e.name == value,
+      orElse: () => BillFrequency.oneOff,
+    );
+  }
+
+  String get displayName {
+    switch (this) {
+      case BillFrequency.weekly:
+        return 'Weekly';
+      case BillFrequency.monthly:
+        return 'Monthly';
+      case BillFrequency.yearly:
+        return 'Yearly';
+      case BillFrequency.oneOff:
+        return 'One-off';
+    }
+  }
+}
+
+class SavingsGoal {
+  final String id;
+  final String name;
+  final double targetAmount;
+  final double currentAmount;
+  final DateTime targetDate;
+  final String color;
+
+  const SavingsGoal({
+    required this.id,
+    required this.name,
+    required this.targetAmount,
+    required this.currentAmount,
+    required this.targetDate,
+    required this.color,
+  });
+
+  SavingsGoal copyWith({
+    String? id,
+    String? name,
+    double? targetAmount,
+    double? currentAmount,
+    DateTime? targetDate,
+    String? color,
+  }) {
+    return SavingsGoal(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      targetAmount: targetAmount ?? this.targetAmount,
+      currentAmount: currentAmount ?? this.currentAmount,
+      targetDate: targetDate ?? this.targetDate,
+      color: color ?? this.color,
+    );
+  }
+}
+
+class Bill {
+  final String id;
+  final String name;
+  final double amount;
+  final DateTime dueDate;
+  final bool isPaid;
+  final BillFrequency frequency;
+  final String? categoryId;
+
+  const Bill({
+    required this.id,
+    required this.name,
+    required this.amount,
+    required this.dueDate,
+    required this.isPaid,
+    required this.frequency,
+    this.categoryId,
+  });
+
+  Bill copyWith({
+    String? id,
+    String? name,
+    double? amount,
+    DateTime? dueDate,
+    bool? isPaid,
+    BillFrequency? frequency,
+    String? categoryId,
+  }) {
+    return Bill(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      amount: amount ?? this.amount,
+      dueDate: dueDate ?? this.dueDate,
+      isPaid: isPaid ?? this.isPaid,
+      frequency: frequency ?? this.frequency,
+      categoryId: categoryId ?? this.categoryId,
+    );
+  }
+}
+
