@@ -3,10 +3,8 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:lottie/lottie.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:smart_wallet/ui/core/navigation.dart';
 import 'package:smart_wallet/ui/core/theme.dart';
-import 'package:smart_wallet/ui/features/onboarding/onboarding_screen.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -61,29 +59,22 @@ class _SplashScreenState extends State<SplashScreen>
     );
 
     _controller.forward();
-    _checkFirstLaunch();
+    _navigateToMain();
   }
 
-  Future<void> _checkFirstLaunch() async {
-    await Future.delayed(const Duration(milliseconds: 2500));
-    final prefs = await SharedPreferences.getInstance();
-    final onboardingDone = prefs.getBool('onboarding_done') ?? false;
-    if (!mounted) return;
-    _navigateToMain(onboardingDone);
-  }
-
-  void _navigateToMain(bool showOnboarding) {
-    if (!mounted) return;
-    Navigator.of(context).pushReplacement(
-      PageRouteBuilder(
-        pageBuilder: (_, __, ___) =>
-            showOnboarding ? const OnboardingScreen() : const MainNavigationWrapper(),
-        transitionsBuilder: (_, animation, __, child) {
-          return FadeTransition(opacity: animation, child: child);
-        },
-        transitionDuration: const Duration(milliseconds: 500),
-      ),
-    );
+  void _navigateToMain() {
+    Future.delayed(const Duration(milliseconds: 2500), () {
+      if (!mounted) return;
+      Navigator.of(context).pushReplacement(
+        PageRouteBuilder(
+          pageBuilder: (_, __, ___) => const MainNavigationWrapper(),
+          transitionsBuilder: (_, animation, __, child) {
+            return FadeTransition(opacity: animation, child: child);
+          },
+          transitionDuration: const Duration(milliseconds: 500),
+        ),
+      );
+    });
   }
 
   @override
