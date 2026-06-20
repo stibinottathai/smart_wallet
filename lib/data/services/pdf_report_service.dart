@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:flutter/services.dart' show rootBundle;
 import 'package:intl/intl.dart';
 import 'package:open_file/open_file.dart';
 import 'package:path_provider/path_provider.dart';
@@ -36,7 +37,17 @@ class PdfReportService {
     final totalExpense = expenses.fold(0.0, (s, e) => s + e.amount);
     final netBalance = totalIncome - totalExpense;
 
-    final pdf = pw.Document();
+    final fontData = await rootBundle.load('assets/fonts/NotoSans-Regular.ttf');
+    final boldFontData = await rootBundle.load('assets/fonts/NotoSans-Bold.ttf');
+    final baseFont = pw.Font.ttf(fontData);
+    final boldFont = pw.Font.ttf(boldFontData);
+
+    final pdf = pw.Document(
+      theme: pw.ThemeData.withFont(
+        base: baseFont,
+        bold: boldFont,
+      ),
+    );
 
     pdf.addPage(
       pw.MultiPage(

@@ -4,11 +4,11 @@ import 'package:share_plus/share_plus.dart';
 import '../../domain/models/models.dart' as domain;
 
 class CsvExportService {
-  Future<void> exportDataToCsv({
+  String buildCsvContent({
     required List<domain.Income> incomes,
     required List<domain.Expense> expenses,
     required List<domain.Category> categories,
-  }) async {
+  }) {
     final StringBuffer buffer = StringBuffer();
 
     // Export Incomes
@@ -33,10 +33,24 @@ class CsvExportService {
       buffer.writeln('${exp.id},${exp.date.toIso8601String().substring(0, 10)},"$catName",${exp.amount},"$note",${exp.source.name}');
     }
 
+    return buffer.toString();
+  }
+
+  Future<void> exportDataToCsv({
+    required List<domain.Income> incomes,
+    required List<domain.Expense> expenses,
+    required List<domain.Category> categories,
+  }) async {
+    final csvContent = buildCsvContent(
+      incomes: incomes,
+      expenses: expenses,
+      categories: categories,
+    );
+
     // Save to temp file and share
     final directory = await getTemporaryDirectory();
     final file = File('${directory.path}/smart_wallet_export.csv');
-    await file.writeAsString(buffer.toString());
+    await file.writeAsString(csvContent);
 
     await SharePlus.instance.share(
       ShareParams(

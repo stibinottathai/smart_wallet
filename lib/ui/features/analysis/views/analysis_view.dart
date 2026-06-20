@@ -186,77 +186,99 @@ class _AnalysisViewState extends ConsumerState<AnalysisView> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        _DateRangeBar(
-                          activeChip: _activeChip,
-                          chips: _chips,
-                          customStart: _customStart,
-                          customEnd: _customEnd,
-                          onChipTap: _applyChip,
-                          onPickStart: _pickStart,
-                          onPickEnd: _pickEnd,
+                        RepaintBoundary(
+                          child: _DateRangeBar(
+                            activeChip: _activeChip,
+                            chips: _chips,
+                            customStart: _customStart,
+                            customEnd: _customEnd,
+                            onChipTap: _applyChip,
+                            onPickStart: _pickStart,
+                            onPickEnd: _pickEnd,
+                          ),
                         ),
                         const SizedBox(height: 12),
-                        MoMCard(
-                          currentMonthExpenses: _currentMonthExpenses(filteredExpenses),
-                          lastMonthExpenses: _lastMonthExpenses(filteredExpenses),
+                        RepaintBoundary(
+                          child: MoMCard(
+                            currentMonthExpenses: _currentMonthExpenses(filteredExpenses),
+                            lastMonthExpenses: _lastMonthExpenses(filteredExpenses),
+                          ),
                         ),
                         const SizedBox(height: 16),
                         if (totalIncome > 0 || totalExpense > 0)
-                          SavingsRateCard(
-                            totalIncome: totalIncome,
-                            totalExpense: totalExpense,
-                            lastIncome: lastIncomeTotal,
-                            lastExpense: lastExpenseTotal,
+                          RepaintBoundary(
+                            child: SavingsRateCard(
+                              totalIncome: totalIncome,
+                              totalExpense: totalExpense,
+                              lastIncome: lastIncomeTotal,
+                              lastExpense: lastExpenseTotal,
+                            ),
                           ),
                         if (totalIncome > 0 || totalExpense > 0) const SizedBox(height: 16),
-                        SectionCard(
-                          title: 'Net Worth Trend',
-                          child: NetWorthLineChart(incomes: filteredIncomes, expenses: filteredExpenses),
+                        RepaintBoundary(
+                          child: SectionCard(
+                            title: 'Net Worth Trend',
+                            child: NetWorthLineChart(incomes: filteredIncomes, expenses: filteredExpenses),
+                          ),
                         ),
                         const SizedBox(height: 16),
-                        SectionCard(
-                          title: 'Income vs Expense',
-                          child: IncomeExpenseBarChart(
-                            incomes: filteredIncomes, expenses: filteredExpenses,
-                            start: start, end: end,
+                        RepaintBoundary(
+                          child: SectionCard(
+                            title: 'Income vs Expense',
+                            child: IncomeExpenseBarChart(
+                              incomes: filteredIncomes, expenses: filteredExpenses,
+                              start: start, end: end,
+                            ),
                           ),
                         ),
                         const SizedBox(height: 16),
                         if (categorySpend.isNotEmpty)
-                          SectionCard(
-                            title: 'Category Breakdown',
-                            child: CategoryPieChart(
-                              spend: categorySpend, catMap: catMap,
-                              expenses: filteredExpenses, start: start, end: end,
+                          RepaintBoundary(
+                            child: SectionCard(
+                              title: 'Category Breakdown',
+                              child: CategoryPieChart(
+                                spend: categorySpend, catMap: catMap,
+                                expenses: filteredExpenses, start: start, end: end,
+                              ),
                             ),
                           ),
                         if (categorySpend.isNotEmpty) const SizedBox(height: 16),
-                        SectionCard(
-                          title: 'Income Breakdown',
-                          child: IncomeBreakdownPie(incomes: filteredIncomes),
+                        RepaintBoundary(
+                          child: SectionCard(
+                            title: 'Income Breakdown',
+                            child: IncomeBreakdownPie(incomes: filteredIncomes),
+                          ),
                         ),
                         const SizedBox(height: 16),
                         if (filteredExpenses.isNotEmpty)
-                          SectionCard(
-                            title: 'Spending by Weekday',
-                            child: WeekdaySpendingChart(expenses: filteredExpenses),
+                          RepaintBoundary(
+                            child: SectionCard(
+                              title: 'Spending by Weekday',
+                              child: WeekdaySpendingChart(expenses: filteredExpenses),
+                            ),
                           ),
                         if (filteredExpenses.isNotEmpty) const SizedBox(height: 16),
                         if (categories.any((c) => c.budgetLimit != null))
-                          SectionCard(
-                            title: 'Budget Utilization',
-                            child: BudgetUtilizationChart(spend: categorySpend, categories: categories),
+                          RepaintBoundary(
+                            child: SectionCard(
+                              title: 'Budget Utilization',
+                              child: BudgetUtilizationChart(spend: categorySpend, categories: categories),
+                            ),
                           ),
                         if (categories.any((c) => c.budgetLimit != null)) const SizedBox(height: 16),
-                        SectionCard(
-                          title: 'Expense Source',
-                          child: ExpenseSourcePie(expenses: filteredExpenses),
+                        RepaintBoundary(
+                          child: SectionCard(
+                            title: 'Expense Source',
+                            child: ExpenseSourcePie(expenses: filteredExpenses),
+                          ),
                         ),
                         const SizedBox(height: 16),
                         if (filteredExpenses.isNotEmpty)
-                          SectionCard(
-                            title: 'Top Spending Days',
-                            child: TopSpendingDaysCard(expenses: filteredExpenses, catMap: catMap),
+                          RepaintBoundary(
+                            child: SectionCard(
+                              title: 'Top Spending Days',
+                              child: TopSpendingDaysCard(expenses: filteredExpenses, catMap: catMap),
+                            ),
                           ),
                       ],
                     ),

@@ -442,16 +442,16 @@ class _DashboardViewState extends ConsumerState<DashboardView> with SingleTicker
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          _buildHeader(netBalance, spentPercent, totalIncome, totalExpense, symbol),
+          RepaintBoundary(child: _buildHeader(netBalance, spentPercent, totalIncome, totalExpense, symbol)),
           const SizedBox(height: 8),
-          _buildSummaryRow(totalIncome, totalExpense, symbol),
-          _buildAiAssistantCard(),
-          _buildWeeklyTrendSection(expenses, symbol),
-          _buildBudgetLimitsSection(categorySpendMap, categories, symbol),
-          _buildSavingsGoalsSection(savingsGoals, symbol),
-          _buildUpcomingBillsSection(bills, categoryMap, symbol),
+          RepaintBoundary(child: _buildSummaryRow(totalIncome, totalExpense, symbol)),
+          RepaintBoundary(child: _buildAiAssistantCard()),
+          RepaintBoundary(child: _buildWeeklyTrendSection(expenses, symbol)),
+          RepaintBoundary(child: _buildBudgetLimitsSection(categorySpendMap, categories, symbol)),
+          RepaintBoundary(child: _buildSavingsGoalsSection(savingsGoals, symbol)),
+          RepaintBoundary(child: _buildUpcomingBillsSection(bills, categoryMap, symbol)),
           if (totalExpense > 0)
-            _buildDonutSection(categorySpendMap, categoryMap),
+            RepaintBoundary(child: _buildDonutSection(categorySpendMap, categoryMap)),
         ],
       ),
     );
@@ -1453,73 +1453,75 @@ class _DashboardViewState extends ConsumerState<DashboardView> with SingleTicker
                       ),
                     ),
                     // Siri-style Orb
-                        Stack(
-                          alignment: Alignment.center,
-                          children: [
-                            Container(
-                              width: 52,
-                              height: 52,
+                    RepaintBoundary(
+                      child: Stack(
+                        alignment: Alignment.center,
+                        children: [
+                          Container(
+                            width: 52,
+                            height: 52,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              boxShadow: [
+                                BoxShadow(
+                                  color: isConfigured 
+                                      ? const Color(0xFF00A3FF).withValues(alpha: 0.4) 
+                                      : Colors.white.withValues(alpha: 0.1),
+                                  blurRadius: 16,
+                                  spreadRadius: 2,
+                                ),
+                              ],
+                            ),
+                          ),
+                          RotationTransition(
+                            turns: _aiAnimationController,
+                            child: Container(
+                              width: 46,
+                              height: 46,
                               decoration: BoxDecoration(
                                 shape: BoxShape.circle,
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: isConfigured 
-                                        ? const Color(0xFF00A3FF).withValues(alpha: 0.4) 
-                                        : Colors.white.withValues(alpha: 0.1),
-                                    blurRadius: 16,
-                                    spreadRadius: 2,
-                                  ),
+                                gradient: isConfigured 
+                                    ? const SweepGradient(
+                                        colors: [
+                                          Color(0xFF00FFC2),
+                                          Color(0xFF00A3FF),
+                                          Color(0xFFB026FF),
+                                          Color(0xFFFF26A8),
+                                          Color(0xFF00FFC2),
+                                        ],
+                                      )
+                                    : SweepGradient(
+                                        colors: [
+                                          Colors.grey.shade600,
+                                          Colors.grey.shade400,
+                                          Colors.grey.shade600,
+                                        ],
+                                      ),
+                              ),
+                            ),
+                          ),
+                          Container(
+                            width: 42,
+                            height: 42,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              gradient: RadialGradient(
+                                colors: [
+                                  Colors.black.withValues(alpha: 0.1),
+                                  Colors.black.withValues(alpha: 0.6),
                                 ],
+                                radius: 0.8,
                               ),
                             ),
-                            RotationTransition(
-                              turns: _aiAnimationController,
-                              child: Container(
-                                width: 46,
-                                height: 46,
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  gradient: isConfigured 
-                                      ? const SweepGradient(
-                                          colors: [
-                                            Color(0xFF00FFC2),
-                                            Color(0xFF00A3FF),
-                                            Color(0xFFB026FF),
-                                            Color(0xFFFF26A8),
-                                            Color(0xFF00FFC2),
-                                          ],
-                                        )
-                                      : SweepGradient(
-                                          colors: [
-                                            Colors.grey.shade600,
-                                            Colors.grey.shade400,
-                                            Colors.grey.shade600,
-                                          ],
-                                        ),
-                                ),
-                              ),
-                            ),
-                            Container(
-                              width: 42,
-                              height: 42,
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                gradient: RadialGradient(
-                                  colors: [
-                                    Colors.black.withValues(alpha: 0.1),
-                                    Colors.black.withValues(alpha: 0.6),
-                                  ],
-                                  radius: 0.8,
-                                ),
-                              ),
-                            ),
-                            Icon(
-                              isConfigured ? Icons.auto_awesome_rounded : Icons.settings_rounded,
-                              color: Colors.white,
-                              size: 20,
-                            ),
-                          ],
-                        ),
+                          ),
+                          Icon(
+                            isConfigured ? Icons.auto_awesome_rounded : Icons.settings_rounded,
+                            color: Colors.white,
+                            size: 20,
+                          ),
+                        ],
+                      ),
+                    ),
                       ],
                     ),
               ),

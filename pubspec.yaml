@@ -95,6 +95,14 @@ flutter:
   assets:
     - .env
     - assets/animations/
+    - assets/fonts/
+
+  fonts:
+    - family: NotoSans
+      fonts:
+        - asset: assets/fonts/NotoSans-Regular.ttf
+        - asset: assets/fonts/NotoSans-Bold.ttf
+          weight: 700
 
   # To add assets to your application, add an assets section, like this:
   # assets:

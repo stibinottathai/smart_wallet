@@ -1,4 +1,6 @@
+import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -268,7 +270,7 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
                         ),
                       ),
                       const Text(
-                        'Stibi Augustine',
+                        'Stibin Augustine',
                         style: TextStyle(
                           fontSize: 13,
                           fontWeight: FontWeight.w600,
@@ -543,6 +545,66 @@ class _CsvImportExportSectionState
     }
   }
 
+  Future<void> _downloadCsv() async {
+    setState(() => _isProcessing = true);
+    try {
+      List<domain.Income> incomes = [];
+      List<domain.Expense> expenses = [];
+      List<domain.Category> categories = [];
+
+      try {
+        incomes = await ref.read(incomeRepositoryProvider).getAllIncomes();
+        expenses = await ref.read(expenseRepositoryProvider).getAllExpenses();
+        categories = await ref
+            .read(expenseRepositoryProvider)
+            .getAllCategories();
+      } catch (_) {
+        incomes = ref.read(allIncomesProvider).value ?? [];
+        expenses = ref.read(allExpensesProvider).value ?? [];
+        categories = ref.read(allCategoriesProvider).value ?? [];
+      }
+
+      final service = CsvExportService();
+      final csvContent = service.buildCsvContent(
+        incomes: incomes,
+        expenses: expenses,
+        categories: categories,
+      );
+
+      final result = await FilePicker.saveFile(
+        dialogTitle: 'Save CSV file',
+        fileName: 'smart_wallet_export.csv',
+        bytes: Uint8List.fromList(utf8.encode(csvContent)),
+        type: FileType.custom,
+        allowedExtensions: ['csv'],
+      );
+
+      if (result != null && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Row(
+              children: [
+                Icon(Icons.check_circle_rounded, color: Colors.white, size: 20),
+                SizedBox(width: 12),
+                Text('CSV file saved successfully'),
+              ],
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Failed to save CSV: $e')));
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isProcessing = false);
+      }
+    }
+  }
+
   Future<void> _importFromCsv() async {
     setState(() => _isProcessing = true);
     try {
@@ -664,8 +726,8 @@ class _CsvImportExportSectionState
                             color: AppColors.primary,
                           ),
                         )
-                      : const Icon(Icons.file_download_rounded, size: 18),
-                  label: const Text('Export CSV'),
+                      : const Icon(Icons.share_rounded, size: 18),
+                  label: const Text('Share'),
                   style: OutlinedButton.styleFrom(
                     foregroundColor: AppColors.primary,
                     side: const BorderSide(color: AppColors.primary),
@@ -676,14 +738,41 @@ class _CsvImportExportSectionState
                 ),
               ),
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: 8),
+            Expanded(
+              child: SizedBox(
+                height: 44,
+                child: OutlinedButton.icon(
+                  onPressed: _isProcessing ? null : _downloadCsv,
+                  icon: _isProcessing
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: AppColors.primary,
+                          ),
+                        )
+                      : const Icon(Icons.file_download_rounded, size: 18),
+                  label: const Text('Save'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppColors.primary,
+                    side: const BorderSide(color: AppColors.primary),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
             Expanded(
               child: SizedBox(
                 height: 44,
                 child: FilledButton.icon(
                   onPressed: _isProcessing ? null : _importFromCsv,
                   icon: const Icon(Icons.file_upload_rounded, size: 18),
-                  label: const Text('Import CSV'),
+                  label: const Text('Import'),
                   style: FilledButton.styleFrom(
                     backgroundColor: AppColors.primary,
                     foregroundColor: Colors.white,
