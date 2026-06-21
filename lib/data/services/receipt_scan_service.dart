@@ -66,30 +66,9 @@ class ReceiptScanResult {
       if (dVal == null || dVal.isEmpty) return DateTime.now();
       
       try {
-        // Normalize slashes and dots to hyphens
-        String normalizedDate = dVal.replaceAll('/', '-').replaceAll('.', '-');
+        // AI should now strictly return YYYY-MM-DD
+        String normalizedDate = dVal.trim();
         
-        final parts = normalizedDate.split('-');
-        if (parts.length == 3) {
-          // If the year is first but 2 digits (e.g. 20-06-26)
-          if (parts[0].length == 2) {
-             parts[0] = '20${parts[0]}';
-          } 
-          // If the year is last (e.g. 26-06-2020 or 06-26-2020)
-          else if (parts[2].length == 4) {
-             final year = parts[2];
-             final p1 = parts[0];
-             final p2 = parts[1];
-             // In YYYY-MM-DD, year is first
-             parts[0] = year;
-             // Guess that middle is month if it's DD-MM-YYYY, but it could be MM-DD-YYYY. 
-             // We just map it to YYYY-MM-DD
-             parts[1] = p2;
-             parts[2] = p1;
-          }
-          normalizedDate = parts.join('-');
-        }
-
         // Validate that it roughly matches YYYY-MM-DD before passing to tryParse 
         // to prevent internal FormatExceptions triggering the debugger
         final dateRegex = RegExp(r'^\d{4}-\d{1,2}-\d{1,2}');
@@ -214,6 +193,7 @@ Rules:
 - If information is missing, use null.
 - For category, you MUST select the closest exact category ID from this list:
 $categoryListStr
+- The "date" field MUST be standardized to EXACTLY "YYYY-MM-DD" format. IMPORTANT FOR UAE RECEIPTS: Always consider DD/MM/YY or DD.MM.YY format first. If you see "21.06.26" or "21/06/26", the last number is the year, so it means 21st of June 2026. You must return "2026-06-21".
 - Choose the final payable amount as total_amount.
 - Do not guess values that are not present.
 - Reject documents that only contain dates, numbers, or unrelated text.
@@ -256,15 +236,14 @@ $extractedText''';
       }
 
       content = content.trim();
-      if (content.startsWith('```json')) {
-        content = content.substring(7);
-      } else if (content.startsWith('```')) {
-        content = content.substring(3);
+      
+      // Robust JSON extraction: find the first '{' and the last '}'
+      final startIndex = content.indexOf('{');
+      final endIndex = content.lastIndexOf('}');
+      
+      if (startIndex != -1 && endIndex != -1 && endIndex >= startIndex) {
+        content = content.substring(startIndex, endIndex + 1);
       }
-      if (content.endsWith('```')) {
-        content = content.substring(0, content.length - 3);
-      }
-      content = content.trim();
 
       final Map<String, dynamic> decoded = jsonDecode(content);
       return ReceiptScanResult.fromJson(decoded);
