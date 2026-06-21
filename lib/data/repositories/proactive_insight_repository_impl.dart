@@ -66,6 +66,17 @@ class ProactiveInsightRepository {
         .write(const ProactiveInsightsCompanion(dismissed: Value(true)));
   }
 
+  /// Dismisses all undismissed insights of [triggerType] so they are no longer
+  /// shown. Called by the freshness gate when the rule engine does not fire a
+  /// time-sensitive trigger in the current run (e.g. streak broken by a new
+  /// expense, or budget no longer over threshold).
+  Future<void> expireInsightsByType(String triggerType) async {
+    await (_db.update(_db.proactiveInsights)
+          ..where((t) =>
+              t.triggerType.equals(triggerType) & t.dismissed.equals(false)))
+        .write(const ProactiveInsightsCompanion(dismissed: Value(true)));
+  }
+
   Future<void> clearAll() async {
     await _db.delete(_db.proactiveInsights).go();
   }

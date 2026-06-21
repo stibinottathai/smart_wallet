@@ -206,12 +206,14 @@ List<Map<String, dynamic>> runRuleEngine({
   }
 
   // ── 7. savings_streak ────────────────────────────────────────────────────
-  // 3+ consecutive days with zero expenses
-  int streak = 0;
-  DateTime checkDay = today.subtract(const Duration(days: 1));
+  // 3+ consecutive days with zero expenses.
+  // The window starts at TODAY so that any expense dated today immediately
+  // resets the streak to 0 — preventing stale "no-spend" alerts.
   final expenseDays = expenses
       .map((e) => DateTime(e.date.year, e.date.month, e.date.day))
       .toSet();
+  int streak = 0;
+  DateTime checkDay = today; // ← include today in the look-back
   while (!expenseDays.contains(checkDay) && streak < 30) {
     streak++;
     checkDay = checkDay.subtract(const Duration(days: 1));
@@ -304,7 +306,16 @@ Map<String, dynamic>? _extractJson(String? text) {
 }
 
 class ProactiveInsightService {
-  /// Orchestrates: run rule engine → call LLM for each fact → upsert into DB.
+  /// Trigger types whose facts are time-sensitive: if the rule engine does NOT
+  /// fire them in a given run, any cached DB row must be expired immediately.
+  static const _timeSensitiveTypes = {
+    'savings_streak',
+    'budget_threshold',
+    'goal_stalled',
+  };
+
+  /// Orchestrates: run rule engine → expire stale time-sensitive rows →
+  /// call LLM for each new fact → upsert into DB.
   /// Safe to call on app start or after a transaction — dedup is handled by the repo.
   Future<void> generateAndStoreInsights({
     required List<domain.Expense> expenses,
@@ -325,6 +336,17 @@ class ProactiveInsightService {
       bills: bills,
       goals: goals,
     );
+
+    // ─ Freshness gate ──────────────────────────────────────────────────────────
+    // For every time-sensitive type that was NOT produced by the rule engine
+    // this run, immediately dismiss any lingering DB row so it is never shown
+    // with stale data.
+    final firedTypes = facts.map((f) => f['trigger_type'] as String).toSet();
+    for (final sensitiveType in _timeSensitiveTypes) {
+      if (!firedTypes.contains(sensitiveType)) {
+        await repository.expireInsightsByType(sensitiveType);
+      }
+    }
 
     for (final fact in facts) {
       try {
