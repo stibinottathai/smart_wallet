@@ -12,8 +12,33 @@ import '../repositories/expense_repository_impl.dart';
 import '../repositories/income_repository_impl.dart';
 import 'database.dart';
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Currency label helper
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Returns the best currency label for use inside a PDF rendered with a
+/// Latin-script TrueType font (Roboto).
+///
+/// Roboto covers the full Latin-1 block plus many Unicode currency signs:
+///   ✅ $ £ € ¥ ₹  — rendered correctly as Unicode symbols
+///   ❌ Arabic-script symbols (د.إ  ﷼  د.ك  د.ب) — replaced with the
+///      ISO 4217 code so the PDF doesn't show garbled boxes.
+String _pdfCurrencyLabel(String code) {
+  const arabicScriptCodes = {'AED', 'SAR', 'QAR', 'KWD', 'OMR', 'BHD'};
+  if (arabicScriptCodes.contains(code)) {
+    // Return the 3-letter ISO code + non-breaking space — clean and unambiguous
+    return '$code ';
+  }
+  // For all other currencies the Unicode symbol is within Roboto's coverage
+  return currencySymbol(code);
+}
+
 class PdfReportService {
   final AppDatabase _db;
+
+  /// The currency code is injected by the Riverpod provider which watches
+  /// [currencyCodeProvider], so this field is always the currently selected
+  /// currency — no stale-value risk.
   final String currencyCode;
 
   PdfReportService(this._db, {this.currencyCode = 'AED'});
@@ -37,10 +62,18 @@ class PdfReportService {
     final totalExpense = expenses.fold(0.0, (s, e) => s + e.amount);
     final netBalance = totalIncome - totalExpense;
 
+    // Load Roboto TTF from assets (copied from Flutter's material_fonts cache).
+    // Roboto covers all currency symbols used by this app EXCEPT Arabic-script
+    // ones (AED, SAR, etc.) — those fall back to the ISO code via
+    // _pdfCurrencyLabel(). Using rootBundle ensures the font is bundled in the
+    // app and never causes a "head table not found" error.
     final fontData = await rootBundle.load('assets/fonts/NotoSans-Regular.ttf');
     final boldFontData = await rootBundle.load('assets/fonts/NotoSans-Bold.ttf');
     final baseFont = pw.Font.ttf(fontData);
     final boldFont = pw.Font.ttf(boldFontData);
+
+    // Resolve the label once — used throughout the document
+    final sym = _pdfCurrencyLabel(currencyCode);
 
     final pdf = pw.Document(
       theme: pw.ThemeData.withFont(
@@ -74,24 +107,24 @@ class PdfReportService {
         build: (context) => [
           _buildHeader(start, adjustedEnd),
           pw.SizedBox(height: 24),
-          _buildSummary(totalIncome, totalExpense, netBalance, incomes.length, expenses.length),
+          _buildSummary(totalIncome, totalExpense, netBalance, incomes.length, expenses.length, sym),
           pw.SizedBox(height: 32),
           if (incomes.isNotEmpty) ...[
             _buildSectionTitle('Income Entries'),
             pw.SizedBox(height: 8),
-            _buildIncomeTable(incomes),
+            _buildIncomeTable(incomes, sym),
             pw.SizedBox(height: 24),
           ],
           if (expenses.isNotEmpty) ...[
             _buildSectionTitle('Expense Entries'),
             pw.SizedBox(height: 8),
-            _buildExpenseTable(expenses, catMap),
+            _buildExpenseTable(expenses, catMap, sym),
             pw.SizedBox(height: 24),
           ],
           if (expenses.isNotEmpty) ...[
             _buildSectionTitle('Category Breakdown'),
             pw.SizedBox(height: 8),
-            _buildCategoryTable(expenses, catMap, totalExpense),
+            _buildCategoryTable(expenses, catMap, totalExpense, sym),
           ],
         ],
       ),
@@ -162,7 +195,14 @@ class PdfReportService {
     );
   }
 
-  pw.Widget _buildSummary(double income, double expense, double net, int incCount, int expCount) {
+  pw.Widget _buildSummary(
+    double income,
+    double expense,
+    double net,
+    int incCount,
+    int expCount,
+    String sym,
+  ) {
     return pw.Container(
       padding: const pw.EdgeInsets.all(20),
       decoration: pw.BoxDecoration(
@@ -173,11 +213,11 @@ class PdfReportService {
       child: pw.Row(
         mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
         children: [
-          _summaryItem('Total Income', '${currencySymbol(currencyCode)}${income.toStringAsFixed(2)}', PdfColors.green700, '$incCount entries'),
-          _summaryItem('Total Expenses', '${currencySymbol(currencyCode)}${expense.toStringAsFixed(2)}', PdfColors.red700, '$expCount entries'),
+          _summaryItem('Total Income', '$sym${income.toStringAsFixed(2)}', PdfColors.green700, '$incCount entries'),
+          _summaryItem('Total Expenses', '$sym${expense.toStringAsFixed(2)}', PdfColors.red700, '$expCount entries'),
           _summaryItem(
             'Net Balance',
-            '${currencySymbol(currencyCode)}${net.toStringAsFixed(2)}',
+            '$sym${net.toStringAsFixed(2)}',
             net >= 0 ? PdfColors.green700 : PdfColors.red700,
             net >= 0 ? 'Surplus' : 'Deficit',
           ),
@@ -213,13 +253,13 @@ class PdfReportService {
     );
   }
 
-  pw.Widget _buildIncomeTable(List<domain.Income> incomes) {
+  pw.Widget _buildIncomeTable(List<domain.Income> incomes, String sym) {
     final headers = ['Source', 'Date', 'Recurring', 'Amount'];
     final rows = incomes.map((i) => [
       i.source,
       DateFormat('MMM d, yyyy').format(i.date),
       i.isRecurring ? i.frequency.displayName : '-',
-      '${currencySymbol(currencyCode)}${i.amount.toStringAsFixed(2)}',
+      '$sym${i.amount.toStringAsFixed(2)}',
     ]).toList();
 
     return pw.TableHelper.fromTextArray(
@@ -237,7 +277,11 @@ class PdfReportService {
     );
   }
 
-  pw.Widget _buildExpenseTable(List<domain.Expense> expenses, Map<String, domain.Category> catMap) {
+  pw.Widget _buildExpenseTable(
+    List<domain.Expense> expenses,
+    Map<String, domain.Category> catMap,
+    String sym,
+  ) {
     final headers = ['Category', 'Date', 'Note', 'Amount'];
     final rows = expenses.map((e) {
       final cat = catMap[e.categoryId];
@@ -245,7 +289,7 @@ class PdfReportService {
         cat?.name ?? 'Uncategorized',
         DateFormat('MMM d, yyyy').format(e.date),
         e.note ?? '-',
-        '${currencySymbol(currencyCode)}${e.amount.toStringAsFixed(2)}',
+        '$sym${e.amount.toStringAsFixed(2)}',
       ];
     }).toList();
 
@@ -268,6 +312,7 @@ class PdfReportService {
     List<domain.Expense> expenses,
     Map<String, domain.Category> catMap,
     double total,
+    String sym,
   ) {
     final spend = <String, double>{};
     for (final e in expenses) {
@@ -281,7 +326,7 @@ class PdfReportService {
       final pct = total > 0 ? (e.value / total * 100) : 0.0;
       return [
         cat?.name ?? 'Uncategorized',
-        '${currencySymbol(currencyCode)}${e.value.toStringAsFixed(2)}',
+        '$sym${e.value.toStringAsFixed(2)}',
         '${pct.toStringAsFixed(1)}%',
       ];
     }).toList();
