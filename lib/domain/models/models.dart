@@ -279,3 +279,84 @@ class Bill {
   }
 }
 
+class HealthScoreFactor {
+  final String key;
+  final String label;
+  final double score;
+  final double weight;
+  final String description;
+
+  const HealthScoreFactor({
+    required this.key,
+    required this.label,
+    required this.score,
+    required this.weight,
+    required this.description,
+  });
+
+  Map<String, dynamic> toJson() => {
+    'key': key,
+    'label': label,
+    'score': score,
+    'weight': weight,
+    'description': description,
+  };
+
+  factory HealthScoreFactor.fromJson(Map<String, dynamic> json) {
+    return HealthScoreFactor(
+      key: json['key'] as String,
+      label: json['label'] as String,
+      score: (json['score'] as num).toDouble(),
+      weight: (json['weight'] as num).toDouble(),
+      description: json['description'] as String,
+    );
+  }
+
+  HealthScoreFactor copyWith({double? score, double? weight, String? description}) {
+    return HealthScoreFactor(
+      key: key,
+      label: label,
+      score: score ?? this.score,
+      weight: weight ?? this.weight,
+      description: description ?? this.description,
+    );
+  }
+}
+
+class FinancialHealthScore {
+  final double totalScore;
+  final String label;
+  final List<HealthScoreFactor> factors;
+  final double? previousScore;
+  final String? monthOverMonthExplanation;
+
+  const FinancialHealthScore({
+    required this.totalScore,
+    required this.label,
+    required this.factors,
+    this.previousScore,
+    this.monthOverMonthExplanation,
+  });
+
+  Map<String, dynamic> toJson() => {
+    'totalScore': totalScore,
+    'label': label,
+    'factors': factors.map((f) => f.toJson()).toList(),
+  };
+
+  factory FinancialHealthScore.fromJson(Map<String, dynamic> json) {
+    return FinancialHealthScore(
+      totalScore: (json['totalScore'] as num).toDouble(),
+      label: json['label'] as String,
+      factors: (json['factors'] as List).map((f) => HealthScoreFactor.fromJson(f as Map<String, dynamic>)).toList(),
+    );
+  }
+
+  static String ratingLabel(double score) {
+    if (score >= 80) return 'Excellent';
+    if (score >= 60) return 'Good';
+    if (score >= 40) return 'Fair';
+    return 'Needs Attention';
+  }
+}
+

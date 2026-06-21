@@ -2995,6 +2995,369 @@ class ProactiveInsightsCompanion extends UpdateCompanion<ProactiveInsight> {
   }
 }
 
+class $HealthScoresTable extends HealthScores
+    with TableInfo<$HealthScoresTable, HealthScore> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $HealthScoresTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _monthMeta = const VerificationMeta('month');
+  @override
+  late final GeneratedColumn<String> month = GeneratedColumn<String>(
+    'month',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _scoreMeta = const VerificationMeta('score');
+  @override
+  late final GeneratedColumn<double> score = GeneratedColumn<double>(
+    'score',
+    aliasedName,
+    false,
+    type: DriftSqlType.double,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _breakdownJsonMeta = const VerificationMeta(
+    'breakdownJson',
+  );
+  @override
+  late final GeneratedColumn<String> breakdownJson = GeneratedColumn<String>(
+    'breakdown_json',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    month,
+    score,
+    breakdownJson,
+    createdAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'health_scores';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<HealthScore> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('month')) {
+      context.handle(
+        _monthMeta,
+        month.isAcceptableOrUnknown(data['month']!, _monthMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_monthMeta);
+    }
+    if (data.containsKey('score')) {
+      context.handle(
+        _scoreMeta,
+        score.isAcceptableOrUnknown(data['score']!, _scoreMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_scoreMeta);
+    }
+    if (data.containsKey('breakdown_json')) {
+      context.handle(
+        _breakdownJsonMeta,
+        breakdownJson.isAcceptableOrUnknown(
+          data['breakdown_json']!,
+          _breakdownJsonMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_breakdownJsonMeta);
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  HealthScore map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return HealthScore(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      month: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}month'],
+      )!,
+      score: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}score'],
+      )!,
+      breakdownJson: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}breakdown_json'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+    );
+  }
+
+  @override
+  $HealthScoresTable createAlias(String alias) {
+    return $HealthScoresTable(attachedDatabase, alias);
+  }
+}
+
+class HealthScore extends DataClass implements Insertable<HealthScore> {
+  final String id;
+  final String month;
+  final double score;
+  final String breakdownJson;
+  final DateTime createdAt;
+  const HealthScore({
+    required this.id,
+    required this.month,
+    required this.score,
+    required this.breakdownJson,
+    required this.createdAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['month'] = Variable<String>(month);
+    map['score'] = Variable<double>(score);
+    map['breakdown_json'] = Variable<String>(breakdownJson);
+    map['created_at'] = Variable<DateTime>(createdAt);
+    return map;
+  }
+
+  HealthScoresCompanion toCompanion(bool nullToAbsent) {
+    return HealthScoresCompanion(
+      id: Value(id),
+      month: Value(month),
+      score: Value(score),
+      breakdownJson: Value(breakdownJson),
+      createdAt: Value(createdAt),
+    );
+  }
+
+  factory HealthScore.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return HealthScore(
+      id: serializer.fromJson<String>(json['id']),
+      month: serializer.fromJson<String>(json['month']),
+      score: serializer.fromJson<double>(json['score']),
+      breakdownJson: serializer.fromJson<String>(json['breakdownJson']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'month': serializer.toJson<String>(month),
+      'score': serializer.toJson<double>(score),
+      'breakdownJson': serializer.toJson<String>(breakdownJson),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+    };
+  }
+
+  HealthScore copyWith({
+    String? id,
+    String? month,
+    double? score,
+    String? breakdownJson,
+    DateTime? createdAt,
+  }) => HealthScore(
+    id: id ?? this.id,
+    month: month ?? this.month,
+    score: score ?? this.score,
+    breakdownJson: breakdownJson ?? this.breakdownJson,
+    createdAt: createdAt ?? this.createdAt,
+  );
+  HealthScore copyWithCompanion(HealthScoresCompanion data) {
+    return HealthScore(
+      id: data.id.present ? data.id.value : this.id,
+      month: data.month.present ? data.month.value : this.month,
+      score: data.score.present ? data.score.value : this.score,
+      breakdownJson: data.breakdownJson.present
+          ? data.breakdownJson.value
+          : this.breakdownJson,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('HealthScore(')
+          ..write('id: $id, ')
+          ..write('month: $month, ')
+          ..write('score: $score, ')
+          ..write('breakdownJson: $breakdownJson, ')
+          ..write('createdAt: $createdAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(id, month, score, breakdownJson, createdAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is HealthScore &&
+          other.id == this.id &&
+          other.month == this.month &&
+          other.score == this.score &&
+          other.breakdownJson == this.breakdownJson &&
+          other.createdAt == this.createdAt);
+}
+
+class HealthScoresCompanion extends UpdateCompanion<HealthScore> {
+  final Value<String> id;
+  final Value<String> month;
+  final Value<double> score;
+  final Value<String> breakdownJson;
+  final Value<DateTime> createdAt;
+  final Value<int> rowid;
+  const HealthScoresCompanion({
+    this.id = const Value.absent(),
+    this.month = const Value.absent(),
+    this.score = const Value.absent(),
+    this.breakdownJson = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  HealthScoresCompanion.insert({
+    required String id,
+    required String month,
+    required double score,
+    required String breakdownJson,
+    required DateTime createdAt,
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       month = Value(month),
+       score = Value(score),
+       breakdownJson = Value(breakdownJson),
+       createdAt = Value(createdAt);
+  static Insertable<HealthScore> custom({
+    Expression<String>? id,
+    Expression<String>? month,
+    Expression<double>? score,
+    Expression<String>? breakdownJson,
+    Expression<DateTime>? createdAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (month != null) 'month': month,
+      if (score != null) 'score': score,
+      if (breakdownJson != null) 'breakdown_json': breakdownJson,
+      if (createdAt != null) 'created_at': createdAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  HealthScoresCompanion copyWith({
+    Value<String>? id,
+    Value<String>? month,
+    Value<double>? score,
+    Value<String>? breakdownJson,
+    Value<DateTime>? createdAt,
+    Value<int>? rowid,
+  }) {
+    return HealthScoresCompanion(
+      id: id ?? this.id,
+      month: month ?? this.month,
+      score: score ?? this.score,
+      breakdownJson: breakdownJson ?? this.breakdownJson,
+      createdAt: createdAt ?? this.createdAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (month.present) {
+      map['month'] = Variable<String>(month.value);
+    }
+    if (score.present) {
+      map['score'] = Variable<double>(score.value);
+    }
+    if (breakdownJson.present) {
+      map['breakdown_json'] = Variable<String>(breakdownJson.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('HealthScoresCompanion(')
+          ..write('id: $id, ')
+          ..write('month: $month, ')
+          ..write('score: $score, ')
+          ..write('breakdownJson: $breakdownJson, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -3005,6 +3368,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $BillsTable bills = $BillsTable(this);
   late final $ProactiveInsightsTable proactiveInsights =
       $ProactiveInsightsTable(this);
+  late final $HealthScoresTable healthScores = $HealthScoresTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -3016,6 +3380,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     savingsGoals,
     bills,
     proactiveInsights,
+    healthScores,
   ];
 }
 
@@ -4535,6 +4900,208 @@ typedef $$ProactiveInsightsTableProcessedTableManager =
       ProactiveInsight,
       PrefetchHooks Function()
     >;
+typedef $$HealthScoresTableCreateCompanionBuilder =
+    HealthScoresCompanion Function({
+      required String id,
+      required String month,
+      required double score,
+      required String breakdownJson,
+      required DateTime createdAt,
+      Value<int> rowid,
+    });
+typedef $$HealthScoresTableUpdateCompanionBuilder =
+    HealthScoresCompanion Function({
+      Value<String> id,
+      Value<String> month,
+      Value<double> score,
+      Value<String> breakdownJson,
+      Value<DateTime> createdAt,
+      Value<int> rowid,
+    });
+
+class $$HealthScoresTableFilterComposer
+    extends Composer<_$AppDatabase, $HealthScoresTable> {
+  $$HealthScoresTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get month => $composableBuilder(
+    column: $table.month,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get score => $composableBuilder(
+    column: $table.score,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get breakdownJson => $composableBuilder(
+    column: $table.breakdownJson,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$HealthScoresTableOrderingComposer
+    extends Composer<_$AppDatabase, $HealthScoresTable> {
+  $$HealthScoresTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get month => $composableBuilder(
+    column: $table.month,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get score => $composableBuilder(
+    column: $table.score,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get breakdownJson => $composableBuilder(
+    column: $table.breakdownJson,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$HealthScoresTableAnnotationComposer
+    extends Composer<_$AppDatabase, $HealthScoresTable> {
+  $$HealthScoresTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get month =>
+      $composableBuilder(column: $table.month, builder: (column) => column);
+
+  GeneratedColumn<double> get score =>
+      $composableBuilder(column: $table.score, builder: (column) => column);
+
+  GeneratedColumn<String> get breakdownJson => $composableBuilder(
+    column: $table.breakdownJson,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+}
+
+class $$HealthScoresTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $HealthScoresTable,
+          HealthScore,
+          $$HealthScoresTableFilterComposer,
+          $$HealthScoresTableOrderingComposer,
+          $$HealthScoresTableAnnotationComposer,
+          $$HealthScoresTableCreateCompanionBuilder,
+          $$HealthScoresTableUpdateCompanionBuilder,
+          (
+            HealthScore,
+            BaseReferences<_$AppDatabase, $HealthScoresTable, HealthScore>,
+          ),
+          HealthScore,
+          PrefetchHooks Function()
+        > {
+  $$HealthScoresTableTableManager(_$AppDatabase db, $HealthScoresTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$HealthScoresTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$HealthScoresTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$HealthScoresTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> month = const Value.absent(),
+                Value<double> score = const Value.absent(),
+                Value<String> breakdownJson = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => HealthScoresCompanion(
+                id: id,
+                month: month,
+                score: score,
+                breakdownJson: breakdownJson,
+                createdAt: createdAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String month,
+                required double score,
+                required String breakdownJson,
+                required DateTime createdAt,
+                Value<int> rowid = const Value.absent(),
+              }) => HealthScoresCompanion.insert(
+                id: id,
+                month: month,
+                score: score,
+                breakdownJson: breakdownJson,
+                createdAt: createdAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$HealthScoresTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $HealthScoresTable,
+      HealthScore,
+      $$HealthScoresTableFilterComposer,
+      $$HealthScoresTableOrderingComposer,
+      $$HealthScoresTableAnnotationComposer,
+      $$HealthScoresTableCreateCompanionBuilder,
+      $$HealthScoresTableUpdateCompanionBuilder,
+      (
+        HealthScore,
+        BaseReferences<_$AppDatabase, $HealthScoresTable, HealthScore>,
+      ),
+      HealthScore,
+      PrefetchHooks Function()
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -4551,4 +5118,6 @@ class $AppDatabaseManager {
       $$BillsTableTableManager(_db, _db.bills);
   $$ProactiveInsightsTableTableManager get proactiveInsights =>
       $$ProactiveInsightsTableTableManager(_db, _db.proactiveInsights);
+  $$HealthScoresTableTableManager get healthScores =>
+      $$HealthScoresTableTableManager(_db, _db.healthScores);
 }

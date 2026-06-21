@@ -5,6 +5,7 @@ import '../data/repositories/income_repository_impl.dart';
 import '../data/repositories/savings_goal_repository_impl.dart';
 import '../data/repositories/bill_repository_impl.dart';
 import '../data/repositories/proactive_insight_repository_impl.dart';
+import '../data/repositories/health_score_repository_impl.dart';
 import '../data/services/database.dart' hide ProactiveInsight;
 import '../data/services/insights_service.dart';
 import '../data/services/proactive_insight_service.dart';
@@ -18,6 +19,8 @@ import '../domain/repositories/expense_repository.dart';
 import '../domain/repositories/income_repository.dart';
 import '../domain/repositories/savings_goal_repository.dart';
 import '../domain/repositories/bill_repository.dart';
+import '../domain/repositories/health_score_repository.dart';
+import '../data/services/financial_health_service.dart';
 
 // Database Provider
 final databaseProvider = Provider<AppDatabase>((ref) {
@@ -75,6 +78,16 @@ final pdfReportServiceProvider = Provider<PdfReportService>((ref) {
   return PdfReportService(db, currencyCode: currencyCode);
 });
 
+final healthScoreRepositoryProvider = Provider<HealthScoreRepository>((ref) {
+  final db = ref.watch(databaseProvider);
+  return HealthScoreRepositoryImpl(db);
+});
+
+final healthScoreServiceProvider = Provider<FinancialHealthService>((ref) {
+  final code = ref.watch(currencyCodeProvider);
+  return FinancialHealthService(currencySymbol: currencySymbol(code));
+});
+
 
 // Streams
 final allIncomesProvider = StreamProvider<List<domain.Income>>((ref) {
@@ -120,6 +133,42 @@ final analysisDateRangeProvider = StateProvider<(DateTime, DateTime)?>((ref) {
 final activeInsightsProvider = StreamProvider<List<ProactiveInsight>>((ref) {
   final repo = ref.watch(proactiveInsightRepositoryProvider);
   return repo.watchActiveInsights();
+});
+
+final financialHealthScoreProvider = FutureProvider<domain.FinancialHealthScore>((ref) async {
+  final incomes = ref.watch(allIncomesProvider).value ?? [];
+  final expenses = ref.watch(allExpensesProvider).value ?? [];
+  final categories = ref.watch(allCategoriesProvider).value ?? [];
+  final goals = ref.watch(allSavingsGoalsProvider).value ?? [];
+  final bills = ref.watch(allBillsProvider).value ?? [];
+  final service = ref.watch(healthScoreServiceProvider);
+  final repo = ref.watch(healthScoreRepositoryProvider);
+
+  final now = DateTime.now();
+  final currentMonth = '${now.year}-${now.month.toString().padLeft(2, '0')}';
+  final lastMonth = DateTime(now.year, now.month - 1, 1);
+  final lastMonthStr = '${lastMonth.year}-${lastMonth.month.toString().padLeft(2, '0')}';
+
+  final previousSnapshot = await repo.getSnapshot(lastMonthStr);
+
+  final totalIncome = incomes.fold(0.0, (s, i) => s + i.amount);
+  final totalExpense = expenses.fold(0.0, (s, e) => s + e.amount);
+  final netBalance = totalIncome - totalExpense;
+
+  final score = service.compute(
+    incomes: incomes,
+    expenses: expenses,
+    categories: categories,
+    goals: goals,
+    bills: bills,
+    netBalance: netBalance,
+    previousSnapshot: previousSnapshot,
+  );
+
+  // Save snapshot for the current month
+  await repo.saveSnapshot(score, currentMonth);
+
+  return score;
 });
 
 /// Call this to trigger the rule engine + LLM pipeline and refresh cards.

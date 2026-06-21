@@ -85,12 +85,23 @@ class ProactiveInsights extends Table {
   Set<Column> get primaryKey => {id};
 }
 
-@DriftDatabase(tables: [Categories, Incomes, Expenses, SavingsGoals, Bills, ProactiveInsights])
+class HealthScores extends Table {
+  TextColumn get id => text()();
+  TextColumn get month => text()(); // "YYYY-MM"
+  RealColumn get score => real()();
+  TextColumn get breakdownJson => text()(); // JSON string of all factor data
+  DateTimeColumn get createdAt => dateTime()();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
+@DriftDatabase(tables: [Categories, Incomes, Expenses, SavingsGoals, Bills, ProactiveInsights, HealthScores])
 class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(driftDatabase(name: 'smart_wallet'));
 
   @override
-  int get schemaVersion => 4;
+  int get schemaVersion => 5;
 
   @override
   MigrationStrategy get migration {
@@ -115,6 +126,9 @@ class AppDatabase extends _$AppDatabase {
         }
         if (from < 4) {
           await m.createTable(proactiveInsights);
+        }
+        if (from < 5) {
+          await m.createTable(healthScores);
         }
       },
       beforeOpen: (details) async {

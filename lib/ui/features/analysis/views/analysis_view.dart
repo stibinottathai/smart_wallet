@@ -16,6 +16,7 @@ import '../widgets/weekday_spending_chart.dart';
 import '../widgets/budget_utilization_chart.dart';
 import '../widgets/top_spending_days_card.dart';
 import '../widgets/expense_source_pie.dart';
+import '../widgets/financial_health_card.dart';
 
 class AnalysisView extends ConsumerStatefulWidget {
   const AnalysisView({super.key});
@@ -198,6 +199,10 @@ class _AnalysisViewState extends ConsumerState<AnalysisView> {
                           ),
                         ),
                         const SizedBox(height: 12),
+                        RepaintBoundary(
+                          child: const FinancialHealthCard(),
+                        ),
+                        const SizedBox(height: 16),
                         RepaintBoundary(
                           child: MoMCard(
                             currentMonthExpenses: _currentMonthExpenses(filteredExpenses),
