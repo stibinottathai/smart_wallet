@@ -8,6 +8,7 @@ import 'package:smart_wallet/ui/core/currency_utils.dart';
 import 'package:smart_wallet/ui/core/dialogs.dart';
 import 'package:smart_wallet/ui/providers.dart';
 import 'package:smart_wallet/ui/features/entries/views/entry_form_view.dart';
+import 'package:smart_wallet/ui/features/entries/views/scan_receipt_view.dart';
 import 'package:smart_wallet/ui/features/dashboard/views/dashboard_view.dart';
 
 class AllTransactionsView extends ConsumerStatefulWidget {
@@ -87,14 +88,32 @@ class _AllTransactionsViewState extends ConsumerState<AllTransactionsView> {
           ),
         ),
       ),
-      floatingActionButton: FloatingActionButton(
-        heroTag: 'transactions_fab',
-        onPressed: () {
-          Navigator.of(context).push(
-            MaterialPageRoute(builder: (context) => const EntryFormView()),
-          );
-        },
-        child: const Icon(Icons.add, size: 26),
+      floatingActionButton: Column(
+        mainAxisAlignment: MainAxisAlignment.end,
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          FloatingActionButton.small(
+            heroTag: 'scan_receipt_fab',
+            backgroundColor: AppColors.surface,
+            foregroundColor: AppColors.primary,
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(builder: (context) => const ScanReceiptView()),
+              );
+            },
+            child: const Icon(Icons.document_scanner_rounded),
+          ),
+          const SizedBox(height: 16),
+          FloatingActionButton(
+            heroTag: 'transactions_fab',
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(builder: (context) => const EntryFormView()),
+              );
+            },
+            child: const Icon(Icons.add, size: 26),
+          ),
+        ],
       ),
       body: SafeArea(
         child: Column(

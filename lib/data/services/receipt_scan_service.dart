@@ -2,45 +2,123 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:http/http.dart' as http;
-import 'package:path/path.dart' as p;
+import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
 import '../../domain/models/models.dart' as domain;
 
+class ReceiptItem {
+  final String name;
+  final double price;
+  
+  ReceiptItem({required this.name, required this.price});
+  
+  factory ReceiptItem.fromJson(Map<String, dynamic> json) {
+    double parseDouble(dynamic val) {
+      if (val is num) return val.toDouble();
+      if (val is String) return double.tryParse(val) ?? 0.0;
+      return 0.0;
+    }
+    return ReceiptItem(
+      name: json['name'] ?? '',
+      price: parseDouble(json['price']),
+    );
+  }
+}
+
 class ReceiptScanResult {
-  final String merchant;
-  final double total;
-  final String currency;
+  final String merchantName;
   final DateTime date;
-  final String categoryGuess;
-  final List<String> lineItems;
+  final String? time;
+  final double totalAmount;
+  final String currency;
+  final String category;
+  final List<ReceiptItem> items;
 
   ReceiptScanResult({
-    required this.merchant,
-    required this.total,
-    required this.currency,
+    required this.merchantName,
     required this.date,
-    required this.categoryGuess,
-    required this.lineItems,
+    this.time,
+    required this.totalAmount,
+    required this.currency,
+    required this.category,
+    required this.items,
   });
 
   factory ReceiptScanResult.fromJson(Map<String, dynamic> json) {
+    if ((json.containsKey('valid_receipt') && json['valid_receipt'] == false) ||
+        (json.containsKey('error') && json['error'] == 'not_a_receipt')) {
+      return ReceiptScanResult(
+        merchantName: 'ERROR_NOT_A_RECEIPT',
+        date: DateTime.now(),
+        totalAmount: 0.0,
+        currency: '',
+        category: 'not_a_receipt',
+        items: [],
+      );
+    }
+
     double parseTotal(dynamic val) {
       if (val is num) return val.toDouble();
       if (val is String) return double.tryParse(val) ?? 0.0;
       return 0.0;
     }
 
-    DateTime parseDate(dynamic val) {
-      if (val is String) return DateTime.tryParse(val) ?? DateTime.now();
-      return DateTime.now();
+    DateTime parseDate(String? dVal, String? tVal) {
+      if (dVal == null || dVal.isEmpty) return DateTime.now();
+      
+      try {
+        // Normalize slashes and dots to hyphens
+        String normalizedDate = dVal.replaceAll('/', '-').replaceAll('.', '-');
+        
+        final parts = normalizedDate.split('-');
+        if (parts.length == 3) {
+          // If the year is first but 2 digits (e.g. 20-06-26)
+          if (parts[0].length == 2) {
+             parts[0] = '20${parts[0]}';
+          } 
+          // If the year is last (e.g. 26-06-2020 or 06-26-2020)
+          else if (parts[2].length == 4) {
+             final year = parts[2];
+             final p1 = parts[0];
+             final p2 = parts[1];
+             // In YYYY-MM-DD, year is first
+             parts[0] = year;
+             // Guess that middle is month if it's DD-MM-YYYY, but it could be MM-DD-YYYY. 
+             // We just map it to YYYY-MM-DD
+             parts[1] = p2;
+             parts[2] = p1;
+          }
+          normalizedDate = parts.join('-');
+        }
+
+        // Validate that it roughly matches YYYY-MM-DD before passing to tryParse 
+        // to prevent internal FormatExceptions triggering the debugger
+        final dateRegex = RegExp(r'^\d{4}-\d{1,2}-\d{1,2}');
+        if (!dateRegex.hasMatch(normalizedDate)) {
+          return DateTime.now();
+        }
+
+        if (tVal != null && tVal.trim().isNotEmpty) {
+          // Just a basic check that time starts with digits
+          if (RegExp(r'^\d').hasMatch(tVal.trim())) {
+             return DateTime.tryParse('$normalizedDate ${tVal.trim()}') ?? DateTime.tryParse(normalizedDate) ?? DateTime.now();
+          }
+        }
+        return DateTime.tryParse(normalizedDate) ?? DateTime.now();
+      } catch (_) {
+        return DateTime.now();
+      }
     }
 
+    final itemsJson = json['items'] as List<dynamic>? ?? [];
+
     return ReceiptScanResult(
-      merchant: json['merchant'] ?? '',
-      total: parseTotal(json['total']),
+      merchantName: json['merchant_name'] ?? '',
+      date: parseDate(json['date'], json['time']),
+      time: json['time'],
+      totalAmount: parseTotal(json['total_amount']),
       currency: json['currency'] ?? 'USD',
-      date: parseDate(json['date']),
-      categoryGuess: json['category_guess'] ?? '',
-      lineItems: List<String>.from(json['line_items'] ?? []),
+      category: json['category'] ?? '',
+      items: itemsJson.map((i) => ReceiptItem.fromJson(i as Map<String, dynamic>)).toList(),
     );
   }
 }
@@ -49,30 +127,99 @@ class ReceiptScanService {
   Future<ReceiptScanResult?> scanReceipt({
     required String imagePath,
     required String apiKey,
+    required List<domain.Category> categories,
   }) async {
     try {
       final file = File(imagePath);
       if (!await file.exists()) {
-        return null;
+        throw Exception('Image file not found.');
       }
 
-      final bytes = await file.readAsBytes();
-      final extension = p.extension(imagePath).toLowerCase();
-      final mimeType = (extension == '.png') ? 'image/png' : 'image/jpeg';
-      final base64Image = base64Encode(bytes);
+      // 1. Run OCR with Google ML Kit
+      final inputImage = InputImage.fromFilePath(imagePath);
+      final textRecognizer = TextRecognizer(script: TextRecognitionScript.latin);
+      RecognizedText recognizedText;
+      try {
+        recognizedText = await textRecognizer.processImage(inputImage);
+      } finally {
+        textRecognizer.close();
+      }
 
-      final prompt = 'Analyze this receipt image and extract structured transaction details. '
-          'Provide the output in JSON format matching this schema exactly:\n'
-          '{\n'
-          '  "merchant": "string (name of the store/merchant)",\n'
-          '  "total": "number (the final total paid amount, numeric e.g. 24.50)",\n'
-          '  "currency": "string (3 letter currency code e.g. USD, EUR, etc.)",\n'
-          '  "date": "string (ISO-8601 date YYYY-MM-DD)",\n'
-          '  "category_guess": "string (your best guess of the expense category, e.g. Dining, Groceries, transport, housing, utilities, entertainment)",\n'
-          '  "line_items": [\n'
-          '    "string (item name and price/quantity)"\n'
-          '  ]\n'
-          '}';
+      final extractedText = recognizedText.text;
+      if (extractedText.trim().isEmpty) {
+        throw Exception('No text detected in the image.');
+      }
+
+      final categoryListStr = categories.map((c) => '- "${c.id}": ${c.name}').join('\n');
+
+      // 2. Send extracted text to OpenRouter
+      final prompt = '''You are a receipt validation and extraction assistant.
+
+Your first task is to determine whether the OCR text belongs to a genuine receipt, invoice, bill, payment slip, fuel receipt, restaurant receipt, grocery receipt, utility bill, or purchase transaction document.
+
+A valid receipt usually contains several of the following:
+- Merchant or store name
+- Date and/or time
+- Total amount
+- Currency
+- Item names
+- Quantity or price information
+- Tax, VAT, GST, or service charge
+- Invoice/receipt number
+- Payment method
+
+If the OCR text does NOT clearly represent a receipt, invoice, or bill, return ONLY:
+{
+  "valid_receipt": false,
+  "confidence": 0,
+  "reason": "Brief explanation"
+}
+
+Examples of invalid receipts:
+- Selfies or photos of people
+- Landscape photos
+- Screenshots of social media
+- Chat messages
+- Documents without purchase information
+- Random images containing numbers or dates only
+- Business cards
+- ID cards
+- Bank statements
+- Medical reports
+- Forms
+
+If the OCR text DOES represent a valid receipt or bill, return ONLY:
+{
+  "valid_receipt": true,
+  "confidence": 95,
+  "merchant_name": "",
+  "date": "",
+  "time": "",
+  "total_amount": 0,
+  "currency": "",
+  "category": "",
+  "items": [
+    {
+      "name": "",
+      "price": 0
+    }
+  ]
+}
+
+Rules:
+- Return valid JSON only.
+- No markdown.
+- No explanations outside JSON.
+- Confidence must be between 0 and 100.
+- If information is missing, use null.
+- For category, you MUST select the closest exact category ID from this list:
+$categoryListStr
+- Choose the final payable amount as total_amount.
+- Do not guess values that are not present.
+- Reject documents that only contain dates, numbers, or unrelated text.
+
+OCR TEXT:
+$extractedText''';
 
       final response = await http.post(
         Uri.parse('https://openrouter.ai/api/v1/chat/completions'),
@@ -83,40 +230,29 @@ class ReceiptScanService {
           'X-Title': 'Smart Wallet',
         },
         body: jsonEncode({
-          'model': dotenv.env['OPENROUTER_VISION_MODEL'] ?? 'meta-llama/llama-3.2-11b-vision-instruct',
+          'model': dotenv.env['OPENROUTER_MODEL'] ?? 'deepseek/deepseek-chat-v3-0324',
           'messages': [
             {
               'role': 'user',
-              'content': [
-                {
-                  'type': 'text',
-                  'text': prompt,
-                },
-                {
-                  'type': 'image_url',
-                  'image_url': {
-                    'url': 'data:$mimeType;base64,$base64Image',
-                  },
-                },
-              ],
+              'content': prompt,
             }
           ],
         }),
       );
 
       if (response.statusCode != 200) {
-        return null;
+        throw Exception('OpenRouter responded with code ${response.statusCode}: ${response.body}');
       }
 
       final Map<String, dynamic> body = jsonDecode(response.body);
       final choices = body['choices'] as List<dynamic>?;
       if (choices == null || choices.isEmpty) {
-        return null;
+        throw Exception('Empty choices returned from OpenRouter');
       }
 
       var content = choices[0]['message']['content'] as String?;
       if (content == null) {
-        return null;
+        throw Exception('Null content returned from OpenRouter');
       }
 
       content = content.trim();
@@ -133,109 +269,23 @@ class ReceiptScanService {
       final Map<String, dynamic> decoded = jsonDecode(content);
       return ReceiptScanResult.fromJson(decoded);
     } catch (e) {
-      // Return null on failure instead of throwing so form fallback can be pre-filled as empty.
-      return null;
+      throw Exception('Failed to process receipt: $e');
     }
   }
 
   String matchCategory(String categoryGuess, List<domain.Category> categories) {
-    final guess = categoryGuess.toLowerCase();
-
-    // Semantic maps for common financial concepts
-    if (guess.contains('food') ||
-        guess.contains('restaurant') ||
-        guess.contains('dining') ||
-        guess.contains('drink') ||
-        guess.contains('cafe') ||
-        guess.contains('coffee') ||
-        guess.contains('bar') ||
-        guess.contains('eat') ||
-        guess.contains('bistro')) {
-      final match = categories.firstWhere((c) => c.id == 'cat_dining', orElse: () => categories.first);
-      return match.id;
+    final guess = categoryGuess.trim();
+    if (categories.any((c) => c.id == guess)) {
+      return guess;
     }
-
-    if (guess.contains('grocery') ||
-        guess.contains('groceries') ||
-        guess.contains('supermarket') ||
-        guess.contains('market') ||
-        guess.contains('mart') ||
-        guess.contains('walmart') ||
-        guess.contains('costco')) {
-      final match = categories.firstWhere((c) => c.id == 'cat_groceries', orElse: () => categories.first);
-      return match.id;
-    }
-
-    if (guess.contains('transport') ||
-        guess.contains('car') ||
-        guess.contains('travel') ||
-        guess.contains('gas') ||
-        guess.contains('fuel') ||
-        guess.contains('taxi') ||
-        guess.contains('uber') ||
-        guess.contains('bus') ||
-        guess.contains('metro') ||
-        guess.contains('train') ||
-        guess.contains('flight') ||
-        guess.contains('airline')) {
-      final match = categories.firstWhere((c) => c.id == 'cat_transport', orElse: () => categories.first);
-      return match.id;
-    }
-
-    if (guess.contains('rent') ||
-        guess.contains('housing') ||
-        guess.contains('home') ||
-        guess.contains('house') ||
-        guess.contains('apartment') ||
-        guess.contains('stay') ||
-        guess.contains('hotel') ||
-        guess.contains('airbnb')) {
-      final match = categories.firstWhere((c) => c.id == 'cat_housing', orElse: () => categories.first);
-      return match.id;
-    }
-
-    if (guess.contains('utility') ||
-        guess.contains('electricity') ||
-        guess.contains('water') ||
-        guess.contains('internet') ||
-        guess.contains('wifi') ||
-        guess.contains('bill') ||
-        guess.contains('phone') ||
-        guess.contains('mobile') ||
-        guess.contains('power')) {
-      final match = categories.firstWhere((c) => c.id == 'cat_utilities', orElse: () => categories.first);
-      return match.id;
-    }
-
-    if (guess.contains('movie') ||
-        guess.contains('show') ||
-        guess.contains('entertainment') ||
-        guess.contains('fun') ||
-        guess.contains('game') ||
-        guess.contains('play') ||
-        guess.contains('music') ||
-        guess.contains('concert') ||
-        guess.contains('ticket') ||
-        guess.contains('netflix') ||
-        guess.contains('spotify') ||
-        guess.contains('hobby')) {
-      final match = categories.firstWhere((c) => c.id == 'cat_entertainment', orElse: () => categories.first);
-      return match.id;
-    }
-
-    // Exact / substring fallback match
-    for (final category in categories) {
-      final name = category.name.toLowerCase();
-      if (guess.contains(name) || name.contains(guess)) {
-        return category.id;
+    // Fallback: search for names
+    final lowerGuess = guess.toLowerCase();
+    for (final c in categories) {
+      if (c.name.toLowerCase().contains(lowerGuess) || lowerGuess.contains(c.name.toLowerCase())) {
+        return c.id;
       }
     }
-
-    // Fall back to Uncategorized
-    final uncategorized = categories.firstWhere(
-      (c) => c.id == 'cat_uncategorized',
-      orElse: () => categories.first,
-    );
-    return uncategorized.id;
+    // Final fallback
+    return categories.isNotEmpty ? categories.first.id : 'cat_uncategorized';
   }
 }

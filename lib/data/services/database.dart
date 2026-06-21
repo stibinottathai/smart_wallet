@@ -101,7 +101,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(driftDatabase(name: 'smart_wallet'));
 
   @override
-  int get schemaVersion => 5;
+  int get schemaVersion => 6;
 
   @override
   MigrationStrategy get migration {
@@ -129,6 +129,27 @@ class AppDatabase extends _$AppDatabase {
         }
         if (from < 5) {
           await m.createTable(healthScores);
+        }
+        if (from < 6) {
+          final newCats = [
+            const CategoriesCompanion(
+              id: Value('cat_healthcare'),
+              name: Value('Healthcare & Hospital'),
+              icon: Value('local_hospital'),
+              color: Value('#5D9B9B'),
+              isDefault: Value(true),
+            ),
+            const CategoriesCompanion(
+              id: Value('cat_loans'),
+              name: Value('Loans & Debts'),
+              icon: Value('account_balance'),
+              color: Value('#A47449'),
+              isDefault: Value(true),
+            ),
+          ];
+          for (final cat in newCats) {
+            await into(categories).insert(cat, mode: InsertMode.insertOrIgnore);
+          }
         }
       },
       beforeOpen: (details) async {
@@ -189,6 +210,20 @@ class AppDatabase extends _$AppDatabase {
               name: Value('Income & Salary'),
               icon: Value('attach_money'),
               color: Value('#2F6F5E'), // deep pine green
+              isDefault: Value(true),
+            ),
+            const CategoriesCompanion(
+              id: Value('cat_healthcare'),
+              name: Value('Healthcare & Hospital'),
+              icon: Value('local_hospital'),
+              color: Value('#5D9B9B'),
+              isDefault: Value(true),
+            ),
+            const CategoriesCompanion(
+              id: Value('cat_loans'),
+              name: Value('Loans & Debts'),
+              icon: Value('account_balance'),
+              color: Value('#A47449'),
               isDefault: Value(true),
             ),
           ];
