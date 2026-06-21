@@ -508,43 +508,6 @@ class _CsvImportExportSectionState
     extends ConsumerState<_CsvImportExportSection> {
   bool _isProcessing = false;
 
-  Future<void> _exportToCsv() async {
-    setState(() => _isProcessing = true);
-    try {
-      List<domain.Income> incomes = [];
-      List<domain.Expense> expenses = [];
-      List<domain.Category> categories = [];
-
-      try {
-        incomes = await ref.read(incomeRepositoryProvider).getAllIncomes();
-        expenses = await ref.read(expenseRepositoryProvider).getAllExpenses();
-        categories = await ref
-            .read(expenseRepositoryProvider)
-            .getAllCategories();
-      } catch (_) {
-        incomes = ref.read(allIncomesProvider).value ?? [];
-        expenses = ref.read(allExpensesProvider).value ?? [];
-        categories = ref.read(allCategoriesProvider).value ?? [];
-      }
-
-      await CsvExportService().exportDataToCsv(
-        incomes: incomes,
-        expenses: expenses,
-        categories: categories,
-      );
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Failed to export CSV: $e')));
-      }
-    } finally {
-      if (mounted) {
-        setState(() => _isProcessing = false);
-      }
-    }
-  }
-
   Future<void> _downloadCsv() async {
     setState(() => _isProcessing = true);
     try {
@@ -716,33 +679,6 @@ class _CsvImportExportSectionState
               child: SizedBox(
                 height: 44,
                 child: OutlinedButton.icon(
-                  onPressed: _isProcessing ? null : _exportToCsv,
-                  icon: _isProcessing
-                      ? const SizedBox(
-                          width: 16,
-                          height: 16,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: AppColors.primary,
-                          ),
-                        )
-                      : const Icon(Icons.share_rounded, size: 18),
-                  label: const Text('Share'),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: AppColors.primary,
-                    side: const BorderSide(color: AppColors.primary),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: SizedBox(
-                height: 44,
-                child: OutlinedButton.icon(
                   onPressed: _isProcessing ? null : _downloadCsv,
                   icon: _isProcessing
                       ? const SizedBox(
@@ -765,7 +701,7 @@ class _CsvImportExportSectionState
                 ),
               ),
             ),
-            const SizedBox(width: 8),
+            const SizedBox(width: 12),
             Expanded(
               child: SizedBox(
                 height: 44,

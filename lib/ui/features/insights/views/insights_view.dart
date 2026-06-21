@@ -6,6 +6,7 @@ import 'package:smart_wallet/ui/core/theme.dart';
 import 'package:smart_wallet/ui/core/currency_utils.dart';
 import 'package:smart_wallet/ui/providers.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:smart_wallet/domain/models/proactive_insight.dart';
 import '../models/chat_message.dart';
 
 class InsightsView extends ConsumerStatefulWidget {
@@ -20,6 +21,7 @@ class _InsightsViewState extends ConsumerState<InsightsView> {
   final TextEditingController _inputCtrl = TextEditingController();
   final ScrollController _scrollCtrl = ScrollController();
   bool _isTyping = false;
+  bool _isRefreshing = false;
 
   @override
   void initState() {
@@ -44,6 +46,18 @@ class _InsightsViewState extends ConsumerState<InsightsView> {
         );
       }
     });
+  }
+
+  Future<void> _refreshInsights() async {
+    if (_isRefreshing) return;
+    setState(() => _isRefreshing = true);
+    try {
+      await ref.read(refreshInsightsProvider.future);
+    } catch (_) {
+      // Silently handle — no error shown for background refresh
+    } finally {
+      if (mounted) setState(() => _isRefreshing = false);
+    }
   }
 
   Future<void> _sendMessage(String query) async {
@@ -160,6 +174,28 @@ class _InsightsViewState extends ConsumerState<InsightsView> {
           ],
         ),
         actions: [
+          // Scan for proactive insights
+          TextButton.icon(
+            style: TextButton.styleFrom(
+              foregroundColor: AppColors.primary,
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            ),
+            icon: _isRefreshing
+                ? SizedBox(
+                    width: 15,
+                    height: 15,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: AppColors.primary,
+                    ),
+                  )
+                : const Icon(Icons.tips_and_updates_rounded, size: 18),
+            label: Text(
+              _isRefreshing ? 'Scanning...' : 'Scan',
+              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+            ),
+            onPressed: _isRefreshing ? null : _refreshInsights,
+          ),
           IconButton(
             icon: const Icon(Icons.delete_outline_rounded, size: 20),
             tooltip: 'Clear Chat',
@@ -172,6 +208,9 @@ class _InsightsViewState extends ConsumerState<InsightsView> {
       ),
       body: Column(
         children: [
+          // ── Smart Alerts Strip ───────────────────────────────────────────
+          _SmartAlertsStrip(),
+          // ── Chat ─────────────────────────────────────────────────────────
           Expanded(
             child: ListView.builder(
               controller: _scrollCtrl,
@@ -188,6 +227,196 @@ class _InsightsViewState extends ConsumerState<InsightsView> {
     );
   }
 }
+
+// ─── Smart Alerts Strip ────────────────────────────────────────────────────
+
+class _SmartAlertsStrip extends ConsumerStatefulWidget {
+  @override
+  ConsumerState<_SmartAlertsStrip> createState() => _SmartAlertStripState();
+}
+
+class _SmartAlertStripState extends ConsumerState<_SmartAlertsStrip> {
+  bool _expanded = true;
+
+  Color _toneColor(InsightTone tone) {
+    switch (tone) {
+      case InsightTone.positive:
+        return AppColors.primary;
+      case InsightTone.caution:
+        return AppColors.secondary;
+      case InsightTone.neutral:
+        return AppColors.textSecondary;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final insightsAsync = ref.watch(activeInsightsProvider);
+    return insightsAsync.when(
+      loading: () => const SizedBox.shrink(),
+      error: (_, __) => const SizedBox.shrink(),
+      data: (insights) {
+        if (insights.isEmpty) {
+          return Container(
+            margin: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+            decoration: BoxDecoration(
+              color: AppColors.primaryLight.withValues(alpha: 0.4),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.check_circle_outline_rounded, size: 14, color: AppColors.primary),
+                const SizedBox(width: 8),
+                Text(
+                  'All clear — no active alerts',
+                  style: GoogleFonts.inter(
+                    fontSize: 12,
+                    color: AppColors.primary,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
+          );
+        }
+
+        return AnimatedSize(
+          duration: const Duration(milliseconds: 250),
+          curve: Curves.easeInOut,
+          child: Container(
+            margin: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+            decoration: BoxDecoration(
+              color: AppColors.surface.withValues(alpha: 0.6),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: AppColors.divider.withValues(alpha: 0.5)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Header row
+                InkWell(
+                  onTap: () => setState(() => _expanded = !_expanded),
+                  borderRadius: const BorderRadius.vertical(top: Radius.circular(14)),
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(14, 10, 12, 10),
+                    child: Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(5),
+                          decoration: BoxDecoration(
+                            color: AppColors.secondaryLight,
+                            borderRadius: BorderRadius.circular(7),
+                          ),
+                          child: const Icon(Icons.notifications_active_rounded,
+                              size: 13, color: AppColors.secondary),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Smart Alerts',
+                          style: GoogleFonts.inter(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.text,
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: AppColors.secondary.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Text(
+                            '${insights.length}',
+                            style: GoogleFonts.inter(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.secondary,
+                            ),
+                          ),
+                        ),
+                        const Spacer(),
+                        Icon(
+                          _expanded
+                              ? Icons.keyboard_arrow_up_rounded
+                              : Icons.keyboard_arrow_down_rounded,
+                          size: 18,
+                          color: AppColors.textSecondary,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                // Alert chips (collapsible)
+                if (_expanded)
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(10, 0, 10, 10),
+                    child: Wrap(
+                      spacing: 8,
+                      runSpacing: 6,
+                      children: insights.take(5).map((insight) {
+                        final color = _toneColor(insight.tone);
+                        return GestureDetector(
+                          onTap: () {
+                            final repo = ref.read(proactiveInsightRepositoryProvider);
+                            repo.dismissInsight(insight.id);
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                            decoration: BoxDecoration(
+                              color: color.withValues(alpha: 0.08),
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(color: color.withValues(alpha: 0.25)),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Container(
+                                  width: 6,
+                                  height: 6,
+                                  decoration: BoxDecoration(
+                                    color: color,
+                                    shape: BoxShape.circle,
+                                  ),
+                                ),
+                                const SizedBox(width: 6),
+                                ConstrainedBox(
+                                  constraints: BoxConstraints(
+                                    maxWidth: MediaQuery.of(context).size.width * 0.55,
+                                  ),
+                                  child: Text(
+                                    insight.message,
+                                    style: GoogleFonts.inter(
+                                      fontSize: 11.5,
+                                      color: AppColors.text,
+                                      height: 1.3,
+                                    ),
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                                const SizedBox(width: 6),
+                                Icon(Icons.close_rounded, size: 13, color: color.withValues(alpha: 0.7)),
+                              ],
+                            ),
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Existing widgets (unchanged)
+// ─────────────────────────────────────────────────────────────────────────────
 
 class _ChatBubble extends StatelessWidget {
   final ChatMessage message;

@@ -4,13 +4,16 @@ import '../data/repositories/expense_repository_impl.dart';
 import '../data/repositories/income_repository_impl.dart';
 import '../data/repositories/savings_goal_repository_impl.dart';
 import '../data/repositories/bill_repository_impl.dart';
-import '../data/services/database.dart';
+import '../data/repositories/proactive_insight_repository_impl.dart';
+import '../data/services/database.dart' hide ProactiveInsight;
 import '../data/services/insights_service.dart';
+import '../data/services/proactive_insight_service.dart';
 import '../data/services/notification_service.dart';
 import '../data/services/pdf_report_service.dart';
 import '../data/services/receipt_scan_service.dart';
 import 'core/currency_utils.dart';
 import '../domain/models/models.dart' as domain;
+import '../domain/models/proactive_insight.dart';
 import '../domain/repositories/expense_repository.dart';
 import '../domain/repositories/income_repository.dart';
 import '../domain/repositories/savings_goal_repository.dart';
@@ -51,6 +54,15 @@ final receiptScanServiceProvider = Provider<ReceiptScanService>((ref) {
 
 final insightsServiceProvider = Provider<InsightsService>((ref) {
   return InsightsService();
+});
+
+final proactiveInsightRepositoryProvider = Provider<ProactiveInsightRepository>((ref) {
+  final db = ref.watch(databaseProvider);
+  return ProactiveInsightRepository(db);
+});
+
+final proactiveInsightServiceProvider = Provider<ProactiveInsightService>((ref) {
+  return ProactiveInsightService();
 });
 
 final notificationServiceProvider = Provider<NotificationService>((ref) {
@@ -102,4 +114,35 @@ final activeTabIndexProvider = StateProvider<int>((ref) => 0);
 final analysisDateRangeProvider = StateProvider<(DateTime, DateTime)?>((ref) {
   final now = DateTime.now();
   return (DateTime(now.year, now.month - 5, 1), DateTime(now.year, now.month + 1, 0));
+});
+
+/// Stream of non-dismissed proactive insight cards, newest first.
+final activeInsightsProvider = StreamProvider<List<ProactiveInsight>>((ref) {
+  final repo = ref.watch(proactiveInsightRepositoryProvider);
+  return repo.watchActiveInsights();
+});
+
+/// Call this to trigger the rule engine + LLM pipeline and refresh cards.
+final refreshInsightsProvider = FutureProvider.autoDispose<void>((ref) async {
+  final service = ref.read(proactiveInsightServiceProvider);
+  final repo = ref.read(proactiveInsightRepositoryProvider);
+  final expenses = ref.read(allExpensesProvider).value ?? [];
+  final incomes = ref.read(allIncomesProvider).value ?? [];
+  final categories = ref.read(allCategoriesProvider).value ?? [];
+  final bills = ref.read(allBillsProvider).value ?? [];
+  final goals = ref.read(allSavingsGoalsProvider).value ?? [];
+  final apiKey = ref.read(openRouterApiKeyProvider);
+  final code = ref.read(currencyCodeProvider);
+  final sym = currencySymbol(code);
+
+  await service.generateAndStoreInsights(
+    expenses: expenses,
+    incomes: incomes,
+    categories: categories,
+    bills: bills,
+    goals: goals,
+    apiKey: apiKey,
+    currencySymbol: sym,
+    repository: repo,
+  );
 });

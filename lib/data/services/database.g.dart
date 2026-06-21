@@ -2415,6 +2415,586 @@ class BillsCompanion extends UpdateCompanion<Bill> {
   }
 }
 
+class $ProactiveInsightsTable extends ProactiveInsights
+    with TableInfo<$ProactiveInsightsTable, ProactiveInsight> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $ProactiveInsightsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _triggerTypeMeta = const VerificationMeta(
+    'triggerType',
+  );
+  @override
+  late final GeneratedColumn<String> triggerType = GeneratedColumn<String>(
+    'trigger_type',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _categoryMeta = const VerificationMeta(
+    'category',
+  );
+  @override
+  late final GeneratedColumn<String> category = GeneratedColumn<String>(
+    'category',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _messageMeta = const VerificationMeta(
+    'message',
+  );
+  @override
+  late final GeneratedColumn<String> message = GeneratedColumn<String>(
+    'message',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _toneMeta = const VerificationMeta('tone');
+  @override
+  late final GeneratedColumn<String> tone = GeneratedColumn<String>(
+    'tone',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _suggestedActionMeta = const VerificationMeta(
+    'suggestedAction',
+  );
+  @override
+  late final GeneratedColumn<String> suggestedAction = GeneratedColumn<String>(
+    'suggested_action',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _actionLabelMeta = const VerificationMeta(
+    'actionLabel',
+  );
+  @override
+  late final GeneratedColumn<String> actionLabel = GeneratedColumn<String>(
+    'action_label',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _dismissedMeta = const VerificationMeta(
+    'dismissed',
+  );
+  @override
+  late final GeneratedColumn<bool> dismissed = GeneratedColumn<bool>(
+    'dismissed',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("dismissed" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    createdAt,
+    triggerType,
+    category,
+    message,
+    tone,
+    suggestedAction,
+    actionLabel,
+    dismissed,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'proactive_insights';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<ProactiveInsight> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    if (data.containsKey('trigger_type')) {
+      context.handle(
+        _triggerTypeMeta,
+        triggerType.isAcceptableOrUnknown(
+          data['trigger_type']!,
+          _triggerTypeMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_triggerTypeMeta);
+    }
+    if (data.containsKey('category')) {
+      context.handle(
+        _categoryMeta,
+        category.isAcceptableOrUnknown(data['category']!, _categoryMeta),
+      );
+    }
+    if (data.containsKey('message')) {
+      context.handle(
+        _messageMeta,
+        message.isAcceptableOrUnknown(data['message']!, _messageMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_messageMeta);
+    }
+    if (data.containsKey('tone')) {
+      context.handle(
+        _toneMeta,
+        tone.isAcceptableOrUnknown(data['tone']!, _toneMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_toneMeta);
+    }
+    if (data.containsKey('suggested_action')) {
+      context.handle(
+        _suggestedActionMeta,
+        suggestedAction.isAcceptableOrUnknown(
+          data['suggested_action']!,
+          _suggestedActionMeta,
+        ),
+      );
+    }
+    if (data.containsKey('action_label')) {
+      context.handle(
+        _actionLabelMeta,
+        actionLabel.isAcceptableOrUnknown(
+          data['action_label']!,
+          _actionLabelMeta,
+        ),
+      );
+    }
+    if (data.containsKey('dismissed')) {
+      context.handle(
+        _dismissedMeta,
+        dismissed.isAcceptableOrUnknown(data['dismissed']!, _dismissedMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  ProactiveInsight map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return ProactiveInsight(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+      triggerType: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}trigger_type'],
+      )!,
+      category: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}category'],
+      ),
+      message: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}message'],
+      )!,
+      tone: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}tone'],
+      )!,
+      suggestedAction: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}suggested_action'],
+      ),
+      actionLabel: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}action_label'],
+      ),
+      dismissed: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}dismissed'],
+      )!,
+    );
+  }
+
+  @override
+  $ProactiveInsightsTable createAlias(String alias) {
+    return $ProactiveInsightsTable(attachedDatabase, alias);
+  }
+}
+
+class ProactiveInsight extends DataClass
+    implements Insertable<ProactiveInsight> {
+  final String id;
+  final DateTime createdAt;
+  final String triggerType;
+  final String? category;
+  final String message;
+  final String tone;
+  final String? suggestedAction;
+  final String? actionLabel;
+  final bool dismissed;
+  const ProactiveInsight({
+    required this.id,
+    required this.createdAt,
+    required this.triggerType,
+    this.category,
+    required this.message,
+    required this.tone,
+    this.suggestedAction,
+    this.actionLabel,
+    required this.dismissed,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['created_at'] = Variable<DateTime>(createdAt);
+    map['trigger_type'] = Variable<String>(triggerType);
+    if (!nullToAbsent || category != null) {
+      map['category'] = Variable<String>(category);
+    }
+    map['message'] = Variable<String>(message);
+    map['tone'] = Variable<String>(tone);
+    if (!nullToAbsent || suggestedAction != null) {
+      map['suggested_action'] = Variable<String>(suggestedAction);
+    }
+    if (!nullToAbsent || actionLabel != null) {
+      map['action_label'] = Variable<String>(actionLabel);
+    }
+    map['dismissed'] = Variable<bool>(dismissed);
+    return map;
+  }
+
+  ProactiveInsightsCompanion toCompanion(bool nullToAbsent) {
+    return ProactiveInsightsCompanion(
+      id: Value(id),
+      createdAt: Value(createdAt),
+      triggerType: Value(triggerType),
+      category: category == null && nullToAbsent
+          ? const Value.absent()
+          : Value(category),
+      message: Value(message),
+      tone: Value(tone),
+      suggestedAction: suggestedAction == null && nullToAbsent
+          ? const Value.absent()
+          : Value(suggestedAction),
+      actionLabel: actionLabel == null && nullToAbsent
+          ? const Value.absent()
+          : Value(actionLabel),
+      dismissed: Value(dismissed),
+    );
+  }
+
+  factory ProactiveInsight.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return ProactiveInsight(
+      id: serializer.fromJson<String>(json['id']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      triggerType: serializer.fromJson<String>(json['triggerType']),
+      category: serializer.fromJson<String?>(json['category']),
+      message: serializer.fromJson<String>(json['message']),
+      tone: serializer.fromJson<String>(json['tone']),
+      suggestedAction: serializer.fromJson<String?>(json['suggestedAction']),
+      actionLabel: serializer.fromJson<String?>(json['actionLabel']),
+      dismissed: serializer.fromJson<bool>(json['dismissed']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+      'triggerType': serializer.toJson<String>(triggerType),
+      'category': serializer.toJson<String?>(category),
+      'message': serializer.toJson<String>(message),
+      'tone': serializer.toJson<String>(tone),
+      'suggestedAction': serializer.toJson<String?>(suggestedAction),
+      'actionLabel': serializer.toJson<String?>(actionLabel),
+      'dismissed': serializer.toJson<bool>(dismissed),
+    };
+  }
+
+  ProactiveInsight copyWith({
+    String? id,
+    DateTime? createdAt,
+    String? triggerType,
+    Value<String?> category = const Value.absent(),
+    String? message,
+    String? tone,
+    Value<String?> suggestedAction = const Value.absent(),
+    Value<String?> actionLabel = const Value.absent(),
+    bool? dismissed,
+  }) => ProactiveInsight(
+    id: id ?? this.id,
+    createdAt: createdAt ?? this.createdAt,
+    triggerType: triggerType ?? this.triggerType,
+    category: category.present ? category.value : this.category,
+    message: message ?? this.message,
+    tone: tone ?? this.tone,
+    suggestedAction: suggestedAction.present
+        ? suggestedAction.value
+        : this.suggestedAction,
+    actionLabel: actionLabel.present ? actionLabel.value : this.actionLabel,
+    dismissed: dismissed ?? this.dismissed,
+  );
+  ProactiveInsight copyWithCompanion(ProactiveInsightsCompanion data) {
+    return ProactiveInsight(
+      id: data.id.present ? data.id.value : this.id,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      triggerType: data.triggerType.present
+          ? data.triggerType.value
+          : this.triggerType,
+      category: data.category.present ? data.category.value : this.category,
+      message: data.message.present ? data.message.value : this.message,
+      tone: data.tone.present ? data.tone.value : this.tone,
+      suggestedAction: data.suggestedAction.present
+          ? data.suggestedAction.value
+          : this.suggestedAction,
+      actionLabel: data.actionLabel.present
+          ? data.actionLabel.value
+          : this.actionLabel,
+      dismissed: data.dismissed.present ? data.dismissed.value : this.dismissed,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ProactiveInsight(')
+          ..write('id: $id, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('triggerType: $triggerType, ')
+          ..write('category: $category, ')
+          ..write('message: $message, ')
+          ..write('tone: $tone, ')
+          ..write('suggestedAction: $suggestedAction, ')
+          ..write('actionLabel: $actionLabel, ')
+          ..write('dismissed: $dismissed')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    createdAt,
+    triggerType,
+    category,
+    message,
+    tone,
+    suggestedAction,
+    actionLabel,
+    dismissed,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is ProactiveInsight &&
+          other.id == this.id &&
+          other.createdAt == this.createdAt &&
+          other.triggerType == this.triggerType &&
+          other.category == this.category &&
+          other.message == this.message &&
+          other.tone == this.tone &&
+          other.suggestedAction == this.suggestedAction &&
+          other.actionLabel == this.actionLabel &&
+          other.dismissed == this.dismissed);
+}
+
+class ProactiveInsightsCompanion extends UpdateCompanion<ProactiveInsight> {
+  final Value<String> id;
+  final Value<DateTime> createdAt;
+  final Value<String> triggerType;
+  final Value<String?> category;
+  final Value<String> message;
+  final Value<String> tone;
+  final Value<String?> suggestedAction;
+  final Value<String?> actionLabel;
+  final Value<bool> dismissed;
+  final Value<int> rowid;
+  const ProactiveInsightsCompanion({
+    this.id = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.triggerType = const Value.absent(),
+    this.category = const Value.absent(),
+    this.message = const Value.absent(),
+    this.tone = const Value.absent(),
+    this.suggestedAction = const Value.absent(),
+    this.actionLabel = const Value.absent(),
+    this.dismissed = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  ProactiveInsightsCompanion.insert({
+    required String id,
+    required DateTime createdAt,
+    required String triggerType,
+    this.category = const Value.absent(),
+    required String message,
+    required String tone,
+    this.suggestedAction = const Value.absent(),
+    this.actionLabel = const Value.absent(),
+    this.dismissed = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       createdAt = Value(createdAt),
+       triggerType = Value(triggerType),
+       message = Value(message),
+       tone = Value(tone);
+  static Insertable<ProactiveInsight> custom({
+    Expression<String>? id,
+    Expression<DateTime>? createdAt,
+    Expression<String>? triggerType,
+    Expression<String>? category,
+    Expression<String>? message,
+    Expression<String>? tone,
+    Expression<String>? suggestedAction,
+    Expression<String>? actionLabel,
+    Expression<bool>? dismissed,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (createdAt != null) 'created_at': createdAt,
+      if (triggerType != null) 'trigger_type': triggerType,
+      if (category != null) 'category': category,
+      if (message != null) 'message': message,
+      if (tone != null) 'tone': tone,
+      if (suggestedAction != null) 'suggested_action': suggestedAction,
+      if (actionLabel != null) 'action_label': actionLabel,
+      if (dismissed != null) 'dismissed': dismissed,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  ProactiveInsightsCompanion copyWith({
+    Value<String>? id,
+    Value<DateTime>? createdAt,
+    Value<String>? triggerType,
+    Value<String?>? category,
+    Value<String>? message,
+    Value<String>? tone,
+    Value<String?>? suggestedAction,
+    Value<String?>? actionLabel,
+    Value<bool>? dismissed,
+    Value<int>? rowid,
+  }) {
+    return ProactiveInsightsCompanion(
+      id: id ?? this.id,
+      createdAt: createdAt ?? this.createdAt,
+      triggerType: triggerType ?? this.triggerType,
+      category: category ?? this.category,
+      message: message ?? this.message,
+      tone: tone ?? this.tone,
+      suggestedAction: suggestedAction ?? this.suggestedAction,
+      actionLabel: actionLabel ?? this.actionLabel,
+      dismissed: dismissed ?? this.dismissed,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (triggerType.present) {
+      map['trigger_type'] = Variable<String>(triggerType.value);
+    }
+    if (category.present) {
+      map['category'] = Variable<String>(category.value);
+    }
+    if (message.present) {
+      map['message'] = Variable<String>(message.value);
+    }
+    if (tone.present) {
+      map['tone'] = Variable<String>(tone.value);
+    }
+    if (suggestedAction.present) {
+      map['suggested_action'] = Variable<String>(suggestedAction.value);
+    }
+    if (actionLabel.present) {
+      map['action_label'] = Variable<String>(actionLabel.value);
+    }
+    if (dismissed.present) {
+      map['dismissed'] = Variable<bool>(dismissed.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ProactiveInsightsCompanion(')
+          ..write('id: $id, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('triggerType: $triggerType, ')
+          ..write('category: $category, ')
+          ..write('message: $message, ')
+          ..write('tone: $tone, ')
+          ..write('suggestedAction: $suggestedAction, ')
+          ..write('actionLabel: $actionLabel, ')
+          ..write('dismissed: $dismissed, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -2423,6 +3003,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $ExpensesTable expenses = $ExpensesTable(this);
   late final $SavingsGoalsTable savingsGoals = $SavingsGoalsTable(this);
   late final $BillsTable bills = $BillsTable(this);
+  late final $ProactiveInsightsTable proactiveInsights =
+      $ProactiveInsightsTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -2433,6 +3015,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     expenses,
     savingsGoals,
     bills,
+    proactiveInsights,
   ];
 }
 
@@ -3657,6 +4240,301 @@ typedef $$BillsTableProcessedTableManager =
       Bill,
       PrefetchHooks Function()
     >;
+typedef $$ProactiveInsightsTableCreateCompanionBuilder =
+    ProactiveInsightsCompanion Function({
+      required String id,
+      required DateTime createdAt,
+      required String triggerType,
+      Value<String?> category,
+      required String message,
+      required String tone,
+      Value<String?> suggestedAction,
+      Value<String?> actionLabel,
+      Value<bool> dismissed,
+      Value<int> rowid,
+    });
+typedef $$ProactiveInsightsTableUpdateCompanionBuilder =
+    ProactiveInsightsCompanion Function({
+      Value<String> id,
+      Value<DateTime> createdAt,
+      Value<String> triggerType,
+      Value<String?> category,
+      Value<String> message,
+      Value<String> tone,
+      Value<String?> suggestedAction,
+      Value<String?> actionLabel,
+      Value<bool> dismissed,
+      Value<int> rowid,
+    });
+
+class $$ProactiveInsightsTableFilterComposer
+    extends Composer<_$AppDatabase, $ProactiveInsightsTable> {
+  $$ProactiveInsightsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get triggerType => $composableBuilder(
+    column: $table.triggerType,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get category => $composableBuilder(
+    column: $table.category,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get message => $composableBuilder(
+    column: $table.message,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get tone => $composableBuilder(
+    column: $table.tone,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get suggestedAction => $composableBuilder(
+    column: $table.suggestedAction,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get actionLabel => $composableBuilder(
+    column: $table.actionLabel,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get dismissed => $composableBuilder(
+    column: $table.dismissed,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$ProactiveInsightsTableOrderingComposer
+    extends Composer<_$AppDatabase, $ProactiveInsightsTable> {
+  $$ProactiveInsightsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get triggerType => $composableBuilder(
+    column: $table.triggerType,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get category => $composableBuilder(
+    column: $table.category,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get message => $composableBuilder(
+    column: $table.message,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get tone => $composableBuilder(
+    column: $table.tone,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get suggestedAction => $composableBuilder(
+    column: $table.suggestedAction,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get actionLabel => $composableBuilder(
+    column: $table.actionLabel,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get dismissed => $composableBuilder(
+    column: $table.dismissed,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$ProactiveInsightsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $ProactiveInsightsTable> {
+  $$ProactiveInsightsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<String> get triggerType => $composableBuilder(
+    column: $table.triggerType,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get category =>
+      $composableBuilder(column: $table.category, builder: (column) => column);
+
+  GeneratedColumn<String> get message =>
+      $composableBuilder(column: $table.message, builder: (column) => column);
+
+  GeneratedColumn<String> get tone =>
+      $composableBuilder(column: $table.tone, builder: (column) => column);
+
+  GeneratedColumn<String> get suggestedAction => $composableBuilder(
+    column: $table.suggestedAction,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get actionLabel => $composableBuilder(
+    column: $table.actionLabel,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<bool> get dismissed =>
+      $composableBuilder(column: $table.dismissed, builder: (column) => column);
+}
+
+class $$ProactiveInsightsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $ProactiveInsightsTable,
+          ProactiveInsight,
+          $$ProactiveInsightsTableFilterComposer,
+          $$ProactiveInsightsTableOrderingComposer,
+          $$ProactiveInsightsTableAnnotationComposer,
+          $$ProactiveInsightsTableCreateCompanionBuilder,
+          $$ProactiveInsightsTableUpdateCompanionBuilder,
+          (
+            ProactiveInsight,
+            BaseReferences<
+              _$AppDatabase,
+              $ProactiveInsightsTable,
+              ProactiveInsight
+            >,
+          ),
+          ProactiveInsight,
+          PrefetchHooks Function()
+        > {
+  $$ProactiveInsightsTableTableManager(
+    _$AppDatabase db,
+    $ProactiveInsightsTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$ProactiveInsightsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$ProactiveInsightsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$ProactiveInsightsTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<String> triggerType = const Value.absent(),
+                Value<String?> category = const Value.absent(),
+                Value<String> message = const Value.absent(),
+                Value<String> tone = const Value.absent(),
+                Value<String?> suggestedAction = const Value.absent(),
+                Value<String?> actionLabel = const Value.absent(),
+                Value<bool> dismissed = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => ProactiveInsightsCompanion(
+                id: id,
+                createdAt: createdAt,
+                triggerType: triggerType,
+                category: category,
+                message: message,
+                tone: tone,
+                suggestedAction: suggestedAction,
+                actionLabel: actionLabel,
+                dismissed: dismissed,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required DateTime createdAt,
+                required String triggerType,
+                Value<String?> category = const Value.absent(),
+                required String message,
+                required String tone,
+                Value<String?> suggestedAction = const Value.absent(),
+                Value<String?> actionLabel = const Value.absent(),
+                Value<bool> dismissed = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => ProactiveInsightsCompanion.insert(
+                id: id,
+                createdAt: createdAt,
+                triggerType: triggerType,
+                category: category,
+                message: message,
+                tone: tone,
+                suggestedAction: suggestedAction,
+                actionLabel: actionLabel,
+                dismissed: dismissed,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$ProactiveInsightsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $ProactiveInsightsTable,
+      ProactiveInsight,
+      $$ProactiveInsightsTableFilterComposer,
+      $$ProactiveInsightsTableOrderingComposer,
+      $$ProactiveInsightsTableAnnotationComposer,
+      $$ProactiveInsightsTableCreateCompanionBuilder,
+      $$ProactiveInsightsTableUpdateCompanionBuilder,
+      (
+        ProactiveInsight,
+        BaseReferences<
+          _$AppDatabase,
+          $ProactiveInsightsTable,
+          ProactiveInsight
+        >,
+      ),
+      ProactiveInsight,
+      PrefetchHooks Function()
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -3671,4 +4549,6 @@ class $AppDatabaseManager {
       $$SavingsGoalsTableTableManager(_db, _db.savingsGoals);
   $$BillsTableTableManager get bills =>
       $$BillsTableTableManager(_db, _db.bills);
+  $$ProactiveInsightsTableTableManager get proactiveInsights =>
+      $$ProactiveInsightsTableTableManager(_db, _db.proactiveInsights);
 }

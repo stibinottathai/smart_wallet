@@ -70,12 +70,27 @@ class Bills extends Table {
   Set<Column> get primaryKey => {id};
 }
 
-@DriftDatabase(tables: [Categories, Incomes, Expenses, SavingsGoals, Bills])
+class ProactiveInsights extends Table {
+  TextColumn get id => text()();
+  DateTimeColumn get createdAt => dateTime()();
+  TextColumn get triggerType => text()();
+  TextColumn get category => text().nullable()();
+  TextColumn get message => text()();
+  TextColumn get tone => text()(); // 'positive' | 'neutral' | 'caution'
+  TextColumn get suggestedAction => text().nullable()();
+  TextColumn get actionLabel => text().nullable()();
+  BoolColumn get dismissed => boolean().withDefault(const Constant(false))();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
+@DriftDatabase(tables: [Categories, Incomes, Expenses, SavingsGoals, Bills, ProactiveInsights])
 class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(driftDatabase(name: 'smart_wallet'));
 
   @override
-  int get schemaVersion => 3;
+  int get schemaVersion => 4;
 
   @override
   MigrationStrategy get migration {
@@ -97,6 +112,9 @@ class AppDatabase extends _$AppDatabase {
           if (!hasColumn) {
             await m.addColumn(categories, categories.budgetLimit);
           }
+        }
+        if (from < 4) {
+          await m.createTable(proactiveInsights);
         }
       },
       beforeOpen: (details) async {
