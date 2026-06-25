@@ -12,6 +12,7 @@ import '../data/services/proactive_insight_service.dart';
 import '../data/services/notification_service.dart';
 import '../data/services/pdf_report_service.dart';
 import '../data/services/receipt_scan_service.dart';
+import '../data/services/app_lock_service.dart';
 import 'core/currency_utils.dart';
 import '../domain/models/models.dart' as domain;
 import '../domain/models/proactive_insight.dart';
@@ -71,6 +72,16 @@ final proactiveInsightServiceProvider = Provider<ProactiveInsightService>((ref) 
 final notificationServiceProvider = Provider<NotificationService>((ref) {
   return NotificationService();
 });
+
+final appLockServiceProvider = Provider<AppLockService>((ref) {
+  return AppLockService();
+});
+
+/// Whether the app lock is currently turned on (a PIN has been set).
+final appLockEnabledProvider = StateProvider<bool>((ref) => false);
+
+/// Whether biometric unlock is enabled (only meaningful when the lock is on).
+final biometricEnabledProvider = StateProvider<bool>((ref) => false);
 
 final pdfReportServiceProvider = Provider<PdfReportService>((ref) {
   final db = ref.watch(databaseProvider);

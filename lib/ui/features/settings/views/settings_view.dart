@@ -6,6 +6,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:smart_wallet/data/services/notification_service.dart';
 import 'package:smart_wallet/data/services/notification_coordinator.dart';
+import 'package:smart_wallet/ui/features/lock/views/lock_screen.dart';
+import 'package:smart_wallet/ui/features/lock/views/pin_setup_view.dart';
 import 'package:smart_wallet/ui/core/currency_utils.dart';
 import 'package:smart_wallet/ui/core/theme.dart';
 import 'package:smart_wallet/ui/features/reports/views/report_view.dart';
@@ -24,10 +26,15 @@ class SettingsView extends ConsumerStatefulWidget {
 }
 
 class _SettingsViewState extends ConsumerState<SettingsView> {
+  /// Whether the device has biometric hardware + enrolled biometrics. Gates the
+  /// "Unlock with biometrics" row so it only appears where it can work.
+  bool _biometricCapable = false;
+
   @override
   void initState() {
     super.initState();
     _loadReminderPref();
+    _loadLockState();
   }
 
   Future<void> _loadReminderPref() async {
@@ -39,6 +46,93 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
     ref.read(dailyTipEnabledProvider.notifier).state =
         prefs.getBool(NotificationCoordinator.dailyTipPrefKey) ?? true;
     await _syncNotifications();
+  }
+
+  Future<void> _loadLockState() async {
+    final service = ref.read(appLockServiceProvider);
+    final enabled = await service.isLockEnabled() && await service.hasPin();
+    final biometricOn = await service.isBiometricEnabled();
+    final capable = await service.canUseBiometrics();
+    if (!mounted) return;
+    ref.read(appLockEnabledProvider.notifier).state = enabled;
+    ref.read(biometricEnabledProvider.notifier).state = biometricOn;
+    setState(() => _biometricCapable = capable);
+  }
+
+  Future<void> _toggleAppLock(bool value) async {
+    final service = ref.read(appLockServiceProvider);
+    if (value) {
+      // Enabling — set a PIN first; only flips on if the user completes setup.
+      final created = await Navigator.of(context).push<bool>(
+        MaterialPageRoute(builder: (_) => const PinSetupView()),
+      );
+      if (created == true) {
+        await _loadLockState();
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('App lock enabled')),
+          );
+        }
+      }
+    } else {
+      // Disabling — require the user to authenticate first.
+      final confirmed = await _confirmIdentity();
+      if (confirmed) {
+        await service.disableLock();
+        ref.read(appLockEnabledProvider.notifier).state = false;
+        ref.read(biometricEnabledProvider.notifier).state = false;
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('App lock disabled')),
+          );
+        }
+      }
+    }
+  }
+
+  Future<void> _toggleBiometric(bool value) async {
+    final service = ref.read(appLockServiceProvider);
+    if (value && !await service.canUseBiometrics()) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('No biometrics enrolled on this device'),
+          ),
+        );
+      }
+      return;
+    }
+    await service.setBiometricEnabled(value);
+    ref.read(biometricEnabledProvider.notifier).state = value;
+  }
+
+  Future<void> _changePin() async {
+    // Re-authenticate, then set a fresh PIN.
+    final confirmed = await _confirmIdentity();
+    if (!confirmed || !mounted) return;
+    final changed = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(builder: (_) => const PinSetupView()),
+    );
+    if (changed == true && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('PIN updated')),
+      );
+    }
+  }
+
+  /// Pushes a [LockScreen] in verify mode; resolves true once authenticated.
+  Future<bool> _confirmIdentity() async {
+    final result = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        fullscreenDialog: true,
+        builder: (ctx) => LockScreen(
+          showCancel: true,
+          title: 'Confirm your PIN to continue',
+          onUnlocked: () => Navigator.of(ctx).pop(true),
+        ),
+      ),
+    );
+    return result ?? false;
   }
 
   /// Re-evaluates and re-schedules all notifications from the current data and
@@ -82,6 +176,8 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
     final remindersOn = ref.watch(remindersEnabledProvider);
     final budgetAlertsOn = ref.watch(budgetAlertsEnabledProvider);
     final dailyTipOn = ref.watch(dailyTipEnabledProvider);
+    final appLockOn = ref.watch(appLockEnabledProvider);
+    final biometricOn = ref.watch(biometricEnabledProvider);
 
     return Scaffold(
       appBar: AppBar(title: const Text('Settings')),
@@ -115,6 +211,99 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
                     title: 'Data Privacy',
                     subtitle: 'All transactions stay local',
                   ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+            _SectionCard(
+              icon: Icons.lock_rounded,
+              title: 'App Lock',
+              trailing: Switch(
+                value: appLockOn,
+                onChanged: _toggleAppLock,
+                activeTrackColor: AppColors.primary.withValues(alpha: 0.4),
+                activeThumbColor: AppColors.primary,
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    appLockOn
+                        ? 'Require a PIN to open the app'
+                        : 'App lock off',
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.text,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    appLockOn
+                        ? 'Smart Wallet locks when you leave it and reopens with your PIN'
+                        : 'Protect your financial data with a 4-digit PIN and biometrics',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                  if (appLockOn) ...[
+                    const SizedBox(height: 14),
+                    const Divider(height: 1),
+                    const SizedBox(height: 6),
+                    // Biometric toggle (only where the device supports it).
+                    if (_biometricCapable)
+                      SwitchListTile(
+                        contentPadding: EdgeInsets.zero,
+                        dense: true,
+                        value: biometricOn,
+                        onChanged: _toggleBiometric,
+                        activeTrackColor:
+                            AppColors.primary.withValues(alpha: 0.4),
+                        activeThumbColor: AppColors.primary,
+                        title: const Text(
+                          'Unlock with biometrics',
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.text,
+                          ),
+                        ),
+                        subtitle: const Text(
+                          'Use fingerprint or face to unlock',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
+                      ),
+                    InkWell(
+                      borderRadius: BorderRadius.circular(8),
+                      onTap: _changePin,
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 10),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.password_rounded,
+                                size: 18, color: AppColors.primary),
+                            const SizedBox(width: 10),
+                            const Expanded(
+                              child: Text(
+                                'Change PIN',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColors.text,
+                                ),
+                              ),
+                            ),
+                            const Icon(Icons.chevron_right_rounded,
+                                size: 20, color: AppColors.textSecondary),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),

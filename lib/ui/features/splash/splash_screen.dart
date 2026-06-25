@@ -3,8 +3,8 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:smart_wallet/ui/core/navigation.dart';
 import 'package:smart_wallet/ui/core/theme.dart';
+import 'package:smart_wallet/ui/features/lock/views/app_lock_gate.dart';
 
 /// Total time the splash is on screen before navigating away.
 const _kSplashDuration = Duration(milliseconds: 3200);
@@ -61,7 +61,7 @@ class _SplashScreenState extends State<SplashScreen>
       if (!mounted) return;
       Navigator.of(context).pushReplacement(
         PageRouteBuilder(
-          pageBuilder: (_, __, ___) => const MainNavigationWrapper(),
+          pageBuilder: (_, __, ___) => const AppLockGate(),
           transitionsBuilder: (_, animation, __, child) {
             return FadeTransition(
               opacity: animation,
