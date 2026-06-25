@@ -8,6 +8,8 @@ import 'package:smart_wallet/ui/features/analysis/views/analysis_view.dart';
 import 'package:smart_wallet/ui/features/insights/views/insights_view.dart';
 import 'package:smart_wallet/ui/features/settings/views/settings_view.dart';
 import 'package:smart_wallet/ui/providers.dart';
+import 'package:smart_wallet/ui/core/currency_utils.dart';
+import 'package:smart_wallet/data/services/notification_coordinator.dart';
 
 class MainNavigationWrapper extends ConsumerStatefulWidget {
   const MainNavigationWrapper({super.key});
@@ -26,6 +28,19 @@ class _MainNavigationWrapperState extends ConsumerState<MainNavigationWrapper> w
       vsync: this,
       duration: const Duration(seconds: 4),
     )..repeat();
+    // Schedule reminders / budget alerts on launch, once initial data is ready.
+    WidgetsBinding.instance.addPostFrameCallback((_) => _syncNotifications());
+  }
+
+  void _syncNotifications() {
+    final expenses = ref.read(allExpensesProvider).value;
+    final categories = ref.read(allCategoriesProvider).value;
+    if (expenses == null || categories == null) return;
+    NotificationCoordinator.sync(
+      expenses: expenses,
+      categories: categories,
+      currencySymbol: currencySymbol(ref.read(currencyCodeProvider)),
+    );
   }
 
   @override
@@ -50,6 +65,9 @@ class _MainNavigationWrapperState extends ConsumerState<MainNavigationWrapper> w
   @override
   Widget build(BuildContext context) {
     final currentIndex = ref.watch(activeTabIndexProvider);
+    // Re-evaluate scheduled notifications whenever spending data changes.
+    ref.listen(allExpensesProvider, (_, __) => _syncNotifications());
+    ref.listen(allCategoriesProvider, (_, __) => _syncNotifications());
     return Scaffold(
       body: IndexedStack(
         index: currentIndex,

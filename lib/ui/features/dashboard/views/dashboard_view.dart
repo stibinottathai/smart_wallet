@@ -81,9 +81,18 @@ class _DashboardViewState extends ConsumerState<DashboardView> with SingleTicker
 
                 final categoryMap = {for (var c in categories) c.id: c};
                 final categorySpendMap = <String, double>{};
+                // Current-month spend per category — used for the monthly budget
+                // limits section so progress resets each month and matches the
+                // budget-limit notifications.
+                final now = DateTime.now();
+                final monthlySpendMap = <String, double>{};
                 for (final exp in expenses) {
                   categorySpendMap[exp.categoryId] =
                       (categorySpendMap[exp.categoryId] ?? 0.0) + exp.amount;
+                  if (exp.date.year == now.year && exp.date.month == now.month) {
+                    monthlySpendMap[exp.categoryId] =
+                        (monthlySpendMap[exp.categoryId] ?? 0.0) + exp.amount;
+                  }
                 }
 
                 return Scaffold(
@@ -98,6 +107,7 @@ class _DashboardViewState extends ConsumerState<DashboardView> with SingleTicker
                           totalIncome,
                           totalExpense,
                           categorySpendMap,
+                          monthlySpendMap,
                           categoryMap,
                           expenses,
                           savingsGoals,
@@ -449,6 +459,7 @@ class _DashboardViewState extends ConsumerState<DashboardView> with SingleTicker
     double totalIncome,
     double totalExpense,
     Map<String, double> categorySpendMap,
+    Map<String, double> monthlySpendMap,
     Map<String, domain.Category> categoryMap,
     List<domain.Expense> expenses,
     List<domain.SavingsGoal> savingsGoals,
@@ -469,7 +480,7 @@ class _DashboardViewState extends ConsumerState<DashboardView> with SingleTicker
           RepaintBoundary(child: _buildAiAssistantCard()),
           RepaintBoundary(child: _buildProactiveInsightsSection()),
           RepaintBoundary(child: _buildWeeklyTrendSection(expenses, symbol)),
-          RepaintBoundary(child: _buildBudgetLimitsSection(categorySpendMap, categories, symbol)),
+          RepaintBoundary(child: _buildBudgetLimitsSection(monthlySpendMap, categories, symbol)),
           RepaintBoundary(child: _buildSavingsGoalsSection(savingsGoals, symbol)),
           RepaintBoundary(child: _buildUpcomingBillsSection(bills, categoryMap, symbol)),
           if (totalExpense > 0)
@@ -1071,7 +1082,7 @@ class _DashboardViewState extends ConsumerState<DashboardView> with SingleTicker
   }
 
   Widget _buildBudgetLimitsSection(
-    Map<String, double> categorySpendMap,
+    Map<String, double> monthlySpendMap,
     List<domain.Category> categories,
     String symbol,
   ) {
@@ -1080,7 +1091,7 @@ class _DashboardViewState extends ConsumerState<DashboardView> with SingleTicker
       if (category.id == 'cat_income') continue;
       final limit = category.budgetLimit;
       if (limit != null && limit > 0) {
-        final spend = categorySpendMap[category.id] ?? 0.0;
+        final spend = monthlySpendMap[category.id] ?? 0.0;
         items.add(_BudgetItem(
           category: category,
           spend: spend,

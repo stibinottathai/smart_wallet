@@ -120,7 +120,9 @@ final openRouterApiKeyProvider = Provider<String>((ref) {
   return dotenv.env['OPENROUTER_API_KEY'] ?? '';
 });
 
-final remindersEnabledProvider = StateProvider<bool>((ref) => false);
+final remindersEnabledProvider = StateProvider<bool>((ref) => true);
+
+final budgetAlertsEnabledProvider = StateProvider<bool>((ref) => true);
 
 final activeTabIndexProvider = StateProvider<int>((ref) => 0);
 

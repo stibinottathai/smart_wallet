@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:smart_wallet/data/services/notification_service.dart';
+import 'package:smart_wallet/data/services/notification_coordinator.dart';
 import 'package:smart_wallet/ui/core/currency_utils.dart';
 import 'package:smart_wallet/ui/core/theme.dart';
 import 'package:smart_wallet/ui/features/reports/views/report_view.dart';
@@ -31,22 +32,37 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
 
   Future<void> _loadReminderPref() async {
     final prefs = await SharedPreferences.getInstance();
-    final enabled = prefs.getBool('reminders_enabled') ?? true;
-    ref.read(remindersEnabledProvider.notifier).state = enabled;
-    if (enabled) {
-      await NotificationService().scheduleReminders();
-    }
+    ref.read(remindersEnabledProvider.notifier).state =
+        prefs.getBool(NotificationCoordinator.remindersPrefKey) ?? true;
+    ref.read(budgetAlertsEnabledProvider.notifier).state =
+        prefs.getBool(NotificationCoordinator.budgetAlertsPrefKey) ?? true;
+    await _syncNotifications();
+  }
+
+  /// Re-evaluates and re-schedules all notifications from the current data and
+  /// preferences.
+  Future<void> _syncNotifications() async {
+    final expenses = ref.read(allExpensesProvider).value ?? [];
+    final categories = ref.read(allCategoriesProvider).value ?? [];
+    await NotificationCoordinator.sync(
+      expenses: expenses,
+      categories: categories,
+      currencySymbol: currencySymbol(ref.read(currencyCodeProvider)),
+    );
   }
 
   Future<void> _toggleReminders(bool value) async {
     ref.read(remindersEnabledProvider.notifier).state = value;
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('reminders_enabled', value);
-    if (value) {
-      await NotificationService().scheduleReminders();
-    } else {
-      await NotificationService().cancelReminders();
-    }
+    await prefs.setBool(NotificationCoordinator.remindersPrefKey, value);
+    await _syncNotifications();
+  }
+
+  Future<void> _toggleBudgetAlerts(bool value) async {
+    ref.read(budgetAlertsEnabledProvider.notifier).state = value;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(NotificationCoordinator.budgetAlertsPrefKey, value);
+    await _syncNotifications();
   }
 
   @override
@@ -54,6 +70,7 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
     final apiKey = ref.watch(openRouterApiKeyProvider);
     final isConfigured = apiKey.isNotEmpty;
     final remindersOn = ref.watch(remindersEnabledProvider);
+    final budgetAlertsOn = ref.watch(budgetAlertsEnabledProvider);
 
     return Scaffold(
       appBar: AppBar(title: const Text('Settings')),
@@ -148,6 +165,46 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
                       ),
                       child: const Text('Test'),
                     ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+            _SectionCard(
+              icon: Icons.pie_chart_outline_rounded,
+              title: 'Budget Alerts',
+              trailing: Switch(
+                value: budgetAlertsOn,
+                onChanged: _toggleBudgetAlerts,
+                activeTrackColor: AppColors.primary.withValues(alpha: 0.4),
+                activeThumbColor: AppColors.primary,
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          budgetAlertsOn
+                              ? 'Budget limit alerts on'
+                              : 'Budget limit alerts off',
+                          style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.text,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          'Get notified (up to 4×/day) when a category reaches 80% of its monthly limit',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ],
               ),
             ),
