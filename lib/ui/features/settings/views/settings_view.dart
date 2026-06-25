@@ -565,30 +565,54 @@ class _CsvImportExportSectionState
     extends ConsumerState<_CsvImportExportSection> {
   bool _isProcessing = false;
 
+  Future<({
+    List<domain.Income> incomes,
+    List<domain.Expense> expenses,
+    List<domain.Category> categories,
+    List<domain.SavingsGoal> goals,
+    List<domain.Bill> bills,
+  })> _collectData() async {
+    List<domain.Income> incomes = [];
+    List<domain.Expense> expenses = [];
+    List<domain.Category> categories = [];
+    List<domain.SavingsGoal> goals = [];
+    List<domain.Bill> bills = [];
+
+    try {
+      incomes = await ref.read(incomeRepositoryProvider).getAllIncomes();
+      expenses = await ref.read(expenseRepositoryProvider).getAllExpenses();
+      categories = await ref.read(expenseRepositoryProvider).getAllCategories();
+      goals = await ref.read(savingsGoalRepositoryProvider).getAllGoals();
+      bills = await ref.read(billRepositoryProvider).getAllBills();
+    } catch (_) {
+      incomes = ref.read(allIncomesProvider).value ?? [];
+      expenses = ref.read(allExpensesProvider).value ?? [];
+      categories = ref.read(allCategoriesProvider).value ?? [];
+      goals = ref.read(allSavingsGoalsProvider).value ?? [];
+      bills = ref.read(allBillsProvider).value ?? [];
+    }
+
+    return (
+      incomes: incomes,
+      expenses: expenses,
+      categories: categories,
+      goals: goals,
+      bills: bills,
+    );
+  }
+
   Future<void> _downloadCsv() async {
     setState(() => _isProcessing = true);
     try {
-      List<domain.Income> incomes = [];
-      List<domain.Expense> expenses = [];
-      List<domain.Category> categories = [];
-
-      try {
-        incomes = await ref.read(incomeRepositoryProvider).getAllIncomes();
-        expenses = await ref.read(expenseRepositoryProvider).getAllExpenses();
-        categories = await ref
-            .read(expenseRepositoryProvider)
-            .getAllCategories();
-      } catch (_) {
-        incomes = ref.read(allIncomesProvider).value ?? [];
-        expenses = ref.read(allExpensesProvider).value ?? [];
-        categories = ref.read(allCategoriesProvider).value ?? [];
-      }
+      final data = await _collectData();
 
       final service = CsvExportService();
       final csvContent = service.buildCsvContent(
-        incomes: incomes,
-        expenses: expenses,
-        categories: categories,
+        incomes: data.incomes,
+        expenses: data.expenses,
+        categories: data.categories,
+        goals: data.goals,
+        bills: data.bills,
       );
 
       final result = await FilePicker.saveFile(
@@ -625,6 +649,32 @@ class _CsvImportExportSectionState
     }
   }
 
+  /// Writes the export to a temp file and opens the system share sheet, which
+  /// includes "Save to Drive" / Google Drive as a destination.
+  Future<void> _shareCsv() async {
+    setState(() => _isProcessing = true);
+    try {
+      final data = await _collectData();
+      await CsvExportService().exportDataToCsv(
+        incomes: data.incomes,
+        expenses: data.expenses,
+        categories: data.categories,
+        goals: data.goals,
+        bills: data.bills,
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Failed to share CSV: $e')));
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isProcessing = false);
+      }
+    }
+  }
+
   Future<void> _importFromCsv() async {
     setState(() => _isProcessing = true);
     try {
@@ -644,6 +694,8 @@ class _CsvImportExportSectionState
         file: file,
         incomeRepository: ref.read(incomeRepositoryProvider),
         expenseRepository: ref.read(expenseRepositoryProvider),
+        savingsGoalRepository: ref.read(savingsGoalRepositoryProvider),
+        billRepository: ref.read(billRepositoryProvider),
       );
 
       if (!mounted) return;
@@ -668,7 +720,10 @@ class _CsvImportExportSectionState
               'Successfully imported:\n'
               '• ${importResult.incomesImported} incomes\n'
               '• ${importResult.expensesImported} expenses\n'
-              '• ${importResult.categoriesCreated} new categories.',
+              '• ${importResult.categoriesCreated} new categories\n'
+              '• ${importResult.budgetsImported} budget limits\n'
+              '• ${importResult.goalsImported} savings goals\n'
+              '• ${importResult.billsImported} bills & subscriptions.',
               textAlign: TextAlign.center,
             ),
             actions: [
@@ -722,7 +777,7 @@ class _CsvImportExportSectionState
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Text(
-          'Export your current ledger data to a CSV file for backup, or import transactions from a previously exported CSV file.',
+          'Back up your full ledger to a CSV file — transactions, monthly budget limits, savings goals, and upcoming bills & subscriptions — then restore it all on a new device or after reinstalling.',
           style: TextStyle(
             fontSize: 13,
             color: AppColors.text.withValues(alpha: 0.6),
@@ -777,6 +832,32 @@ class _CsvImportExportSectionState
               ),
             ),
           ],
+        ),
+        const SizedBox(height: 12),
+        SizedBox(
+          height: 44,
+          width: double.infinity,
+          child: OutlinedButton.icon(
+            onPressed: _isProcessing ? null : _shareCsv,
+            icon: const Icon(Icons.cloud_upload_rounded, size: 18),
+            label: const Text('Save to Google Drive / Share'),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: AppColors.primary,
+              side: const BorderSide(color: AppColors.primary),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          'Tip: "Save to Google Drive" opens the share sheet — pick Drive to upload. To restore, tap Import and browse to Google Drive in the file picker.',
+          style: TextStyle(
+            fontSize: 11.5,
+            color: AppColors.text.withValues(alpha: 0.5),
+            height: 1.4,
+          ),
         ),
       ],
     );

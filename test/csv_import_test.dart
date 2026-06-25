@@ -2,7 +2,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:smart_wallet/domain/models/models.dart' as domain;
 import 'package:smart_wallet/domain/repositories/expense_repository.dart';
 import 'package:smart_wallet/domain/repositories/income_repository.dart';
+import 'package:smart_wallet/domain/repositories/savings_goal_repository.dart';
+import 'package:smart_wallet/domain/repositories/bill_repository.dart';
 import 'package:smart_wallet/data/services/csv_import_service.dart';
+import 'package:smart_wallet/data/services/csv_export_service.dart';
 
 class FakeIncomeRepository implements IncomeRepository {
   final List<domain.Income> incomes = [];
@@ -79,13 +82,62 @@ class FakeExpenseRepository implements ExpenseRepository {
   }
 
   @override
-  Future<void> updateCategory(domain.Category category) async {}
+  Future<void> updateCategory(domain.Category category) async {
+    final index = categories.indexWhere((c) => c.id == category.id);
+    if (index != -1) categories[index] = category;
+  }
 
   @override
   Stream<List<domain.Category>> watchAllCategories() => Stream.value(categories);
 
   @override
   Stream<List<domain.Expense>> watchAllExpenses() => Stream.value(expenses);
+}
+
+class FakeSavingsGoalRepository implements SavingsGoalRepository {
+  final List<domain.SavingsGoal> goals = [];
+
+  @override
+  Future<List<domain.SavingsGoal>> getAllGoals() async => goals;
+
+  @override
+  Future<void> addGoal(domain.SavingsGoal goal) async => goals.add(goal);
+
+  @override
+  Future<void> updateGoal(domain.SavingsGoal goal) async {
+    final i = goals.indexWhere((g) => g.id == goal.id);
+    if (i != -1) goals[i] = goal;
+  }
+
+  @override
+  Future<void> deleteGoal(String id) async =>
+      goals.removeWhere((g) => g.id == id);
+
+  @override
+  Stream<List<domain.SavingsGoal>> watchAllGoals() => Stream.value(goals);
+}
+
+class FakeBillRepository implements BillRepository {
+  final List<domain.Bill> bills = [];
+
+  @override
+  Future<List<domain.Bill>> getAllBills() async => bills;
+
+  @override
+  Future<void> addBill(domain.Bill bill) async => bills.add(bill);
+
+  @override
+  Future<void> updateBill(domain.Bill bill) async {
+    final i = bills.indexWhere((b) => b.id == bill.id);
+    if (i != -1) bills[i] = bill;
+  }
+
+  @override
+  Future<void> deleteBill(String id) async =>
+      bills.removeWhere((b) => b.id == id);
+
+  @override
+  Stream<List<domain.Bill>> watchAllBills() => Stream.value(bills);
 }
 
 void main() {
@@ -173,6 +225,81 @@ inc_1,2026-06-10,Salary,5000,Yes,Monthly
       expect(incomeRepo.incomes.length, 1);
       expect(incomeRepo.incomes[0].source, 'Salary');
       expect(incomeRepo.incomes[0].amount, 5000.0);
+    });
+
+    test('Round-trips budgets, savings goals and bills via export + import', () async {
+      final goalRepo = FakeSavingsGoalRepository();
+      final billRepo = FakeBillRepository();
+
+      // Source data, including a category that carries a monthly budget limit.
+      final categories = [
+        const domain.Category(
+          id: 'cat_dining',
+          name: 'Dining & Drinks',
+          icon: 'rest',
+          color: '#B56',
+          budgetLimit: 300.0,
+        ),
+      ];
+      final goals = [
+        domain.SavingsGoal(
+          id: 'goal_1',
+          name: 'Emergency Fund',
+          targetAmount: 10000,
+          currentAmount: 2500,
+          targetDate: DateTime(2026, 12, 31),
+          color: '#2F6F5E',
+        ),
+      ];
+      final bills = [
+        domain.Bill(
+          id: 'bill_1',
+          name: 'Netflix',
+          amount: 15.99,
+          dueDate: DateTime(2026, 7, 1),
+          isPaid: false,
+          frequency: domain.BillFrequency.monthly,
+          categoryId: 'cat_dining',
+        ),
+      ];
+
+      final csv = CsvExportService().buildCsvContent(
+        incomes: const [],
+        expenses: const [],
+        categories: categories,
+        goals: goals,
+        bills: bills,
+      );
+
+      final result = await importService.importDataFromCsvContent(
+        content: csv,
+        incomeRepository: incomeRepo,
+        expenseRepository: expenseRepo,
+        savingsGoalRepository: goalRepo,
+        billRepository: billRepo,
+      );
+
+      expect(result.success, isTrue);
+      expect(result.budgetsImported, 1);
+      expect(result.goalsImported, 1);
+      expect(result.billsImported, 1);
+
+      // Budget limit restored onto the existing category.
+      final dining = expenseRepo.categories.firstWhere((c) => c.id == 'cat_dining');
+      expect(dining.budgetLimit, 300.0);
+
+      // Savings goal restored.
+      expect(goalRepo.goals.length, 1);
+      expect(goalRepo.goals[0].name, 'Emergency Fund');
+      expect(goalRepo.goals[0].targetAmount, 10000);
+      expect(goalRepo.goals[0].currentAmount, 2500);
+
+      // Bill restored, with its category re-linked by name.
+      expect(billRepo.bills.length, 1);
+      expect(billRepo.bills[0].name, 'Netflix');
+      expect(billRepo.bills[0].amount, 15.99);
+      expect(billRepo.bills[0].frequency, domain.BillFrequency.monthly);
+      expect(billRepo.bills[0].categoryId, 'cat_dining');
     });
   });
 }

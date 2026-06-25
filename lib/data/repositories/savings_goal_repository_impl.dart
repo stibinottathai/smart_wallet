@@ -38,6 +38,12 @@ class SavingsGoalRepositoryImpl implements SavingsGoalRepository {
   }
 
   @override
+  Future<List<domain.SavingsGoal>> getAllGoals() async {
+    final rows = await _db.select(_db.savingsGoals).get();
+    return rows.map(_mapGoalToDomain).toList();
+  }
+
+  @override
   Future<void> addGoal(domain.SavingsGoal goal) async {
     await _db.into(_db.savingsGoals).insert(_mapGoalToCompanion(goal));
   }

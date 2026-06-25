@@ -40,6 +40,12 @@ class BillRepositoryImpl implements BillRepository {
   }
 
   @override
+  Future<List<domain.Bill>> getAllBills() async {
+    final rows = await _db.select(_db.bills).get();
+    return rows.map(_mapBillToDomain).toList();
+  }
+
+  @override
   Future<void> addBill(domain.Bill bill) async {
     await _db.into(_db.bills).insert(_mapBillToCompanion(bill));
   }
