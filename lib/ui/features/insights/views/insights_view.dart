@@ -71,6 +71,8 @@ class _InsightsViewState extends ConsumerState<InsightsView> {
     final incomes = ref.read(allIncomesProvider).value ?? [];
     final expenses = ref.read(allExpensesProvider).value ?? [];
     final categories = ref.read(allCategoriesProvider).value ?? [];
+    final bills = ref.read(allBillsProvider).value ?? [];
+    final goals = ref.read(allSavingsGoalsProvider).value ?? [];
     final apiKey = ref.read(openRouterApiKeyProvider);
     final currencyCode = ref.read(currencyCodeProvider);
     final currencySym = currencySymbol(currencyCode);
@@ -95,6 +97,7 @@ class _InsightsViewState extends ConsumerState<InsightsView> {
 
       await for (final chunk in service.streamAssistant(
         expenses: expenses, incomes: incomes, categories: categories,
+        bills: bills, goals: goals,
         chatHistory: chatHistory, userQuery: query, apiKey: apiKey,
         currencySymbol: currencySym,
       )) {
@@ -129,13 +132,24 @@ class _InsightsViewState extends ConsumerState<InsightsView> {
   }
 
   void _showError(String err) {
+    final lower = err.toLowerCase();
+    final isOffline = lower.contains('no internet') ||
+        lower.contains('socketexception') ||
+        lower.contains('failed host lookup') ||
+        lower.contains('network is unreachable') ||
+        lower.contains('connection') ||
+        lower.contains('handshakeexception') ||
+        lower.contains('timed out');
     final is401 = err.contains('401') || err.contains('Unauthorized');
     final is429 = err.contains('429');
-    final msg = is401
-        ? "⚠️ **Unauthorized (401)**\n\nYour API key is invalid or out of credits. Update it in **Settings**."
-        : is429
-            ? "⚠️ **Rate Limited (429)**\n\nToo many requests. Please wait a moment."
-            : "⚠️ **Error**\n\nFailed to contact assistant.\n\n_Details: ${err}_";
+    final msg = isOffline
+        ? "📡 **No Internet Connection**\n\nThe AI assistant needs an active connection. "
+            "Please check your Wi-Fi or mobile data and try again."
+        : is401
+            ? "⚠️ **Unauthorized (401)**\n\nYour API key is invalid or out of credits. Update it in **Settings**."
+            : is429
+                ? "⚠️ **Rate Limited (429)**\n\nToo many requests. Please wait a moment."
+                : "⚠️ **Error**\n\nFailed to contact assistant.\n\n_Details: ${err}_";
     _addMsg(msg, isError: true);
   }
 

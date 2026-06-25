@@ -15,6 +15,8 @@ class NotificationService {
   static const _reminderChannelName = 'Reminders';
   static const _budgetChannelId = 'budget_alert_channel';
   static const _budgetChannelName = 'Budget Alerts';
+  static const _tipChannelId = 'daily_tip_channel';
+  static const _tipChannelName = 'Daily Insights';
 
   // Reserved notification id ranges so we can cancel/reschedule cleanly.
   // Daily reminders: rolling window of [_reminderDays] days × 2 slots.
@@ -24,6 +26,9 @@ class NotificationService {
   // Budget alerts: 4 fixed slots per day.
   static const _budgetBaseId = 1200; // 1200..1203
   static const _budgetHours = [9, 13, 17, 21]; // 9AM, 1PM, 5PM, 9PM
+  // Daily insight / savings tip: one repeating notification each morning.
+  static const _tipBaseId = 1300;
+  static const _tipHour = 8; // 8 AM daily (ahead of budget alerts at 9 AM)
   static const _testId = 9999;
 
   Future<void> initialize() async {
@@ -66,6 +71,16 @@ class NotificationService {
           _budgetChannelName,
           description: 'Alerts when category spending nears its monthly limit',
           importance: Importance.max,
+          playSound: true,
+          enableVibration: true,
+        ),
+      );
+      await androidPlugin.createNotificationChannel(
+        const AndroidNotificationChannel(
+          _tipChannelId,
+          _tipChannelName,
+          description: 'A daily summary of your finances and a savings tip',
+          importance: Importance.defaultImportance,
           playSound: true,
           enableVibration: true,
         ),
@@ -173,6 +188,38 @@ class NotificationService {
     }
   }
 
+  /// (Re)schedules a single daily insight notification at [_tipHour] that
+  /// repeats every morning, carrying a status summary + savings tip derived
+  /// from the user's data. Pass null [title]/[body] to clear it.
+  ///
+  /// The message is computed at schedule time, so callers should re-invoke this
+  /// whenever data changes (e.g. on app launch and after each edit) to keep the
+  /// tip fresh.
+  Future<void> scheduleDailyDigest({String? title, String? body}) async {
+    await initialize();
+    await cancelDailyDigest();
+    if (title == null || body == null) return;
+
+    final now = tz.TZDateTime.now(tz.local);
+    var fire = tz.TZDateTime(tz.local, now.year, now.month, now.day, _tipHour);
+    if (!fire.isAfter(now)) fire = fire.add(const Duration(days: 1));
+    await _plugin.zonedSchedule(
+      _tipBaseId,
+      title,
+      body,
+      fire,
+      _details(_tipChannelId, _tipChannelName),
+      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+      uiLocalNotificationDateInterpretation:
+          UILocalNotificationDateInterpretation.absoluteTime,
+      matchDateTimeComponents: DateTimeComponents.time, // repeat daily
+    );
+  }
+
+  Future<void> cancelDailyDigest() async {
+    await _plugin.cancel(_tipBaseId);
+  }
+
   /// Backwards-compatible alias kept for existing callers.
   Future<void> scheduleReminders() => scheduleDailyReminders();
 
@@ -181,6 +228,7 @@ class NotificationService {
   Future<void> cancelAll() async {
     await cancelDailyReminders();
     await cancelBudgetAlerts();
+    await cancelDailyDigest();
   }
 
   Future<void> showTestNotification() async {

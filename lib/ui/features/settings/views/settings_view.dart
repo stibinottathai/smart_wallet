@@ -36,6 +36,8 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
         prefs.getBool(NotificationCoordinator.remindersPrefKey) ?? true;
     ref.read(budgetAlertsEnabledProvider.notifier).state =
         prefs.getBool(NotificationCoordinator.budgetAlertsPrefKey) ?? true;
+    ref.read(dailyTipEnabledProvider.notifier).state =
+        prefs.getBool(NotificationCoordinator.dailyTipPrefKey) ?? true;
     await _syncNotifications();
   }
 
@@ -47,6 +49,7 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
     await NotificationCoordinator.sync(
       expenses: expenses,
       categories: categories,
+      incomes: ref.read(allIncomesProvider).value ?? [],
       currencySymbol: currencySymbol(ref.read(currencyCodeProvider)),
     );
   }
@@ -65,12 +68,20 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
     await _syncNotifications();
   }
 
+  Future<void> _toggleDailyTip(bool value) async {
+    ref.read(dailyTipEnabledProvider.notifier).state = value;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(NotificationCoordinator.dailyTipPrefKey, value);
+    await _syncNotifications();
+  }
+
   @override
   Widget build(BuildContext context) {
     final apiKey = ref.watch(openRouterApiKeyProvider);
     final isConfigured = apiKey.isNotEmpty;
     final remindersOn = ref.watch(remindersEnabledProvider);
     final budgetAlertsOn = ref.watch(budgetAlertsEnabledProvider);
+    final dailyTipOn = ref.watch(dailyTipEnabledProvider);
 
     return Scaffold(
       appBar: AppBar(title: const Text('Settings')),
@@ -197,6 +208,46 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
                         const SizedBox(height: 2),
                         Text(
                           'Get notified (up to 4×/day) when a category reaches 80% of its monthly limit',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+            _SectionCard(
+              icon: Icons.auto_awesome_rounded,
+              title: 'Daily Insight',
+              trailing: Switch(
+                value: dailyTipOn,
+                onChanged: _toggleDailyTip,
+                activeTrackColor: AppColors.primary.withValues(alpha: 0.4),
+                activeThumbColor: AppColors.primary,
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          dailyTipOn
+                              ? 'Daily savings tip on'
+                              : 'Daily savings tip off',
+                          style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.text,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          'An 8:00 AM summary of your finances with a personalised savings tip based on your data',
                           style: const TextStyle(
                             fontSize: 12,
                             color: AppColors.textSecondary,

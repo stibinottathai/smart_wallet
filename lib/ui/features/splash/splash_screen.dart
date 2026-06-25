@@ -3,9 +3,11 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:lottie/lottie.dart';
 import 'package:smart_wallet/ui/core/navigation.dart';
 import 'package:smart_wallet/ui/core/theme.dart';
+
+/// Total time the splash is on screen before navigating away.
+const _kSplashDuration = Duration(milliseconds: 3200);
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -15,53 +17,47 @@ class SplashScreen extends StatefulWidget {
 }
 
 class _SplashScreenState extends State<SplashScreen>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _bgController;
+    with TickerProviderStateMixin {
+  // Ambient loop: gradient drift, particles, ripple rings.
+  late final AnimationController _ambient;
+  // One-shot intro that fills the progress bar and tracks elapsed time.
+  late final AnimationController _intro;
+
   late final Animation<double> _gradientShift;
   late final Animation<double> _float1;
   late final Animation<double> _float2;
   late final Animation<double> _float3;
   late final Animation<double> _float4;
-  late final Animation<double> _pulse;
+  late final Animation<double> _ripple;
 
   @override
   void initState() {
     super.initState();
 
-    _bgController = AnimationController(
+    _ambient = AnimationController(
       vsync: this,
       duration: const Duration(seconds: 6),
     )..repeat();
 
-    _gradientShift = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _bgController, curve: Curves.linear),
-    );
+    _intro = AnimationController(
+      vsync: this,
+      duration: _kSplashDuration,
+    )..forward();
 
-    _float1 = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _bgController, curve: const _SawTooth(0.0)),
-    );
-    _float2 = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _bgController, curve: const _SawTooth(0.25)),
-    );
-    _float3 = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _bgController, curve: const _SawTooth(0.5)),
-    );
-    _float4 = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _bgController, curve: const _SawTooth(0.75)),
-    );
+    _gradientShift = CurvedAnimation(parent: _ambient, curve: Curves.linear);
 
-    _pulse = Tween<double>(begin: 0.85, end: 1.0).animate(
-      CurvedAnimation(
-        parent: _bgController,
-        curve: const _SineWave(periods: 3),
-      ),
-    );
+    _float1 = CurvedAnimation(parent: _ambient, curve: const _SawTooth(0.0));
+    _float2 = CurvedAnimation(parent: _ambient, curve: const _SawTooth(0.25));
+    _float3 = CurvedAnimation(parent: _ambient, curve: const _SawTooth(0.5));
+    _float4 = CurvedAnimation(parent: _ambient, curve: const _SawTooth(0.75));
+
+    _ripple = CurvedAnimation(parent: _ambient, curve: Curves.linear);
 
     _navigateToMain();
   }
 
   void _navigateToMain() {
-    Future.delayed(const Duration(milliseconds: 2800), () {
+    Future.delayed(_kSplashDuration, () {
       if (!mounted) return;
       Navigator.of(context).pushReplacement(
         PageRouteBuilder(
@@ -85,7 +81,8 @@ class _SplashScreenState extends State<SplashScreen>
 
   @override
   void dispose() {
-    _bgController.dispose();
+    _ambient.dispose();
+    _intro.dispose();
     super.dispose();
   }
 
@@ -94,13 +91,13 @@ class _SplashScreenState extends State<SplashScreen>
     return Scaffold(
       backgroundColor: AppColors.background,
       body: AnimatedBuilder(
-        animation: _bgController,
+        animation: _ambient,
         builder: (context, _) {
           return Stack(
             children: [
-              // Animated gradient background
+              // Drifting radial gradient wash.
               _AnimatedGradientBackground(shift: _gradientShift.value),
-              // Floating particles
+              // Floating ambient particles.
               _FloatingParticles(
                 float1: _float1.value,
                 float2: _float2.value,
@@ -112,42 +109,21 @@ class _SplashScreenState extends State<SplashScreen>
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    // Pulsing Lottie with glow ring
+                    // Logo: expanding ripple rings behind a wallet that
+                    // catches falling coins.
                     SizedBox(
-                      width: 150,
-                      height: 150,
+                      width: 200,
+                      height: 200,
                       child: Stack(
                         alignment: Alignment.center,
                         children: [
-                          // Glow ring
-                          Transform.scale(
-                            scale: _pulse.value,
-                            child: Container(
-                              width: 140,
-                              height: 140,
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                border: Border.all(
-                                  color: AppColors.primary.withValues(alpha: 0.15),
-                                  width: 1.5,
-                                ),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: AppColors.primary.withValues(alpha: 0.08),
-                                    blurRadius: 30,
-                                    spreadRadius: 5,
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                          // Native custom wallet animation (better than generic Lottie)
+                          _RippleRings(progress: _ripple.value),
                           const _NativeWalletAnimation(),
                         ],
                       ),
                     ),
-                    const SizedBox(height: 24),
-                    // Title with shimmer
+                    const SizedBox(height: 20),
+                    // Title with shimmer sweep.
                     const _ShimmerTitle(),
                     const SizedBox(height: 12),
                     // Tagline
@@ -159,19 +135,39 @@ class _SplashScreenState extends State<SplashScreen>
                         color: AppColors.text.withValues(alpha: 0.55),
                         letterSpacing: 0.4,
                       ),
-                    ).animate().fadeIn(
-                      duration: 800.ms,
-                      delay: 600.ms,
-                      curve: Curves.easeOut,
-                    ).slideY(begin: 12, end: 0, duration: 800.ms, delay: 600.ms, curve: Curves.easeOutCubic),
+                    )
+                        .animate()
+                        .fadeIn(
+                          duration: 800.ms,
+                          delay: 700.ms,
+                          curve: Curves.easeOut,
+                        )
+                        .slideY(
+                          begin: 0.8,
+                          end: 0,
+                          duration: 800.ms,
+                          delay: 700.ms,
+                          curve: Curves.easeOutCubic,
+                        ),
                   ],
+                ),
+              ),
+              // Slim progress bar synced to the splash duration.
+              Positioned(
+                left: 0,
+                right: 0,
+                bottom: 72,
+                child: Center(
+                  child: _LoadingBar(controller: _intro)
+                      .animate()
+                      .fadeIn(duration: 600.ms, delay: 900.ms),
                 ),
               ),
               // Footer
               Positioned(
                 left: 0,
                 right: 0,
-                bottom: 48,
+                bottom: 44,
                 child: Text(
                   'Offline-First · Private',
                   textAlign: TextAlign.center,
@@ -182,10 +178,10 @@ class _SplashScreenState extends State<SplashScreen>
                     letterSpacing: 1.2,
                   ),
                 ).animate().fadeIn(
-                  duration: 800.ms,
-                  delay: 1200.ms,
-                  curve: Curves.easeIn,
-                ),
+                      duration: 800.ms,
+                      delay: 1300.ms,
+                      curve: Curves.easeIn,
+                    ),
               ),
             ],
           );
@@ -195,79 +191,156 @@ class _SplashScreenState extends State<SplashScreen>
   }
 }
 
+/// Three concentric rings that expand and fade outward, looping. Gives the
+/// logo a sense of energy radiating from the wallet.
+class _RippleRings extends StatelessWidget {
+  final double progress;
+  const _RippleRings({required this.progress});
+
+  @override
+  Widget build(BuildContext context) {
+    return CustomPaint(
+      size: const Size(200, 200),
+      painter: _RipplePainter(progress: progress),
+    );
+  }
+}
+
+class _RipplePainter extends CustomPainter {
+  final double progress;
+  _RipplePainter({required this.progress});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = size.center(Offset.zero);
+    const minRadius = 60.0;
+    final maxRadius = size.width / 2;
+
+    // Three rings staggered by 1/3 of the cycle.
+    for (var i = 0; i < 3; i++) {
+      final t = (progress + i / 3) % 1.0;
+      final radius = minRadius + (maxRadius - minRadius) * t;
+      // Fade out as the ring grows.
+      final alpha = (1.0 - t) * 0.22;
+      if (alpha <= 0) continue;
+      canvas.drawCircle(
+        center,
+        radius,
+        Paint()
+          ..color = AppColors.primary.withValues(alpha: alpha)
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 1.5,
+      );
+    }
+
+    // Soft static halo right behind the wallet.
+    canvas.drawCircle(
+      center,
+      minRadius,
+      Paint()
+        ..color = AppColors.primary.withValues(alpha: 0.06)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 24),
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant _RipplePainter old) => old.progress != progress;
+}
+
 class _NativeWalletAnimation extends StatelessWidget {
   const _NativeWalletAnimation();
+
+  // A single coin that drops from above, lands at the wallet slot with a
+  // little bounce, then sinks in (shrinks + fades). [delay] staggers them.
+  Widget _coin({
+    required double size,
+    required Color color,
+    required double dx,
+    required Duration delay,
+  }) {
+    return Icon(Icons.monetization_on_rounded, size: size, color: color)
+        .animate(onPlay: (c) => c.repeat())
+        // gravity fall onto the wallet
+        .moveY(
+          begin: -90,
+          end: -8,
+          duration: 900.ms,
+          delay: delay,
+          curve: Curves.bounceOut,
+        )
+        .moveX(begin: dx, end: dx * 0.3, duration: 900.ms, delay: delay)
+        .fadeIn(duration: 250.ms, delay: delay)
+        // sink into the slot
+        .then()
+        .moveY(begin: -8, end: 6, duration: 500.ms, curve: Curves.easeIn)
+        .scaleXY(begin: 1.0, end: 0.45, duration: 500.ms, curve: Curves.easeIn)
+        .fadeOut(duration: 450.ms);
+  }
 
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      width: 130,
-      height: 130,
+      width: 140,
+      height: 140,
       child: Stack(
         alignment: Alignment.center,
+        clipBehavior: Clip.none,
         children: [
-          // Coin 1 (Gold)
-          const Icon(Icons.monetization_on_rounded, size: 36, color: Color(0xFFFFD700))
-              .animate(onPlay: (controller) => controller.repeat())
-              .moveY(begin: 10, end: -70, duration: 2000.ms, curve: Curves.easeOutCubic)
-              .moveX(begin: 0, end: -30, duration: 2000.ms, curve: Curves.easeOut)
-              .scaleXY(begin: 0.5, end: 1.2, duration: 2000.ms)
-              .fadeOut(delay: 1200.ms, duration: 800.ms),
-              
-          // Coin 2 (Silver/Lighter Gold)
-          const Icon(Icons.monetization_on_rounded, size: 28, color: Color(0xFFFDE047))
-              .animate(onPlay: (controller) => controller.repeat())
-              .moveY(begin: 15, end: -60, duration: 1800.ms, delay: 600.ms, curve: Curves.easeOutCubic)
-              .moveX(begin: 0, end: 35, duration: 1800.ms, delay: 600.ms, curve: Curves.easeOut)
-              .scaleXY(begin: 0.4, end: 1.1, duration: 1800.ms, delay: 600.ms)
-              .fadeOut(delay: 1500.ms, duration: 900.ms),
+          _coin(
+            size: 34,
+            color: const Color(0xFFFFD700),
+            dx: -22,
+            delay: 300.ms,
+          ),
+          _coin(
+            size: 26,
+            color: const Color(0xFFFDE047),
+            dx: 24,
+            delay: 900.ms,
+          ),
+          _coin(
+            size: 22,
+            color: const Color(0xFFFBBF24),
+            dx: -4,
+            delay: 1500.ms,
+          ),
 
-          // Coin 3
-          const Icon(Icons.monetization_on_rounded, size: 24, color: Color(0xFFFBBF24))
-              .animate(onPlay: (controller) => controller.repeat())
-              .moveY(begin: 20, end: -50, duration: 1600.ms, delay: 1100.ms, curve: Curves.easeOutCubic)
-              .moveX(begin: 0, end: -10, duration: 1600.ms, delay: 1100.ms, curve: Curves.easeOut)
-              .scaleXY(begin: 0.3, end: 1.0, duration: 1600.ms, delay: 1100.ms)
-              .fadeOut(delay: 1700.ms, duration: 1000.ms),
-
-          // Wallet Base
+          // Wallet body — scales up with an elastic settle on entry, then
+          // breathes gently.
           Container(
-            width: 86,
-            height: 70,
+            width: 92,
+            height: 74,
             decoration: BoxDecoration(
               gradient: const LinearGradient(
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
-                colors: [
-                  AppColors.primaryLight,
-                  AppColors.primary,
-                ],
+                colors: [AppColors.primaryLight, AppColors.primary],
               ),
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.circular(18),
               boxShadow: [
                 BoxShadow(
                   color: AppColors.primary.withValues(alpha: 0.4),
-                  blurRadius: 15,
-                  offset: const Offset(0, 8),
-                )
+                  blurRadius: 18,
+                  offset: const Offset(0, 10),
+                ),
               ],
             ),
             child: Stack(
               children: [
-                // Flap
+                // Top flap
                 Positioned(
                   top: 0,
                   left: 0,
                   right: 0,
-                  height: 35,
+                  height: 36,
                   child: Container(
                     decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.15),
+                      color: Colors.white.withValues(alpha: 0.16),
                       borderRadius: const BorderRadius.only(
-                        bottomLeft: Radius.circular(35),
-                        bottomRight: Radius.circular(35),
-                        topLeft: Radius.circular(16),
-                        topRight: Radius.circular(16),
+                        bottomLeft: Radius.circular(36),
+                        bottomRight: Radius.circular(36),
+                        topLeft: Radius.circular(18),
+                        topRight: Radius.circular(18),
                       ),
                     ),
                   ),
@@ -281,16 +354,38 @@ class _NativeWalletAnimation extends StatelessWidget {
                     decoration: BoxDecoration(
                       color: AppColors.secondary,
                       shape: BoxShape.circle,
-                      border: Border.all(color: AppColors.background, width: 2),
+                      border:
+                          Border.all(color: AppColors.background, width: 2),
                     ),
                   ),
                 ),
               ],
             ),
           )
-          .animate(onPlay: (controller) => controller.repeat(reverse: true))
-          .scaleXY(begin: 0.96, end: 1.04, duration: 1500.ms, curve: Curves.easeInOutSine)
-          .shimmer(color: Colors.white.withValues(alpha: 0.3), duration: 2500.ms, delay: 1.seconds),
+              .animate()
+              // entrance
+              .scaleXY(
+                begin: 0.3,
+                end: 1.0,
+                duration: 900.ms,
+                curve: Curves.elasticOut,
+              )
+              .fadeIn(duration: 400.ms)
+              // gentle breathing loop afterwards
+              .then()
+              .custom(
+                duration: 1600.ms,
+                curve: Curves.easeInOutSine,
+                builder: (_, value, child) => Transform.scale(
+                  scale: 1.0 + 0.04 * math.sin(value * math.pi * 2),
+                  child: child,
+                ),
+              )
+              .shimmer(
+                color: Colors.white.withValues(alpha: 0.3),
+                duration: 2200.ms,
+                delay: 200.ms,
+              ),
         ],
       ),
     );
@@ -357,13 +452,61 @@ class _ShimmerTitleState extends State<_ShimmerTitle>
               letterSpacing: -0.8,
               height: 1.1,
             ),
-          ).animate().fadeIn(
-            duration: 800.ms,
-            delay: 200.ms,
-            curve: Curves.easeOut,
-          ).slideY(begin: 20, end: 0, duration: 800.ms, delay: 200.ms, curve: Curves.easeOutCubic),
+          )
+              .animate()
+              .fadeIn(duration: 800.ms, delay: 300.ms, curve: Curves.easeOut)
+              .slideY(
+                begin: 0.6,
+                end: 0,
+                duration: 800.ms,
+                delay: 300.ms,
+                curve: Curves.easeOutCubic,
+              ),
         );
       },
+    );
+  }
+}
+
+/// Slim, rounded determinate bar that fills as the splash plays out.
+class _LoadingBar extends StatelessWidget {
+  final AnimationController controller;
+  const _LoadingBar({required this.controller});
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 120,
+      height: 3,
+      child: AnimatedBuilder(
+        animation: controller,
+        builder: (context, _) {
+          final value = Curves.easeInOut.transform(controller.value);
+          return Stack(
+            children: [
+              // track
+              Container(
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(3),
+                ),
+              ),
+              // fill
+              FractionallySizedBox(
+                widthFactor: value.clamp(0.0, 1.0),
+                child: Container(
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [AppColors.primaryLight, AppColors.primary],
+                    ),
+                    borderRadius: BorderRadius.circular(3),
+                  ),
+                ),
+              ),
+            ],
+          );
+        },
+      ),
     );
   }
 }
@@ -493,7 +636,10 @@ class _ParticlePainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _ParticlePainter old) =>
-    old.float1 != float1 || old.float2 != float2 || old.float3 != float3 || old.float4 != float4;
+      old.float1 != float1 ||
+      old.float2 != float2 ||
+      old.float3 != float3 ||
+      old.float4 != float4;
 }
 
 class _ParticleData {
@@ -502,16 +648,6 @@ class _ParticleData {
   final double radius;
   final Color color;
   const _ParticleData(this.x, this.y, this.radius, this.color);
-}
-
-class _SineWave extends Curve {
-  final int periods;
-  const _SineWave({this.periods = 1});
-
-  @override
-  double transformInternal(double t) {
-    return (math.sin(t * 2 * math.pi * periods) + 1) / 2;
-  }
 }
 
 class _SawTooth extends Curve {

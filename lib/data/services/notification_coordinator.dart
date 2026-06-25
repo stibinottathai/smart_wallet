@@ -9,6 +9,7 @@ import 'notification_service.dart';
 class NotificationCoordinator {
   static const remindersPrefKey = 'reminders_enabled';
   static const budgetAlertsPrefKey = 'budget_alerts_enabled';
+  static const dailyTipPrefKey = 'daily_tip_enabled';
 
   /// Fires a budget alert once a category has used at least this fraction of its
   /// monthly limit (i.e. is within 20% of, or over, the limit).
@@ -18,10 +19,12 @@ class NotificationCoordinator {
     required List<Expense> expenses,
     required List<Category> categories,
     required String currencySymbol,
+    List<Income> incomes = const [],
   }) async {
     final prefs = await SharedPreferences.getInstance();
     final remindersEnabled = prefs.getBool(remindersPrefKey) ?? true;
     final budgetAlertsEnabled = prefs.getBool(budgetAlertsPrefKey) ?? true;
+    final dailyTipEnabled = prefs.getBool(dailyTipPrefKey) ?? true;
 
     final service = NotificationService();
 
@@ -44,6 +47,125 @@ class NotificationCoordinator {
     } else {
       await service.cancelBudgetAlerts();
     }
+
+    // ── Daily insight / savings tip ──────────────────────────────────────
+    if (dailyTipEnabled) {
+      final tip = _buildDailyTip(
+        expenses: expenses,
+        incomes: incomes,
+        categories: categories,
+        currencySymbol: currencySymbol,
+      );
+      await service.scheduleDailyDigest(title: tip.title, body: tip.body);
+    } else {
+      await service.cancelDailyDigest();
+    }
+  }
+
+  /// Analyses the user's current-month finances and produces a single,
+  /// personalised status + savings tip to deliver once a day. Runs entirely on
+  /// local data so it works offline and is safe to schedule ahead of time.
+  static _DailyTip _buildDailyTip({
+    required List<Expense> expenses,
+    required List<Income> incomes,
+    required List<Category> categories,
+    required String currencySymbol,
+  }) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final monthStart = DateTime(now.year, now.month, 1);
+
+    String money(num v) => '$currencySymbol${v.round()}';
+
+    // No data yet — nudge the user to start tracking.
+    if (expenses.isEmpty && incomes.isEmpty) {
+      return const _DailyTip(
+        'Start your savings journey',
+        'Add your income and a few expenses so Smart Wallet can tailor a daily '
+            'savings tip just for you.',
+      );
+    }
+
+    // Current-month totals + per-category spend.
+    var monthIncome = 0.0;
+    var monthExpense = 0.0;
+    final spendByCat = <String, double>{};
+    for (final i in incomes) {
+      if (!i.date.isBefore(monthStart)) monthIncome += i.amount;
+    }
+    for (final e in expenses) {
+      if (!e.date.isBefore(monthStart)) {
+        monthExpense += e.amount;
+        spendByCat[e.categoryId] = (spendByCat[e.categoryId] ?? 0) + e.amount;
+      }
+    }
+
+    // No-spend streak, counting back from today (today's spend resets it).
+    final expenseDays = expenses
+        .map((e) => DateTime(e.date.year, e.date.month, e.date.day))
+        .toSet();
+    var streak = 0;
+    var day = today;
+    while (!expenseDays.contains(day) && streak < 30) {
+      streak++;
+      day = day.subtract(const Duration(days: 1));
+    }
+
+    // 1. Celebrate a no-spend streak first — positive reinforcement.
+    if (streak >= 3) {
+      return _DailyTip(
+        '$streak-day no-spend streak 🎉',
+        "You haven't logged an expense in $streak days. Move what you'd "
+            'normally spend into a savings goal to lock in the win.',
+      );
+    }
+
+    // 2. Savings-rate based status when income is known for the month.
+    if (monthIncome > 0) {
+      final saved = monthIncome - monthExpense;
+      final rate = (saved / monthIncome * 100).round();
+      if (saved < 0) {
+        return _DailyTip(
+          'Spending is ahead of income',
+          'This month you have spent ${money(monthExpense)} against '
+              '${money(monthIncome)} income. Trimming your top category could '
+              'bring you back into balance.',
+        );
+      }
+      if (rate >= 20) {
+        return _DailyTip(
+          "You're saving well this month",
+          'You have kept ${money(saved)} (about $rate%) of your '
+              '${money(monthIncome)} income. Consider parking it in a savings '
+              'goal before it gets spent.',
+        );
+      }
+      return _DailyTip(
+        'Your money this month',
+        'Saved ${money(saved)} of ${money(monthIncome)} income so far '
+            '($rate%). Small cuts to your biggest category can lift that rate.',
+      );
+    }
+
+    // 3. Highlight the top spending category and an easy 10% saving.
+    if (spendByCat.isNotEmpty) {
+      final catNames = {for (final c in categories) c.id: c.name};
+      final top =
+          spendByCat.entries.reduce((a, b) => a.value >= b.value ? a : b);
+      final name = catNames[top.key] ?? 'your top category';
+      return _DailyTip(
+        'Where your money is going',
+        '$name is your biggest spend at ${money(top.value)} this month. '
+            'Cutting it by 10% would save about ${money(top.value * 0.1)}.',
+      );
+    }
+
+    // 4. Fallback status summary.
+    return _DailyTip(
+      'Your money, at a glance',
+      '${money(monthExpense)} spent so far this month. Open Smart Wallet to '
+          'review and spot easy savings.',
+    );
   }
 
   static _BudgetAlert? _buildBudgetAlert(
@@ -88,4 +210,10 @@ class _BudgetAlert {
   final String title;
   final String body;
   const _BudgetAlert(this.title, this.body);
+}
+
+class _DailyTip {
+  final String title;
+  final String body;
+  const _DailyTip(this.title, this.body);
 }

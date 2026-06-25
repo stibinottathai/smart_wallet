@@ -124,6 +124,8 @@ final remindersEnabledProvider = StateProvider<bool>((ref) => true);
 
 final budgetAlertsEnabledProvider = StateProvider<bool>((ref) => true);
 
+final dailyTipEnabledProvider = StateProvider<bool>((ref) => true);
+
 final activeTabIndexProvider = StateProvider<int>((ref) => 0);
 
 final analysisDateRangeProvider = StateProvider<(DateTime, DateTime)?>((ref) {

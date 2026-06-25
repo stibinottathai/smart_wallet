@@ -39,6 +39,7 @@ class _MainNavigationWrapperState extends ConsumerState<MainNavigationWrapper> w
     NotificationCoordinator.sync(
       expenses: expenses,
       categories: categories,
+      incomes: ref.read(allIncomesProvider).value ?? const [],
       currencySymbol: currencySymbol(ref.read(currencyCodeProvider)),
     );
   }
@@ -68,6 +69,7 @@ class _MainNavigationWrapperState extends ConsumerState<MainNavigationWrapper> w
     // Re-evaluate scheduled notifications whenever spending data changes.
     ref.listen(allExpensesProvider, (_, __) => _syncNotifications());
     ref.listen(allCategoriesProvider, (_, __) => _syncNotifications());
+    ref.listen(allIncomesProvider, (_, __) => _syncNotifications());
     return Scaffold(
       body: IndexedStack(
         index: currentIndex,
