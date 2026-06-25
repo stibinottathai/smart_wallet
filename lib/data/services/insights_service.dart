@@ -57,6 +57,12 @@ class InsightsService {
   static const _cacheKey = 'cached_insights';
   static const _cacheTimeKey = 'cached_insights_time';
 
+  /// Reused across streaming chat requests so each follow-up message rides an
+  /// already-open keep-alive connection instead of paying for a fresh DNS +
+  /// TCP + TLS handshake every turn. The provider keeps this service alive for
+  /// the app's lifetime, so the connection pool stays warm between messages.
+  final http.Client _streamClient = http.Client();
+
   Future<List<SpendingInsight>?> getCachedInsights() async {
     final prefs = await SharedPreferences.getInstance();
     final jsonStr = prefs.getString(_cacheKey);
@@ -364,13 +370,17 @@ class InsightsService {
       }
     }
 
-    // Include only the 10 most recent individual transactions for context
+    // Include only the most recent individual transactions for context. Kept
+    // short on purpose — the category aggregates above already summarise
+    // spending, so a long raw list only inflates prompt size and slows the
+    // model's time-to-first-token.
+    const recentTxnLimit = 6;
     final recentTxns = recentExpenses.toList()
       ..sort((a, b) => b.date.compareTo(a.date));
     if (recentTxns.isNotEmpty) {
       buf.writeln();
-      buf.writeln('Recent Transactions (last ${recentTxns.length > 10 ? 10 : recentTxns.length}):');
-      for (final e in recentTxns.take(10)) {
+      buf.writeln('Recent Transactions (last ${recentTxns.length > recentTxnLimit ? recentTxnLimit : recentTxns.length}):');
+      for (final e in recentTxns.take(recentTxnLimit)) {
         final catName = categoryMap[e.categoryId] ?? 'Uncategorized';
         final noteStr = e.note != null ? ' - ${e.note}' : '';
         buf.writeln('- ${e.date.toString().substring(0, 10)}: ${money(e.amount)} ($catName$noteStr)');
@@ -450,7 +460,6 @@ class InsightsService {
     const retryableStatusCodes = {429, 500, 502, 503};
 
     for (int attempt = 0; attempt <= maxRetries; attempt++) {
-      final client = http.Client();
       try {
         final request = http.Request(
           'POST',
@@ -467,9 +476,12 @@ class InsightsService {
           'messages': messages,
           'stream': true,
           'max_tokens': 512,
+          // Route to the fastest available provider for this model — cuts
+          // time-to-first-token and raises tokens/sec without changing output.
+          'provider': {'sort': 'throughput'},
         });
 
-        final streamedResponse = await client.send(request);
+        final streamedResponse = await _streamClient.send(request);
 
         if (streamedResponse.statusCode != 200) {
           final body = await streamedResponse.stream.bytesToString();
@@ -523,8 +535,6 @@ class InsightsService {
           throw Exception(_offlineMessage);
         }
         rethrow;
-      } finally {
-        client.close();
       }
     }
   }
