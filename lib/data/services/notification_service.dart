@@ -1,4 +1,5 @@
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:flutter_timezone/flutter_timezone.dart';
 import 'package:timezone/timezone.dart' as tz;
 import 'package:timezone/data/latest.dart' as tz_data;
 
@@ -34,6 +35,17 @@ class NotificationService {
   Future<void> initialize() async {
     if (_initialized) return;
     tz_data.initializeTimeZones();
+
+    // Bind tz.local to the device's actual timezone. Without this it defaults to
+    // UTC, which makes every scheduled notification (reminders, budget alerts,
+    // daily insight) fire at the wrong wall-clock time — i.e. appear broken.
+    try {
+      final localTz = await FlutterTimezone.getLocalTimezone();
+      tz.setLocalLocation(tz.getLocation(localTz));
+    } catch (_) {
+      // Fall back to UTC if the platform can't report a timezone; better than
+      // crashing during init.
+    }
 
     const androidSettings =
         AndroidInitializationSettings('@mipmap/ic_launcher');
@@ -106,46 +118,44 @@ class NotificationService {
         iOS: const DarwinNotificationDetails(),
       );
 
-  /// (Re)schedules the daily "log your expenses" reminders for the next
-  /// [_reminderDays] days at noon and 8 PM. When [loggedToday] is true, today's
-  /// remaining slots are skipped so the user isn't nagged after they've already
-  /// recorded an expense for the day.
+  /// (Re)schedules the daily "log your expenses" reminders at noon and 8 PM as
+  /// truly repeating alarms, so they fire every day indefinitely — even if the
+  /// app is never reopened (and they survive a reboot via the boot receiver).
   ///
-  /// A rolling window of explicit one-shot alarms is used (rather than a single
-  /// repeating alarm) so that "skip today once logged" is possible and so the
-  /// schedule is refreshed every time the app is opened.
+  /// [loggedToday] is accepted for backwards-compatibility but no longer skips
+  /// today's reminder: a repeating alarm can't drop a single occurrence, and a
+  /// guaranteed daily nudge is more useful than one that silently stops after a
+  /// couple of weeks.
   Future<void> scheduleDailyReminders({bool loggedToday = false}) async {
     await initialize();
     await cancelDailyReminders();
 
     final now = tz.TZDateTime.now(tz.local);
-
-    for (var day = 0; day < _reminderDays; day++) {
-      if (day == 0 && loggedToday) continue;
-      final date = now.add(Duration(days: day));
-      for (var slot = 0; slot < _reminderHours.length; slot++) {
-        final hour = _reminderHours[slot];
-        final fire =
-            tz.TZDateTime(tz.local, date.year, date.month, date.day, hour);
-        if (!fire.isAfter(now)) continue;
-        final isNoon = hour == 12;
-        await _plugin.zonedSchedule(
-          _reminderBaseId + day * _reminderHours.length + slot,
-          isNoon ? 'Record your expenses' : 'Review your day',
-          isNoon
-              ? "Don't forget to log today's spending in Smart Wallet."
-              : 'Log any remaining expenses before bedtime.',
-          fire,
-          _details(_reminderChannelId, _reminderChannelName),
-          androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-          uiLocalNotificationDateInterpretation:
-              UILocalNotificationDateInterpretation.absoluteTime,
-        );
-      }
+    for (var slot = 0; slot < _reminderHours.length; slot++) {
+      final hour = _reminderHours[slot];
+      var fire = tz.TZDateTime(tz.local, now.year, now.month, now.day, hour);
+      if (!fire.isAfter(now)) fire = fire.add(const Duration(days: 1));
+      final isNoon = hour == 12;
+      await _plugin.zonedSchedule(
+        _reminderBaseId + slot,
+        isNoon ? 'Record your expenses' : 'Review your day',
+        isNoon
+            ? "Don't forget to log today's spending in Smart Wallet."
+            : 'Log any remaining expenses before bedtime.',
+        fire,
+        _details(_reminderChannelId, _reminderChannelName),
+        androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+        uiLocalNotificationDateInterpretation:
+            UILocalNotificationDateInterpretation.absoluteTime,
+        matchDateTimeComponents: DateTimeComponents.time, // repeat daily forever
+      );
     }
   }
 
   Future<void> cancelDailyReminders() async {
+    // Cancel the 2 current repeating reminders, plus the full id range used by
+    // the previous rolling-window implementation, so one-shots scheduled by
+    // older app versions don't keep firing after this update.
     final last = _reminderBaseId + _reminderDays * _reminderHours.length;
     for (var id = _reminderBaseId; id < last; id++) {
       await _plugin.cancel(id);
@@ -238,6 +248,30 @@ class NotificationService {
       'Test Reminder',
       'This is a test notification. Reminders are working correctly!',
       _details(_reminderChannelId, _reminderChannelName),
+    );
+  }
+
+  /// Immediately shows a sample budget alert so the user can confirm the channel
+  /// works, independent of whether any category is currently over its limit.
+  Future<void> showTestBudgetAlert() async {
+    await initialize();
+    await _plugin.show(
+      _testId,
+      '⚠️ Budget Alert (test)',
+      'This is a test alert. Budget notifications are working correctly!',
+      _details(_budgetChannelId, _budgetChannelName),
+    );
+  }
+
+  /// Immediately shows a sample daily insight so the user can confirm the
+  /// channel works without waiting for the scheduled 8 AM delivery.
+  Future<void> showTestDailyInsight() async {
+    await initialize();
+    await _plugin.show(
+      _testId,
+      'Daily Insight (test)',
+      'This is a test insight. Daily insights are working correctly!',
+      _details(_tipChannelId, _tipChannelName),
     );
   }
 }

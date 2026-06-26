@@ -172,6 +172,7 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
   @override
   Widget build(BuildContext context) {
     final apiKey = ref.watch(aiApiKeyProvider);
+    final provider = ref.watch(aiProviderProvider);
     final isConfigured = apiKey.isNotEmpty;
     final remindersOn = ref.watch(remindersEnabledProvider);
     final budgetAlertsOn = ref.watch(budgetAlertsEnabledProvider);
@@ -201,7 +202,7 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
                     icon: Icons.auto_awesome_rounded,
                     title: 'AI Intelligence',
                     subtitle: isConfigured
-                        ? 'OpenRouter Activated'
+                        ? '${provider.displayName} Activated'
                         : 'Not Configured',
                     subtitleColor: isConfigured ? null : AppColors.secondary,
                   ),
@@ -407,6 +408,27 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
                       ],
                     ),
                   ),
+                  if (budgetAlertsOn)
+                    TextButton(
+                      onPressed: () {
+                        NotificationService().showTestBudgetAlert();
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Test budget alert sent'),
+                          ),
+                        );
+                      },
+                      style: TextButton.styleFrom(
+                        foregroundColor: AppColors.primary,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 8,
+                        ),
+                        minimumSize: Size.zero,
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      ),
+                      child: const Text('Test'),
+                    ),
                 ],
               ),
             ),
@@ -447,6 +469,27 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
                       ],
                     ),
                   ),
+                  if (dailyTipOn)
+                    TextButton(
+                      onPressed: () {
+                        NotificationService().showTestDailyInsight();
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Test daily insight sent'),
+                          ),
+                        );
+                      },
+                      style: TextButton.styleFrom(
+                        foregroundColor: AppColors.primary,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 8,
+                        ),
+                        minimumSize: Size.zero,
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      ),
+                      child: const Text('Test'),
+                    ),
                 ],
               ),
             ),
@@ -647,6 +690,63 @@ class _AiSettingsSectionState extends ConsumerState<_AiSettingsSection> {
     );
   }
 
+  void _showApiGuide() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('API Configuration Guide'),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        content: const SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'To use the AI Assistant, you need an API key from one of the supported providers.',
+                style: TextStyle(fontSize: 14),
+              ),
+              SizedBox(height: 16),
+              Text('1. Google Gemini (Recommended - Free for limited usage)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+              Text(
+                '• Go to aistudio.google.com and sign in.\n'
+                '• Click "Get API key" and create one.\n'
+                '• Copy the key and paste it here.',
+                style: TextStyle(fontSize: 13, height: 1.5),
+              ),
+              SizedBox(height: 16),
+              Text('2. OpenRouter (Recommended - Free models available)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+              Text(
+                '• Go to openrouter.ai and sign up.\n'
+                '• Navigate to "Keys" and click "Create Key".\n'
+                '• Copy the generated key and paste it here.',
+                style: TextStyle(fontSize: 13, height: 1.5),
+              ),
+              SizedBox(height: 16),
+              Text('3. Anthropic', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+              Text(
+                '• Go to console.anthropic.com and sign up.\n'
+                '• Navigate to Settings > API Keys and create a new key.',
+                style: TextStyle(fontSize: 13, height: 1.5),
+              ),
+              SizedBox(height: 16),
+              Text('4. OpenAI', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+              Text(
+                '• Go to platform.openai.com and sign up.\n'
+                '• Navigate to API Keys in the dashboard and create a new secret key.',
+                style: TextStyle(fontSize: 13, height: 1.5),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Got it'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final apiKey = ref.watch(aiApiKeyProvider);
@@ -738,7 +838,17 @@ class _AiSettingsSectionState extends ConsumerState<_AiSettingsSection> {
               ),
               child: const Text('Configure AI Settings'),
             ),
-          )
+          ),
+          const SizedBox(height: 4),
+          Center(
+            child: TextButton(
+              onPressed: _showApiGuide,
+              child: const Text(
+                'API Configuration Guide',
+                style: TextStyle(color: AppColors.primary, fontSize: 13),
+              ),
+            ),
+          ),
         ],
       ),
     );
