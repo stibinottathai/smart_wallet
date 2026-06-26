@@ -73,7 +73,9 @@ class _InsightsViewState extends ConsumerState<InsightsView> {
     final categories = ref.read(allCategoriesProvider).value ?? [];
     final bills = ref.read(allBillsProvider).value ?? [];
     final goals = ref.read(allSavingsGoalsProvider).value ?? [];
-    final apiKey = ref.read(openRouterApiKeyProvider);
+    final apiKey = ref.read(aiApiKeyProvider);
+    final aiModel = ref.read(aiModelProvider);
+    final aiProvider = ref.read(aiProviderProvider);
     final currencyCode = ref.read(currencyCodeProvider);
     final currencySym = currencySymbol(currencyCode);
 
@@ -99,6 +101,8 @@ class _InsightsViewState extends ConsumerState<InsightsView> {
         expenses: expenses, incomes: incomes, categories: categories,
         bills: bills, goals: goals,
         chatHistory: chatHistory, userQuery: query, apiKey: apiKey,
+        aiModel: aiModel,
+        aiProvider: aiProvider,
         currencySymbol: currencySym,
       )) {
         if (!mounted) return;

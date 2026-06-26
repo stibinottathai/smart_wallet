@@ -5,12 +5,14 @@ import 'data/services/notification_service.dart';
 import 'ui/core/currency_utils.dart';
 import 'ui/core/theme.dart';
 import 'ui/features/splash/splash_screen.dart';
+import 'ui/providers.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await dotenv.load(fileName: ".env");
   await NotificationService().initialize();
   await loadCurrencyPref();
+  await loadAiSettingsPref();
   runApp(
     const ProviderScope(
       child: SmartWalletApp(),

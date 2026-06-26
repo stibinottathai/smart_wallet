@@ -171,7 +171,7 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
 
   @override
   Widget build(BuildContext context) {
-    final apiKey = ref.watch(openRouterApiKeyProvider);
+    final apiKey = ref.watch(aiApiKeyProvider);
     final isConfigured = apiKey.isNotEmpty;
     final remindersOn = ref.watch(remindersEnabledProvider);
     final budgetAlertsOn = ref.watch(budgetAlertsEnabledProvider);
@@ -214,6 +214,8 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
                 ],
               ),
             ),
+            const SizedBox(height: 12),
+            _AiSettingsSection(),
             const SizedBox(height: 12),
             _SectionCard(
               icon: Icons.lock_rounded,
@@ -628,6 +630,276 @@ class _SectionCard extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+class _AiSettingsSection extends ConsumerStatefulWidget {
+  @override
+  ConsumerState<_AiSettingsSection> createState() => _AiSettingsSectionState();
+}
+
+class _AiSettingsSectionState extends ConsumerState<_AiSettingsSection> {
+  void _editSettings() {
+    showDialog(
+      context: context,
+      builder: (context) => const _AiSettingsDialog(),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final apiKey = ref.watch(aiApiKeyProvider);
+    final provider = ref.watch(aiProviderProvider);
+    final isConfigured = apiKey.isNotEmpty;
+    return _SectionCard(
+      icon: Icons.api_rounded,
+      title: 'AI Configuration',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Provider',
+                style: TextStyle(
+                  fontSize: 13,
+                  color: AppColors.text.withValues(alpha: 0.6),
+                ),
+              ),
+              Text(
+                provider.displayName,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.text,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'API Key',
+                style: TextStyle(
+                  fontSize: 13,
+                  color: AppColors.text.withValues(alpha: 0.6),
+                ),
+              ),
+              Text(
+                isConfigured ? 'Configured' : 'Not Configured',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: isConfigured ? AppColors.primary : AppColors.secondary,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Model',
+                style: TextStyle(
+                  fontSize: 13,
+                  color: AppColors.text.withValues(alpha: 0.6),
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Text(
+                  ref.watch(aiModelProvider),
+                  textAlign: TextAlign.right,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.text,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton(
+              onPressed: _editSettings,
+              style: OutlinedButton.styleFrom(
+                foregroundColor: AppColors.primary,
+                side: BorderSide(color: AppColors.primary.withValues(alpha: 0.5)),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+              child: const Text('Configure AI Settings'),
+            ),
+          )
+        ],
+      ),
+    );
+  }
+}
+
+class _AiSettingsDialog extends ConsumerStatefulWidget {
+  const _AiSettingsDialog();
+
+  @override
+  ConsumerState<_AiSettingsDialog> createState() => _AiSettingsDialogState();
+}
+
+class _AiSettingsDialogState extends ConsumerState<_AiSettingsDialog> {
+  late TextEditingController _keyCtrl;
+  late TextEditingController _customModelCtrl;
+  late domain.AiProvider _selectedProvider;
+  String? _selectedModel;
+  bool _isCustomModel = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedProvider = ref.read(aiProviderProvider);
+    _keyCtrl = TextEditingController(text: ref.read(aiApiKeyProvider));
+    
+    final currentModel = ref.read(aiModelProvider);
+    if (_selectedProvider.commonModels.contains(currentModel)) {
+      _selectedModel = currentModel;
+    } else {
+      _selectedModel = 'Other (Custom)';
+      _isCustomModel = true;
+    }
+    _customModelCtrl = TextEditingController(text: _isCustomModel ? currentModel : '');
+  }
+
+  @override
+  void dispose() {
+    _keyCtrl.dispose();
+    _customModelCtrl.dispose();
+    super.dispose();
+  }
+
+  void _save() {
+    final key = _keyCtrl.text.trim();
+    final model = _isCustomModel ? _customModelCtrl.text.trim() : (_selectedModel ?? '');
+    
+    ref.read(aiProviderProvider.notifier).state = _selectedProvider;
+    ref.read(aiApiKeyProvider.notifier).state = key;
+    ref.read(aiModelProvider.notifier).state = model;
+    
+    saveAiProvider(_selectedProvider);
+    saveAiApiKey(key);
+    saveAiModel(model);
+    
+    Navigator.of(context).pop();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final availableModels = [..._selectedProvider.commonModels, 'Other (Custom)'];
+    if (!_isCustomModel && _selectedModel != null && !availableModels.contains(_selectedModel)) {
+      _selectedModel = availableModels.first;
+    }
+
+    return AlertDialog(
+      title: const Text('AI Configuration'),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Select your preferred AI provider, model, and API key.',
+              style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
+            ),
+            const SizedBox(height: 16),
+            DropdownButtonFormField<domain.AiProvider>(
+              isExpanded: true,
+              value: _selectedProvider,
+              decoration: const InputDecoration(
+                labelText: 'Provider',
+                border: OutlineInputBorder(),
+              ),
+              items: domain.AiProvider.values.map((p) {
+                return DropdownMenuItem(
+                  value: p,
+                  child: Text(p.displayName, overflow: TextOverflow.ellipsis),
+                );
+              }).toList(),
+              onChanged: (val) {
+                if (val != null) {
+                  setState(() {
+                    _selectedProvider = val;
+                    _selectedModel = val.commonModels.isNotEmpty ? val.commonModels.first : 'Other (Custom)';
+                    _isCustomModel = _selectedModel == 'Other (Custom)';
+                  });
+                }
+              },
+            ),
+            const SizedBox(height: 16),
+            DropdownButtonFormField<String>(
+              isExpanded: true,
+              value: availableModels.contains(_selectedModel) ? _selectedModel : availableModels.first,
+              decoration: const InputDecoration(
+                labelText: 'Model',
+                border: OutlineInputBorder(),
+              ),
+              items: availableModels.map((m) {
+                return DropdownMenuItem(
+                  value: m,
+                  child: Text(m, overflow: TextOverflow.ellipsis),
+                );
+              }).toList(),
+              onChanged: (val) {
+                if (val != null) {
+                  setState(() {
+                    _selectedModel = val;
+                    _isCustomModel = val == 'Other (Custom)';
+                  });
+                }
+              },
+            ),
+            if (_isCustomModel) ...[
+              const SizedBox(height: 16),
+              TextField(
+                controller: _customModelCtrl,
+                decoration: const InputDecoration(
+                  labelText: 'Custom Model Name',
+                  border: OutlineInputBorder(),
+                  hintText: 'e.g. custom-model-v1',
+                ),
+              ),
+            ],
+            const SizedBox(height: 16),
+            TextField(
+              controller: _keyCtrl,
+              decoration: const InputDecoration(
+                labelText: 'API Key',
+                border: OutlineInputBorder(),
+              ),
+              obscureText: true,
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Cancel', style: TextStyle(color: AppColors.textSecondary)),
+        ),
+        ElevatedButton(
+          onPressed: _save,
+          style: ElevatedButton.styleFrom(
+            backgroundColor: AppColors.primary,
+            foregroundColor: Colors.white,
+          ),
+          child: const Text('Save'),
+        ),
+      ],
     );
   }
 }

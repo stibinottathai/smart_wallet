@@ -135,7 +135,7 @@ class _MainNavigationWrapperState extends ConsumerState<MainNavigationWrapper> w
   }
 
   Widget _buildMiniOrb() {
-    final isConfigured = ref.watch(openRouterApiKeyProvider).isNotEmpty;
+    final isConfigured = ref.watch(aiApiKeyProvider).isNotEmpty;
     return Stack(
       alignment: Alignment.center,
       children: [

@@ -65,7 +65,7 @@ ThemeData get appTheme {
       elevation: 0,
       shadowColor: AppColors.shadow,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(20),
       ),
     ),
     floatingActionButtonTheme: const FloatingActionButtonThemeData(

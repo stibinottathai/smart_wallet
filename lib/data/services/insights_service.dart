@@ -1,6 +1,5 @@
 import 'dart:convert';
 import 'dart:io';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../domain/models/models.dart' as domain;
@@ -85,6 +84,8 @@ class InsightsService {
     required List<domain.Expense> expenses,
     required List<domain.Category> categories,
     required String apiKey,
+    required String aiModel,
+    required domain.AiProvider aiProvider,
     String currencySymbol = '\$',
   }) async {
     if (expenses.isEmpty) {
@@ -154,26 +155,38 @@ class InsightsService {
           '  }\n'
           ']';
 
+      final Map<String, String> headers = {
+        'Content-Type': 'application/json',
+      };
+      if (aiProvider == domain.AiProvider.anthropic) {
+        headers['x-api-key'] = apiKey;
+        headers['anthropic-version'] = '2023-06-01';
+      } else {
+        headers['Authorization'] = 'Bearer $apiKey';
+        headers['HTTP-Referer'] = 'https://github.com/stibinottathai/smart_wallet';
+        headers['X-Title'] = 'Smart Wallet';
+      }
+
+      final Map<String, dynamic> payload = {
+        'model': aiModel,
+        'messages': [
+          {
+            'role': 'user',
+            'content': prompt,
+          }
+        ],
+      };
+      
+      if (aiProvider != domain.AiProvider.anthropic) {
+        payload['response_format'] = {'type': 'json_object'};
+      } else {
+        payload['max_tokens'] = 2000;
+      }
+
       final response = await http.post(
-        Uri.parse('https://openrouter.ai/api/v1/chat/completions'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $apiKey',
-          'HTTP-Referer': 'https://github.com/stibinottathai/smart_wallet',
-          'X-Title': 'Smart Wallet',
-        },
-        body: jsonEncode({
-          'model': dotenv.env['OPENROUTER_MODEL'] ?? 'deepseek/deepseek-chat-v3-0324',
-          'messages': [
-            {
-              'role': 'user',
-              'content': prompt,
-            }
-          ],
-          'response_format': {
-            'type': 'json_object',
-          },
-        }),
+        Uri.parse(aiProvider.endpoint),
+        headers: headers,
+        body: jsonEncode(payload),
       );
 
       if (response.statusCode != 200) {
@@ -181,16 +194,27 @@ class InsightsService {
         throw Exception('OpenRouter responded with code ${response.statusCode}: $detail');
       }
 
-      final Map<String, dynamic> body = jsonDecode(response.body);
-      final choices = body['choices'] as List<dynamic>?;
-      if (choices == null || choices.isEmpty) {
-        throw Exception('Empty choices returned from OpenRouter');
+      final Map<String, dynamic> bodyDecoded = jsonDecode(response.body);
+      String? content;
+      
+      if (aiProvider == domain.AiProvider.anthropic) {
+        final contentList = bodyDecoded['content'] as List<dynamic>?;
+        if (contentList != null && contentList.isNotEmpty) {
+          content = contentList[0]['text'] as String?;
+        }
+      } else {
+        final choices = bodyDecoded['choices'] as List<dynamic>?;
+        if (choices != null && choices.isNotEmpty) {
+          content = choices[0]['message']['content'] as String?;
+        }
       }
 
-      final content = choices[0]['message']['content'] as String?;
       if (content == null) {
-        throw Exception('Null content returned from OpenRouter');
+        throw Exception('Null content returned from AI Provider');
       }
+      
+      // Clean up markdown wrapping if present
+      content = content.trim().replaceAll('```json', '').replaceAll('```', '').trim();
 
       final List<dynamic> decoded = jsonDecode(content.trim());
       final list = decoded.map((item) => SpendingInsight.fromJson(item)).toList();
@@ -229,8 +253,18 @@ class InsightsService {
     }
   }
 
-  /// Extracts a user-friendly error detail from a non-200 OpenRouter response.
+  /// Extracts a user-friendly error detail from a non-200 API response.
   String _extractErrorDetail(String body, int statusCode) {
+    if (statusCode == 400) {
+      return 'Bad Request. The selected model might be unavailable or the API key is not properly configured.';
+    } else if (statusCode == 401 || statusCode == 403) {
+      return 'Authentication failed. Please verify your API key in the AI Configuration settings.';
+    } else if (statusCode == 404) {
+      return 'Model not found. The configured model might not exist or may not be available.';
+    } else if (statusCode == 429) {
+      return 'Rate limit exceeded. Please try again later or check your API credits.';
+    }
+
     try {
       final decoded = jsonDecode(body);
       final err = decoded['error'];
@@ -400,6 +434,8 @@ class InsightsService {
     required List<Map<String, String>> chatHistory,
     required String userQuery,
     required String apiKey,
+    required String aiModel,
+    required domain.AiProvider aiProvider,
     List<domain.Bill> bills = const [],
     List<domain.SavingsGoal> goals = const [],
     String currencySymbol = '\$',
@@ -460,26 +496,44 @@ class InsightsService {
     const retryableStatusCodes = {429, 500, 502, 503};
 
     for (int attempt = 0; attempt <= maxRetries; attempt++) {
+      final Map<String, String> headers = {
+        'Content-Type': 'application/json',
+      };
+      if (aiProvider == domain.AiProvider.anthropic) {
+        headers['x-api-key'] = apiKey;
+        headers['anthropic-version'] = '2023-06-01';
+      } else {
+        headers['Authorization'] = 'Bearer $apiKey';
+        headers['HTTP-Referer'] = 'https://github.com/stibinottathai/smart_wallet';
+        headers['X-Title'] = 'Smart Wallet';
+      }
+
       try {
         final request = http.Request(
           'POST',
-          Uri.parse('https://openrouter.ai/api/v1/chat/completions'),
+          Uri.parse(aiProvider.endpoint),
         );
-        request.headers.addAll({
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $apiKey',
-          'HTTP-Referer': 'https://github.com/stibinottathai/smart_wallet',
-          'X-Title': 'Smart Wallet',
-        });
-        request.body = jsonEncode({
-          'model': dotenv.env['OPENROUTER_MODEL'] ?? 'deepseek/deepseek-chat-v3-0324',
+        request.headers.addAll(headers);
+        
+        final Map<String, dynamic> payload = {
+          'model': aiModel,
           'messages': messages,
           'stream': true,
-          'max_tokens': 512,
-          // Route to the fastest available provider for this model — cuts
-          // time-to-first-token and raises tokens/sec without changing output.
-          'provider': {'sort': 'throughput'},
-        });
+        };
+        
+        if (aiProvider == domain.AiProvider.anthropic) {
+          payload['max_tokens'] = 2000;
+          final systemMsgs = messages.where((m) => m['role'] == 'system').toList();
+          if (systemMsgs.isNotEmpty) {
+            payload['system'] = systemMsgs.map((m) => m['content']).join('\n\n');
+            payload['messages'] = messages.where((m) => m['role'] != 'system').toList();
+          }
+        } else {
+          payload['max_tokens'] = 512;
+          payload['provider'] = {'sort': 'throughput'};
+        }
+        
+        request.body = jsonEncode(payload);
 
         final streamedResponse = await _streamClient.send(request);
 
@@ -490,7 +544,7 @@ class InsightsService {
             continue;
           }
           final detail = _extractErrorDetail(body, streamedResponse.statusCode);
-          throw Exception('OpenRouter responded with code ${streamedResponse.statusCode}: $detail');
+          throw Exception('API responded with code ${streamedResponse.statusCode}: $detail');
         }
 
         // Parse SSE stream
@@ -509,12 +563,21 @@ class InsightsService {
 
               try {
                 final json = jsonDecode(data) as Map<String, dynamic>;
-                final choices = json['choices'] as List<dynamic>?;
-                if (choices != null && choices.isNotEmpty) {
-                  final delta = choices[0]['delta'] as Map<String, dynamic>?;
-                  final content = delta?['content'] as String?;
-                  if (content != null && content.isNotEmpty) {
-                    yield content;
+                if (aiProvider == domain.AiProvider.anthropic) {
+                  if (json['type'] == 'content_block_delta') {
+                    final delta = json['delta'];
+                    if (delta != null && delta['text'] != null) {
+                      yield delta['text'] as String;
+                    }
+                  }
+                } else {
+                  final choices = json['choices'] as List<dynamic>?;
+                  if (choices != null && choices.isNotEmpty) {
+                    final delta = choices[0]['delta'] as Map<String, dynamic>?;
+                    final content = delta?['content'] as String?;
+                    if (content != null && content.isNotEmpty) {
+                      yield content;
+                    }
                   }
                 }
               } catch (_) {
@@ -547,6 +610,8 @@ class InsightsService {
     required List<Map<String, String>> chatHistory,
     required String userQuery,
     required String apiKey,
+    required String aiModel,
+    required domain.AiProvider aiProvider,
     String currencySymbol = '\$',
   }) async {
     final buffer = StringBuffer();
@@ -557,6 +622,8 @@ class InsightsService {
       chatHistory: chatHistory,
       userQuery: userQuery,
       apiKey: apiKey,
+      aiModel: aiModel,
+      aiProvider: aiProvider,
       currencySymbol: currencySymbol,
     )) {
       buffer.write(chunk);

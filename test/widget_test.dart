@@ -45,6 +45,8 @@ void main() {
           chatHistory: [],
           userQuery: 'How can I save money?',
           apiKey: '',
+          aiModel: 'test',
+          aiProvider: domain.AiProvider.openRouter,
         ),
         throwsA(isA<ArgumentError>()),
       );

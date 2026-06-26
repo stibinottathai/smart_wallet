@@ -96,12 +96,14 @@ class ScanReceiptNotifier extends StateNotifier<ScanReceiptState> {
   Future<void> _processImage(String path) async {
     state = state.copyWith(state: ScanState.analysis);
     try {
-      final apiKey = _ref.read(openRouterApiKeyProvider);
+      final apiKey = _ref.read(aiApiKeyProvider);
+      final aiModel = _ref.read(aiModelProvider);
+      final aiProvider = _ref.read(aiProviderProvider);
       if (apiKey.isEmpty) {
-        throw Exception('OpenRouter API key is missing. Please set it in Settings.');
+        throw Exception('API key is missing. Please set it in Settings.');
       }
       final categories = _ref.read(allCategoriesProvider).value ?? [];
-      final result = await _service.scanReceipt(imagePath: path, apiKey: apiKey, categories: categories);
+      final result = await _service.scanReceipt(imagePath: path, apiKey: apiKey, aiModel: aiModel, aiProvider: aiProvider, categories: categories);
       if (result == null) {
         throw Exception('Failed to extract information from receipt.');
       }

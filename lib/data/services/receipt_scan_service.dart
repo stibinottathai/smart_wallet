@@ -1,6 +1,5 @@
 import 'dart:convert';
 import 'dart:io';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:http/http.dart' as http;
 import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
 import '../../domain/models/models.dart' as domain;
@@ -106,6 +105,8 @@ class ReceiptScanService {
   Future<ReceiptScanResult?> scanReceipt({
     required String imagePath,
     required String apiKey,
+    required String aiModel,
+    required domain.AiProvider aiProvider,
     required List<domain.Category> categories,
   }) async {
     try {
@@ -201,38 +202,57 @@ $categoryListStr
 OCR TEXT:
 $extractedText''';
 
+      final Map<String, String> headers = {
+        'Content-Type': 'application/json',
+      };
+      if (aiProvider == domain.AiProvider.anthropic) {
+        headers['x-api-key'] = apiKey;
+        headers['anthropic-version'] = '2023-06-01';
+      } else {
+        headers['Authorization'] = 'Bearer $apiKey';
+        headers['HTTP-Referer'] = 'https://github.com/stibinottathai/smart_wallet';
+        headers['X-Title'] = 'Smart Wallet';
+      }
+
+      final Map<String, dynamic> payload = {
+        'model': aiModel,
+        'messages': [
+          {
+            'role': 'user',
+            'content': prompt,
+          }
+        ],
+      };
+      if (aiProvider == domain.AiProvider.anthropic) {
+        payload['max_tokens'] = 1000;
+      }
+
       final response = await http.post(
-        Uri.parse('https://openrouter.ai/api/v1/chat/completions'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $apiKey',
-          'HTTP-Referer': 'https://github.com/stibinottathai/smart_wallet',
-          'X-Title': 'Smart Wallet',
-        },
-        body: jsonEncode({
-          'model': dotenv.env['OPENROUTER_MODEL'] ?? 'deepseek/deepseek-chat-v3-0324',
-          'messages': [
-            {
-              'role': 'user',
-              'content': prompt,
-            }
-          ],
-        }),
+        Uri.parse(aiProvider.endpoint),
+        headers: headers,
+        body: jsonEncode(payload),
       );
 
       if (response.statusCode != 200) {
-        throw Exception('OpenRouter responded with code ${response.statusCode}: ${response.body}');
+        throw Exception('API responded with code ${response.statusCode}: ${response.body}');
       }
 
-      final Map<String, dynamic> body = jsonDecode(response.body);
-      final choices = body['choices'] as List<dynamic>?;
-      if (choices == null || choices.isEmpty) {
-        throw Exception('Empty choices returned from OpenRouter');
+      final Map<String, dynamic> bodyDecoded = jsonDecode(response.body);
+      String? content;
+      if (aiProvider == domain.AiProvider.anthropic) {
+        final contentList = bodyDecoded['content'] as List<dynamic>?;
+        if (contentList != null && contentList.isNotEmpty) {
+          content = contentList[0]['text'] as String?;
+        }
+      } else {
+        final choices = bodyDecoded['choices'] as List<dynamic>?;
+        if (choices != null && choices.isNotEmpty) {
+          content = choices[0]['message']['content'] as String?;
+        }
       }
 
-      var content = choices[0]['message']['content'] as String?;
       if (content == null) {
-        throw Exception('Null content returned from OpenRouter');
+        throw Exception('Null content returned from AI Provider');
       }
 
       content = content.trim();

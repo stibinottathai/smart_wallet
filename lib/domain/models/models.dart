@@ -1,3 +1,5 @@
+export 'ai_provider.dart';
+
 enum IncomeFrequency {
   monthly,
   weekly,
@@ -359,4 +361,3 @@ class FinancialHealthScore {
     return 'Needs Attention';
   }
 }
-

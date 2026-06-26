@@ -1,4 +1,3 @@
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../data/repositories/expense_repository_impl.dart';
 import '../data/repositories/income_repository_impl.dart';
@@ -13,6 +12,7 @@ import '../data/services/notification_service.dart';
 import '../data/services/pdf_report_service.dart';
 import '../data/services/receipt_scan_service.dart';
 import '../data/services/app_lock_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'core/currency_utils.dart';
 import '../domain/models/models.dart' as domain;
 import '../domain/models/proactive_insight.dart';
@@ -126,10 +126,39 @@ final allBillsProvider = StreamProvider<List<domain.Bill>>((ref) {
   return repo.watchAllBills();
 });
 
-// OpenRouter API Key — reads directly from the .env file
-final openRouterApiKeyProvider = Provider<String>((ref) {
-  return dotenv.env['OPENROUTER_API_KEY'] ?? '';
-});
+// AI Settings
+domain.AiProvider _initialAiProvider = domain.AiProvider.openRouter;
+String _initialAiApiKey = '';
+String _initialAiModel = '';
+
+Future<void> loadAiSettingsPref() async {
+  final prefs = await SharedPreferences.getInstance();
+  _initialAiProvider = domain.AiProvider.fromString(prefs.getString('ai_provider') ?? 'openRouter');
+  _initialAiApiKey = prefs.getString('ai_api_key') ?? '';
+  _initialAiModel = prefs.getString('ai_model') ?? '';
+}
+
+Future<void> saveAiProvider(domain.AiProvider provider) async {
+  _initialAiProvider = provider;
+  final prefs = await SharedPreferences.getInstance();
+  await prefs.setString('ai_provider', provider.name);
+}
+
+Future<void> saveAiApiKey(String key) async {
+  _initialAiApiKey = key;
+  final prefs = await SharedPreferences.getInstance();
+  await prefs.setString('ai_api_key', key);
+}
+
+Future<void> saveAiModel(String model) async {
+  _initialAiModel = model;
+  final prefs = await SharedPreferences.getInstance();
+  await prefs.setString('ai_model', model);
+}
+
+final aiProviderProvider = StateProvider<domain.AiProvider>((ref) => _initialAiProvider);
+final aiApiKeyProvider = StateProvider<String>((ref) => _initialAiApiKey);
+final aiModelProvider = StateProvider<String>((ref) => _initialAiModel);
 
 final remindersEnabledProvider = StateProvider<bool>((ref) => true);
 
@@ -195,7 +224,9 @@ final refreshInsightsProvider = FutureProvider.autoDispose<void>((ref) async {
   final categories = ref.read(allCategoriesProvider).value ?? [];
   final bills = ref.read(allBillsProvider).value ?? [];
   final goals = ref.read(allSavingsGoalsProvider).value ?? [];
-  final apiKey = ref.read(openRouterApiKeyProvider);
+  final apiKey = ref.read(aiApiKeyProvider);
+  final aiModel = ref.read(aiModelProvider);
+  final aiProvider = ref.read(aiProviderProvider);
   final code = ref.read(currencyCodeProvider);
   final sym = currencySymbol(code);
 
@@ -206,6 +237,8 @@ final refreshInsightsProvider = FutureProvider.autoDispose<void>((ref) async {
     bills: bills,
     goals: goals,
     apiKey: apiKey,
+    aiModel: aiModel,
+    aiProvider: aiProvider,
     currencySymbol: sym,
     repository: repo,
   );

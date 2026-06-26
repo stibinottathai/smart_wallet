@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:http/http.dart' as http;
 import 'package:uuid/uuid.dart';
 import '../../domain/models/models.dart' as domain;
@@ -324,6 +323,8 @@ class ProactiveInsightService {
     required List<domain.Bill> bills,
     required List<domain.SavingsGoal> goals,
     required String apiKey,
+    required String aiModel,
+    required domain.AiProvider aiProvider,
     required String currencySymbol,
     required ProactiveInsightRepository repository,
   }) async {
@@ -353,6 +354,8 @@ class ProactiveInsightService {
         final insight = await _callLlmForInsight(
           fact: fact,
           apiKey: apiKey,
+          aiModel: aiModel,
+          aiProvider: aiProvider,
           currencySymbol: currencySymbol,
         );
         if (insight != null) {
@@ -369,38 +372,64 @@ class ProactiveInsightService {
   Future<ProactiveInsight?> _callLlmForInsight({
     required Map<String, dynamic> fact,
     required String apiKey,
+    required String aiModel,
+    required domain.AiProvider aiProvider,
     required String currencySymbol,
   }) async {
     final userMessage =
         'Currency symbol: $currencySymbol\n\nInput:\n${jsonEncode(fact)}';
 
+    final Map<String, String> headers = {
+      'Content-Type': 'application/json',
+    };
+    if (aiProvider == domain.AiProvider.anthropic) {
+      headers['x-api-key'] = apiKey;
+      headers['anthropic-version'] = '2023-06-01';
+    } else {
+      headers['Authorization'] = 'Bearer $apiKey';
+      headers['HTTP-Referer'] = 'https://github.com/stibinottathai/smart_wallet';
+      headers['X-Title'] = 'Smart Wallet';
+    }
+
+    final Map<String, dynamic> payload = {
+      'model': aiModel,
+      'messages': [
+        {'role': 'user', 'content': userMessage},
+      ],
+      'max_tokens': 200,
+    };
+    if (aiProvider == domain.AiProvider.anthropic) {
+      payload['system'] = _singleInsightSystemPrompt;
+    } else {
+      payload['messages'].insert(0, {'role': 'system', 'content': _singleInsightSystemPrompt});
+      payload['response_format'] = {'type': 'json_object'};
+    }
+
     final response = await http.post(
-      Uri.parse('https://openrouter.ai/api/v1/chat/completions'),
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer $apiKey',
-        'HTTP-Referer': 'https://github.com/stibinottathai/smart_wallet',
-        'X-Title': 'Smart Wallet',
-      },
-      body: jsonEncode({
-        'model': dotenv.env['OPENROUTER_MODEL'] ?? 'deepseek/deepseek-chat-v3-0324',
-        'messages': [
-          {'role': 'system', 'content': _singleInsightSystemPrompt},
-          {'role': 'user', 'content': userMessage},
-        ],
-        'max_tokens': 200,
-        'response_format': {'type': 'json_object'},
-      }),
+      Uri.parse(aiProvider.endpoint),
+      headers: headers,
+      body: jsonEncode(payload),
     );
 
     if (response.statusCode != 200) return null;
 
     try {
       final body = jsonDecode(response.body) as Map<String, dynamic>;
-      final choices = body['choices'] as List<dynamic>?;
-      if (choices == null || choices.isEmpty) return null;
-      final content = choices[0]['message']['content'] as String?;
+      String? content;
+      if (aiProvider == domain.AiProvider.anthropic) {
+        final contentList = body['content'] as List<dynamic>?;
+        if (contentList != null && contentList.isNotEmpty) {
+          content = contentList[0]['text'] as String?;
+        }
+      } else {
+        final choices = body['choices'] as List<dynamic>?;
+        if (choices != null && choices.isNotEmpty) {
+          content = choices[0]['message']['content'] as String?;
+        }
+      }
+      
       if (content == null) return null;
+      content = content.trim().replaceAll('```json', '').replaceAll('```', '').trim();
 
       final parsed = _extractJson(content);
       if (parsed == null) return null;
@@ -429,6 +458,8 @@ class ProactiveInsightService {
     required String period, // 'daily' | 'weekly' | 'monthly'
     required List<Map<String, dynamic>> facts,
     required String apiKey,
+    required String aiModel,
+    required domain.AiProvider aiProvider,
     required String currencySymbol,
   }) async {
     if (apiKey.trim().isEmpty || facts.isEmpty) return null;
@@ -440,32 +471,56 @@ class ProactiveInsightService {
     });
 
     try {
+      final Map<String, String> headers = {
+        'Content-Type': 'application/json',
+      };
+      if (aiProvider == domain.AiProvider.anthropic) {
+        headers['x-api-key'] = apiKey;
+        headers['anthropic-version'] = '2023-06-01';
+      } else {
+        headers['Authorization'] = 'Bearer $apiKey';
+        headers['HTTP-Referer'] = 'https://github.com/stibinottathai/smart_wallet';
+        headers['X-Title'] = 'Smart Wallet';
+      }
+
+      final Map<String, dynamic> payload = {
+        'model': aiModel,
+        'messages': [
+          {'role': 'user', 'content': userMessage},
+        ],
+        'max_tokens': 250,
+      };
+      if (aiProvider == domain.AiProvider.anthropic) {
+        payload['system'] = _digestSystemPrompt;
+      } else {
+        payload['messages'].insert(0, {'role': 'system', 'content': _digestSystemPrompt});
+        payload['response_format'] = {'type': 'json_object'};
+      }
+
       final response = await http.post(
-        Uri.parse('https://openrouter.ai/api/v1/chat/completions'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $apiKey',
-          'HTTP-Referer': 'https://github.com/stibinottathai/smart_wallet',
-          'X-Title': 'Smart Wallet',
-        },
-        body: jsonEncode({
-          'model': dotenv.env['OPENROUTER_MODEL'] ?? 'deepseek/deepseek-chat-v3-0324',
-          'messages': [
-            {'role': 'system', 'content': _digestSystemPrompt},
-            {'role': 'user', 'content': userMessage},
-          ],
-          'max_tokens': 250,
-          'response_format': {'type': 'json_object'},
-        }),
+        Uri.parse(aiProvider.endpoint),
+        headers: headers,
+        body: jsonEncode(payload),
       );
 
       if (response.statusCode != 200) return null;
 
       final body = jsonDecode(response.body) as Map<String, dynamic>;
-      final choices = body['choices'] as List<dynamic>?;
-      if (choices == null || choices.isEmpty) return null;
-      final content = choices[0]['message']['content'] as String?;
+      String? content;
+      if (aiProvider == domain.AiProvider.anthropic) {
+        final contentList = body['content'] as List<dynamic>?;
+        if (contentList != null && contentList.isNotEmpty) {
+          content = contentList[0]['text'] as String?;
+        }
+      } else {
+        final choices = body['choices'] as List<dynamic>?;
+        if (choices != null && choices.isNotEmpty) {
+          content = choices[0]['message']['content'] as String?;
+        }
+      }
+      
       if (content == null) return null;
+      content = content.trim().replaceAll('```json', '').replaceAll('```', '').trim();
 
       final parsed = _extractJson(content);
       if (parsed == null) return null;

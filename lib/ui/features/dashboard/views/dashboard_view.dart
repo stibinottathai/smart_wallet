@@ -178,28 +178,28 @@ class _DashboardViewState extends ConsumerState<DashboardView> with SingleTicker
     }
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+      padding: const EdgeInsets.fromLTRB(20, 4, 20, 8),
       child: Container(
         decoration: BoxDecoration(
           gradient: const LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
             colors: [
+              Color(0xFF2F6F5E),
               Color(0xFF1E463C),
-              AppColors.primary,
             ],
           ),
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(26),
           boxShadow: [
             BoxShadow(
-              color: AppColors.primary.withValues(alpha: 0.15),
-              blurRadius: 16,
-              offset: const Offset(0, 8),
+              color: AppColors.primary.withValues(alpha: 0.22),
+              blurRadius: 24,
+              offset: const Offset(0, 12),
             ),
           ],
         ),
         child: Padding(
-          padding: const EdgeInsets.all(22),
+          padding: const EdgeInsets.all(24),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -268,17 +268,17 @@ class _DashboardViewState extends ConsumerState<DashboardView> with SingleTicker
                   ),
                 ],
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 18),
               Text(
                 '$symbol${balance.toStringAsFixed(2)}',
                 style: GoogleFonts.inter(
-                  fontSize: 34,
-                  fontWeight: FontWeight.w700,
+                  fontSize: 40,
+                  fontWeight: FontWeight.w800,
                   color: Colors.white,
-                  letterSpacing: -0.5,
+                  letterSpacing: -1.0,
                 ),
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 26),
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -336,16 +336,18 @@ class _DashboardViewState extends ConsumerState<DashboardView> with SingleTicker
               label: 'Income',
               amount: income,
               color: AppColors.primary,
+              icon: Icons.south_west_rounded,
               prefix: '+',
               symbol: symbol,
             ),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 14),
           Expanded(
             child: _SummaryCard(
               label: 'Expenses',
               amount: expense,
               color: AppColors.secondary,
+              icon: Icons.north_east_rounded,
               prefix: '-',
               symbol: symbol,
             ),
@@ -369,15 +371,8 @@ class _DashboardViewState extends ConsumerState<DashboardView> with SingleTicker
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                'Spending Breakdown',
-                style: GoogleFonts.inter(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.text,
-                ),
-              ),
-              const SizedBox(height: 16),
+              _sectionHeader('Spending Breakdown'),
+              const SizedBox(height: 18),
               Row(
                 children: [
                   SizedBox(
@@ -470,13 +465,15 @@ class _DashboardViewState extends ConsumerState<DashboardView> with SingleTicker
     final symbol = currencySymbol(code);
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.only(bottom: 24),
+      padding: const EdgeInsets.only(bottom: 32),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          RepaintBoundary(child: _buildGreetingHeader()),
           RepaintBoundary(child: _buildHeader(netBalance, spentPercent, totalIncome, totalExpense, symbol)),
-          const SizedBox(height: 8),
+          const SizedBox(height: 4),
           RepaintBoundary(child: _buildSummaryRow(totalIncome, totalExpense, symbol)),
+          const SizedBox(height: 4),
           RepaintBoundary(child: _buildAiAssistantCard()),
           RepaintBoundary(child: _buildProactiveInsightsSection()),
           RepaintBoundary(child: _buildWeeklyTrendSection(expenses, symbol)),
@@ -490,39 +487,128 @@ class _DashboardViewState extends ConsumerState<DashboardView> with SingleTicker
     );
   }
 
+  /// Friendly time-aware greeting with the current date and a quick shortcut
+  /// to settings — gives the dashboard a calmer, more personal entry point.
+  Widget _buildGreetingHeader() {
+    final now = DateTime.now();
+    final hour = now.hour;
+    final greeting = hour < 12
+        ? 'Good morning'
+        : hour < 17
+            ? 'Good afternoon'
+            : 'Good evening';
+    final dateStr = DateFormat('EEEE, MMM d').format(now);
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 12, 20, 10),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  greeting,
+                  style: GoogleFonts.inter(
+                    fontSize: 22,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.text,
+                    letterSpacing: -0.4,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  dateStr,
+                  style: GoogleFonts.inter(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w500,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          GestureDetector(
+            onTap: () => ref.read(activeTabIndexProvider.notifier).state = 4,
+            child: Container(
+              width: 42,
+              height: 42,
+              decoration: BoxDecoration(
+                color: AppColors.card,
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: AppColors.shadow,
+                    blurRadius: 12,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: const Icon(Icons.tune_rounded, color: AppColors.primary, size: 20),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Consistent section header used across the dashboard for a clean,
+  /// scannable rhythm — bold title, optional subtitle, optional trailing action.
+  Widget _sectionHeader(String title, {String? subtitle, Widget? action}) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: GoogleFonts.inter(
+                  fontSize: 16.5,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.text,
+                  letterSpacing: -0.3,
+                ),
+              ),
+              if (subtitle != null) ...[
+                const SizedBox(height: 2),
+                Text(
+                  subtitle,
+                  style: GoogleFonts.inter(
+                    fontSize: 11.5,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+        if (action != null) action,
+      ],
+    );
+  }
+
   Widget _buildSavingsGoalsSection(List<domain.SavingsGoal> goals, String symbol) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'Savings Goals',
-                style: GoogleFonts.inter(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.text,
-                ),
-              ),
-              IconButton(
-                icon: const Icon(Icons.add_circle_outline_rounded, size: 20, color: AppColors.primary),
-                onPressed: () {
-                  showModalBottomSheet(
-                    context: context,
-                    isScrollControlled: true,
-                    backgroundColor: Colors.transparent,
-                    builder: (context) => const GoalFormDialog(),
-                  );
-                },
-                constraints: const BoxConstraints(),
-                padding: EdgeInsets.zero,
-              ),
-            ],
+          _sectionHeader(
+            'Savings Goals',
+            action: _AddIconButton(
+              onTap: () {
+                showModalBottomSheet(
+                  context: context,
+                  isScrollControlled: true,
+                  backgroundColor: Colors.transparent,
+                  builder: (context) => const GoalFormDialog(),
+                );
+              },
+            ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 14),
           if (goals.isEmpty)
             Card(
               margin: EdgeInsets.zero,
@@ -674,33 +760,20 @@ class _DashboardViewState extends ConsumerState<DashboardView> with SingleTicker
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'Upcoming Bills & Subs',
-                style: GoogleFonts.inter(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.text,
-                ),
-              ),
-              IconButton(
-                icon: const Icon(Icons.add_circle_outline_rounded, size: 20, color: AppColors.primary),
-                onPressed: () {
-                  showModalBottomSheet(
-                    context: context,
-                    isScrollControlled: true,
-                    backgroundColor: Colors.transparent,
-                    builder: (context) => const BillFormDialog(),
-                  );
-                },
-                constraints: const BoxConstraints(),
-                padding: EdgeInsets.zero,
-              ),
-            ],
+          _sectionHeader(
+            'Upcoming Bills & Subs',
+            action: _AddIconButton(
+              onTap: () {
+                showModalBottomSheet(
+                  context: context,
+                  isScrollControlled: true,
+                  backgroundColor: Colors.transparent,
+                  builder: (context) => const BillFormDialog(),
+                );
+              },
+            ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 14),
           if (upcoming.isEmpty)
             Card(
               margin: EdgeInsets.zero,
@@ -1112,24 +1185,14 @@ class _DashboardViewState extends ConsumerState<DashboardView> with SingleTicker
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'Monthly Budget Limits',
-                      style: GoogleFonts.inter(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.text,
-                      ),
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.edit_rounded, size: 20, color: AppColors.primary),
-                      onPressed: () => _showManageBudgetsDialog(context, categories),
-                    ),
-                  ],
+                _sectionHeader(
+                  'Monthly Budget Limits',
+                  action: _AddIconButton(
+                    icon: Icons.edit_rounded,
+                    onTap: () => _showManageBudgetsDialog(context, categories),
+                  ),
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 14),
                 Row(
                   children: [
                     Container(
@@ -1190,35 +1253,13 @@ class _DashboardViewState extends ConsumerState<DashboardView> with SingleTicker
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Monthly Budget Limits',
-                        style: GoogleFonts.inter(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.text,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        'Spending progress against category caps',
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: AppColors.textSecondary,
-                        ),
-                      ),
-                    ],
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.edit_rounded, size: 20, color: AppColors.primary),
-                    onPressed: () => _showManageBudgetsDialog(context, categories),
-                  ),
-                ],
+              _sectionHeader(
+                'Monthly Budget Limits',
+                subtitle: 'Spending progress against category caps',
+                action: _AddIconButton(
+                  icon: Icons.edit_rounded,
+                  onTap: () => _showManageBudgetsDialog(context, categories),
+                ),
               ),
               const SizedBox(height: 20),
               ...items.map((item) {
@@ -1317,21 +1358,9 @@ class _DashboardViewState extends ConsumerState<DashboardView> with SingleTicker
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
+              _sectionHeader(
                 'Weekly Spending Trend',
-                style: GoogleFonts.inter(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.text,
-                ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                'Daily expenses over the last 7 days',
-                style: TextStyle(
-                  fontSize: 11,
-                  color: AppColors.textSecondary,
-                ),
+                subtitle: 'Daily expenses over the last 7 days',
               ),
               const SizedBox(height: 24),
               SizedBox(
@@ -1420,7 +1449,7 @@ class _DashboardViewState extends ConsumerState<DashboardView> with SingleTicker
   }
 
   Widget _buildAiAssistantCard() {
-    final apiKey = ref.watch(openRouterApiKeyProvider);
+    final apiKey = ref.watch(aiApiKeyProvider);
     final isConfigured = apiKey.isNotEmpty;
 
     return Padding(
@@ -1578,27 +1607,25 @@ class _DashboardViewState extends ConsumerState<DashboardView> with SingleTicker
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'Smart Alerts',
-                    style: GoogleFonts.inter(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.text,
-                    ),
+              _sectionHeader(
+                'Smart Alerts',
+                action: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(20),
                   ),
-                  Text(
+                  child: Text(
                     '${insights.length} active',
-                    style: const TextStyle(
+                    style: GoogleFonts.inter(
                       fontSize: 11,
-                      color: AppColors.textSecondary,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.primary,
                     ),
                   ),
-                ],
+                ),
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 12),
               ...insights.map((insight) {
                 return _ProactiveInsightCard(
                   key: ValueKey(insight.id),
@@ -1621,10 +1648,38 @@ class _DashboardViewState extends ConsumerState<DashboardView> with SingleTicker
   }
 }
 
+/// Compact rounded icon action used in section headers (add / edit).
+class _AddIconButton extends StatelessWidget {
+  final VoidCallback onTap;
+  final IconData icon;
+
+  const _AddIconButton({
+    required this.onTap,
+    this.icon = Icons.add_rounded,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: AppColors.primary.withValues(alpha: 0.1),
+      shape: const CircleBorder(),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(7),
+          child: Icon(icon, size: 20, color: AppColors.primary),
+        ),
+      ),
+    );
+  }
+}
+
 class _SummaryCard extends StatelessWidget {
   final String label;
   final double amount;
   final Color color;
+  final IconData icon;
   final String prefix;
   final String symbol;
 
@@ -1632,35 +1687,64 @@ class _SummaryCard extends StatelessWidget {
     required this.label,
     required this.amount,
     required this.color,
+    required this.icon,
     required this.prefix,
     required this.symbol,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      margin: EdgeInsets.zero,
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.card,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.shadow,
+            blurRadius: 14,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 12,
-                color: AppColors.text.withValues(alpha: 0.5),
-                fontWeight: FontWeight.w500,
-              ),
+            Row(
+              children: [
+                Container(
+                  width: 30,
+                  height: 30,
+                  decoration: BoxDecoration(
+                    color: color.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(9),
+                  ),
+                  child: Icon(icon, size: 16, color: color),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  label,
+                  style: GoogleFonts.inter(
+                    fontSize: 12.5,
+                    color: AppColors.textSecondary,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(height: 6),
-            Text(
-              '$prefix$symbol${amount.toStringAsFixed(2)}',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w700,
-                color: color,
-                letterSpacing: -0.3,
+            const SizedBox(height: 12),
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.centerLeft,
+              child: Text(
+                '$prefix$symbol${amount.toStringAsFixed(2)}',
+                style: GoogleFonts.inter(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w800,
+                  color: color,
+                  letterSpacing: -0.5,
+                ),
               ),
             ),
           ],
