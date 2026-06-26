@@ -127,15 +127,20 @@ final allBillsProvider = StreamProvider<List<domain.Bill>>((ref) {
 });
 
 // AI Settings
+// Default to OpenRouter + DeepSeek so the app is usable out of the box (and the
+// config dialog shows DeepSeek selected rather than "Other (Custom)").
+const _defaultAiModel = 'deepseek/deepseek-chat';
 domain.AiProvider _initialAiProvider = domain.AiProvider.openRouter;
 String _initialAiApiKey = '';
-String _initialAiModel = '';
+String _initialAiModel = _defaultAiModel;
 
 Future<void> loadAiSettingsPref() async {
   final prefs = await SharedPreferences.getInstance();
   _initialAiProvider = domain.AiProvider.fromString(prefs.getString('ai_provider') ?? 'openRouter');
   _initialAiApiKey = prefs.getString('ai_api_key') ?? '';
-  _initialAiModel = prefs.getString('ai_model') ?? '';
+  final savedModel = prefs.getString('ai_model');
+  _initialAiModel =
+      (savedModel == null || savedModel.isEmpty) ? _defaultAiModel : savedModel;
 }
 
 Future<void> saveAiProvider(domain.AiProvider provider) async {

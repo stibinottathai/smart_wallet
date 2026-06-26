@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:smart_wallet/ui/core/theme.dart';
+import 'package:smart_wallet/data/services/notification_service.dart';
 import 'package:smart_wallet/ui/features/lock/views/app_lock_gate.dart';
 
 /// Total time the splash is on screen before navigating away.
@@ -52,6 +53,13 @@ class _SplashScreenState extends State<SplashScreen>
     _float4 = CurvedAnimation(parent: _ambient, curve: const _SawTooth(0.75));
 
     _ripple = CurvedAnimation(parent: _ambient, curve: Curves.linear);
+
+    // Set up notifications (and request permissions) only after the first frame,
+    // so the system permission dialog appears over the visible splash rather
+    // than a black screen on first launch.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      NotificationService().initialize();
+    });
 
     _navigateToMain();
   }

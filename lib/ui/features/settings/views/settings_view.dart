@@ -1170,6 +1170,11 @@ class _AiSettingsDialogState extends ConsumerState<_AiSettingsDialog> {
     final currentModel = ref.read(aiModelProvider);
     if (_selectedProvider.commonModels.contains(currentModel)) {
       _selectedModel = currentModel;
+    } else if (currentModel.isEmpty &&
+        _selectedProvider.commonModels.isNotEmpty) {
+      // Nothing configured yet — default to the provider's first common model
+      // (DeepSeek for OpenRouter) rather than the custom option.
+      _selectedModel = _selectedProvider.commonModels.first;
     } else {
       _selectedModel = 'Other (Custom)';
       _isCustomModel = true;
