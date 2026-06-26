@@ -208,33 +208,57 @@ $extractedText''';
       if (aiProvider == domain.AiProvider.anthropic) {
         headers['x-api-key'] = apiKey;
         headers['anthropic-version'] = '2023-06-01';
+      } else if (aiProvider == domain.AiProvider.gemini) {
+        headers['x-goog-api-key'] = apiKey;
       } else {
         headers['Authorization'] = 'Bearer $apiKey';
         headers['HTTP-Referer'] = 'https://github.com/stibinottathai/smart_wallet';
         headers['X-Title'] = 'Smart Wallet';
       }
 
-      final Map<String, dynamic> payload = {
-        'model': aiModel,
-        'messages': [
-          {
-            'role': 'user',
-            'content': prompt,
+      final Map<String, dynamic> payload;
+      String endpointUrl = aiProvider.endpoint;
+      
+      if (aiProvider == domain.AiProvider.gemini) {
+        endpointUrl = '$endpointUrl/$aiModel:generateContent';
+        payload = {
+          'contents': [
+            {
+              'parts': [
+                {'text': prompt}
+              ]
+            }
+          ],
+          'generationConfig': {
+            'responseMimeType': 'application/json',
           }
-        ],
-      };
-      if (aiProvider == domain.AiProvider.anthropic) {
-        payload['max_tokens'] = 1000;
+        };
+      } else {
+        payload = {
+          'model': aiModel,
+          'messages': [
+            {
+              'role': 'user',
+              'content': prompt,
+            }
+          ],
+        };
+        if (aiProvider == domain.AiProvider.anthropic) {
+          payload['max_tokens'] = 1000;
+        } else {
+          payload['response_format'] = {'type': 'json_object'};
+        }
       }
 
       final response = await http.post(
-        Uri.parse(aiProvider.endpoint),
+        Uri.parse(endpointUrl),
         headers: headers,
         body: jsonEncode(payload),
       );
 
       if (response.statusCode != 200) {
-        throw Exception('API responded with code ${response.statusCode}: ${response.body}');
+        final detail = _extractErrorDetail(response.body, response.statusCode);
+        throw Exception('API responded with code ${response.statusCode}: $detail');
       }
 
       final Map<String, dynamic> bodyDecoded = jsonDecode(response.body);
@@ -243,6 +267,14 @@ $extractedText''';
         final contentList = bodyDecoded['content'] as List<dynamic>?;
         if (contentList != null && contentList.isNotEmpty) {
           content = contentList[0]['text'] as String?;
+        }
+      } else if (aiProvider == domain.AiProvider.gemini) {
+        final candidates = bodyDecoded['candidates'] as List<dynamic>?;
+        if (candidates != null && candidates.isNotEmpty) {
+          final parts = candidates[0]['content']?['parts'] as List<dynamic>?;
+          if (parts != null && parts.isNotEmpty) {
+            content = parts[0]['text'] as String?;
+          }
         }
       } else {
         final choices = bodyDecoded['choices'] as List<dynamic>?;
@@ -279,12 +311,33 @@ $extractedText''';
     }
     // Fallback: search for names
     final lowerGuess = guess.toLowerCase();
-    for (final c in categories) {
-      if (c.name.toLowerCase().contains(lowerGuess) || lowerGuess.contains(c.name.toLowerCase())) {
-        return c.id;
-      }
+    try {
+      final cat = categories.firstWhere((c) => c.name.toLowerCase() == lowerGuess);
+      return cat.id;
+    } catch (_) {
+      return categories.first.id;
     }
-    // Final fallback
-    return categories.isNotEmpty ? categories.first.id : 'cat_uncategorized';
+  }
+
+  String _extractErrorDetail(String body, int statusCode) {
+    if (statusCode == 400) {
+      return 'Bad Request. The selected model might be unavailable or the API key is not properly configured.';
+    } else if (statusCode == 401 || statusCode == 403) {
+      return 'Authentication failed. Please verify your API key in the AI Configuration settings.';
+    } else if (statusCode == 404) {
+      return 'Model not found. The configured model might not exist or may not be available.';
+    } else if (statusCode == 429) {
+      return 'Rate limit exceeded. Please try again later or check your API credits.';
+    }
+
+    try {
+      final decoded = jsonDecode(body);
+      final err = decoded['error'];
+      if (err is Map) {
+        final message = err['message'] ?? err['code'] ?? body;
+        return message.toString();
+      }
+    } catch (_) {}
+    return body.length > 200 ? 'HTTP $statusCode (see logs)' : body;
   }
 }

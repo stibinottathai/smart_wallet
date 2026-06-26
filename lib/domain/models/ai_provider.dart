@@ -7,7 +7,7 @@ enum AiProvider {
     'gpt-4o',
     'gpt-4o-mini',
   ]),
-  gemini('Google Gemini', 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions', [
+  gemini('Google Gemini', 'https://generativelanguage.googleapis.com/v1beta/models', [
     'gemini-1.5-pro',
     'gemini-1.5-flash',
     'gemini-2.0-flash',

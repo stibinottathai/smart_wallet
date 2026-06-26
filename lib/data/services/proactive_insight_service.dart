@@ -385,28 +385,55 @@ class ProactiveInsightService {
     if (aiProvider == domain.AiProvider.anthropic) {
       headers['x-api-key'] = apiKey;
       headers['anthropic-version'] = '2023-06-01';
+    } else if (aiProvider == domain.AiProvider.gemini) {
+      headers['x-goog-api-key'] = apiKey;
     } else {
       headers['Authorization'] = 'Bearer $apiKey';
       headers['HTTP-Referer'] = 'https://github.com/stibinottathai/smart_wallet';
       headers['X-Title'] = 'Smart Wallet';
     }
 
-    final Map<String, dynamic> payload = {
-      'model': aiModel,
-      'messages': [
-        {'role': 'user', 'content': userMessage},
-      ],
-      'max_tokens': 200,
-    };
-    if (aiProvider == domain.AiProvider.anthropic) {
-      payload['system'] = _singleInsightSystemPrompt;
+    final Map<String, dynamic> payload;
+    String endpointUrl = aiProvider.endpoint;
+    
+    if (aiProvider == domain.AiProvider.gemini) {
+      endpointUrl = '$endpointUrl/$aiModel:generateContent';
+      payload = {
+        'contents': [
+          {
+            'parts': [
+              {'text': userMessage}
+            ]
+          }
+        ],
+        'systemInstruction': {
+          'parts': [
+            {'text': _singleInsightSystemPrompt}
+          ]
+        },
+        'generationConfig': {
+          'responseMimeType': 'application/json',
+          'maxOutputTokens': 200,
+        }
+      };
     } else {
-      payload['messages'].insert(0, {'role': 'system', 'content': _singleInsightSystemPrompt});
-      payload['response_format'] = {'type': 'json_object'};
+      payload = {
+        'model': aiModel,
+        'messages': [
+          {'role': 'user', 'content': userMessage},
+        ],
+        'max_tokens': 200,
+      };
+      if (aiProvider == domain.AiProvider.anthropic) {
+        payload['system'] = _singleInsightSystemPrompt;
+      } else {
+        payload['messages'].insert(0, {'role': 'system', 'content': _singleInsightSystemPrompt});
+        payload['response_format'] = {'type': 'json_object'};
+      }
     }
 
     final response = await http.post(
-      Uri.parse(aiProvider.endpoint),
+      Uri.parse(endpointUrl),
       headers: headers,
       body: jsonEncode(payload),
     );
@@ -420,6 +447,14 @@ class ProactiveInsightService {
         final contentList = body['content'] as List<dynamic>?;
         if (contentList != null && contentList.isNotEmpty) {
           content = contentList[0]['text'] as String?;
+        }
+      } else if (aiProvider == domain.AiProvider.gemini) {
+        final candidates = body['candidates'] as List<dynamic>?;
+        if (candidates != null && candidates.isNotEmpty) {
+          final parts = candidates[0]['content']?['parts'] as List<dynamic>?;
+          if (parts != null && parts.isNotEmpty) {
+            content = parts[0]['text'] as String?;
+          }
         }
       } else {
         final choices = body['choices'] as List<dynamic>?;
@@ -477,28 +512,55 @@ class ProactiveInsightService {
       if (aiProvider == domain.AiProvider.anthropic) {
         headers['x-api-key'] = apiKey;
         headers['anthropic-version'] = '2023-06-01';
+      } else if (aiProvider == domain.AiProvider.gemini) {
+        headers['x-goog-api-key'] = apiKey;
       } else {
         headers['Authorization'] = 'Bearer $apiKey';
         headers['HTTP-Referer'] = 'https://github.com/stibinottathai/smart_wallet';
         headers['X-Title'] = 'Smart Wallet';
       }
 
-      final Map<String, dynamic> payload = {
-        'model': aiModel,
-        'messages': [
-          {'role': 'user', 'content': userMessage},
-        ],
-        'max_tokens': 250,
-      };
-      if (aiProvider == domain.AiProvider.anthropic) {
-        payload['system'] = _digestSystemPrompt;
+      final Map<String, dynamic> payload;
+      String endpointUrl = aiProvider.endpoint;
+      
+      if (aiProvider == domain.AiProvider.gemini) {
+        endpointUrl = '$endpointUrl/$aiModel:generateContent';
+        payload = {
+          'contents': [
+            {
+              'parts': [
+                {'text': userMessage}
+              ]
+            }
+          ],
+          'systemInstruction': {
+            'parts': [
+              {'text': _digestSystemPrompt}
+            ]
+          },
+          'generationConfig': {
+            'responseMimeType': 'application/json',
+            'maxOutputTokens': 250,
+          }
+        };
       } else {
-        payload['messages'].insert(0, {'role': 'system', 'content': _digestSystemPrompt});
-        payload['response_format'] = {'type': 'json_object'};
+        payload = {
+          'model': aiModel,
+          'messages': [
+            {'role': 'user', 'content': userMessage},
+          ],
+          'max_tokens': 250,
+        };
+        if (aiProvider == domain.AiProvider.anthropic) {
+          payload['system'] = _digestSystemPrompt;
+        } else {
+          payload['messages'].insert(0, {'role': 'system', 'content': _digestSystemPrompt});
+          payload['response_format'] = {'type': 'json_object'};
+        }
       }
 
       final response = await http.post(
-        Uri.parse(aiProvider.endpoint),
+        Uri.parse(endpointUrl),
         headers: headers,
         body: jsonEncode(payload),
       );
@@ -511,6 +573,14 @@ class ProactiveInsightService {
         final contentList = body['content'] as List<dynamic>?;
         if (contentList != null && contentList.isNotEmpty) {
           content = contentList[0]['text'] as String?;
+        }
+      } else if (aiProvider == domain.AiProvider.gemini) {
+        final candidates = body['candidates'] as List<dynamic>?;
+        if (candidates != null && candidates.isNotEmpty) {
+          final parts = candidates[0]['content']?['parts'] as List<dynamic>?;
+          if (parts != null && parts.isNotEmpty) {
+            content = parts[0]['text'] as String?;
+          }
         }
       } else {
         final choices = body['choices'] as List<dynamic>?;

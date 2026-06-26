@@ -251,7 +251,7 @@ class _ScanReceiptViewState extends ConsumerState<ScanReceiptView> {
 
     if (state.state == ScanState.error) {
       return Center(
-        child: Padding(
+        child: SingleChildScrollView(
           padding: const EdgeInsets.all(24.0),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
