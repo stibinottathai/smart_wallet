@@ -7,11 +7,7 @@ enum AiProvider {
     'gpt-4o',
     'gpt-4o-mini',
   ]),
-  gemini('Google Gemini', 'https://generativelanguage.googleapis.com/v1beta/models', [
-    'gemini-1.5-pro',
-    'gemini-1.5-flash',
-    'gemini-2.0-flash',
-  ]),
+
   anthropic('Anthropic', 'https://api.anthropic.com/v1/messages', [
     'claude-3-5-sonnet-20240620',
     'claude-3-opus-20240229',

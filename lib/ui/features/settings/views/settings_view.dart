@@ -460,7 +460,7 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
                         ),
                         const SizedBox(height: 2),
                         Text(
-                          'An 8:00 AM summary of your finances with a personalised savings tip based on your data',
+                          'A 6:25 PM summary of your finances with a personalised savings tip based on your data',
                           style: const TextStyle(
                             fontSize: 12,
                             color: AppColors.textSecondary,
@@ -705,15 +705,7 @@ class _AiSettingsSectionState extends ConsumerState<_AiSettingsSection> {
                 style: TextStyle(fontSize: 14),
               ),
               SizedBox(height: 16),
-              Text('1. Google Gemini (Recommended - Free for limited usage)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-              Text(
-                '• Go to aistudio.google.com and sign in.\n'
-                '• Click "Get API key" and create one.\n'
-                '• Copy the key and paste it here.',
-                style: TextStyle(fontSize: 13, height: 1.5),
-              ),
-              SizedBox(height: 16),
-              Text('2. OpenRouter (Recommended - Free models available)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+              Text('1. OpenRouter (Recommended - Free models available)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
               Text(
                 '• Go to openrouter.ai and sign up.\n'
                 '• Navigate to "Keys" and click "Create Key".\n'
@@ -721,14 +713,14 @@ class _AiSettingsSectionState extends ConsumerState<_AiSettingsSection> {
                 style: TextStyle(fontSize: 13, height: 1.5),
               ),
               SizedBox(height: 16),
-              Text('3. Anthropic', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+              Text('2. Anthropic', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
               Text(
                 '• Go to console.anthropic.com and sign up.\n'
                 '• Navigate to Settings > API Keys and create a new key.',
                 style: TextStyle(fontSize: 13, height: 1.5),
               ),
               SizedBox(height: 16),
-              Text('4. OpenAI', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+              Text('3. OpenAI', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
               Text(
                 '• Go to platform.openai.com and sign up.\n'
                 '• Navigate to API Keys in the dashboard and create a new secret key.',

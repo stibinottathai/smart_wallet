@@ -27,9 +27,10 @@ class NotificationService {
   // Budget alerts: 4 fixed slots per day.
   static const _budgetBaseId = 1200; // 1200..1203
   static const _budgetHours = [9, 13, 17, 21]; // 9AM, 1PM, 5PM, 9PM
-  // Daily insight / savings tip: one repeating notification each morning.
+  // Daily insight / savings tip: one repeating notification each day.
   static const _tipBaseId = 1300;
-  static const _tipHour = 8; // 8 AM daily (ahead of budget alerts at 9 AM)
+  static const _tipHour = 18; // 6:25 PM daily
+  static const _tipMinute = 25;
   static const _testId = 9999;
 
   Future<void> initialize() async {
@@ -198,8 +199,8 @@ class NotificationService {
     }
   }
 
-  /// (Re)schedules a single daily insight notification at [_tipHour] that
-  /// repeats every morning, carrying a status summary + savings tip derived
+  /// (Re)schedules a single daily insight notification at [_tipHour]:[_tipMinute]
+  /// that repeats every day, carrying a status summary + savings tip derived
   /// from the user's data. Pass null [title]/[body] to clear it.
   ///
   /// The message is computed at schedule time, so callers should re-invoke this
@@ -211,7 +212,8 @@ class NotificationService {
     if (title == null || body == null) return;
 
     final now = tz.TZDateTime.now(tz.local);
-    var fire = tz.TZDateTime(tz.local, now.year, now.month, now.day, _tipHour);
+    var fire = tz.TZDateTime(
+        tz.local, now.year, now.month, now.day, _tipHour, _tipMinute);
     if (!fire.isAfter(now)) fire = fire.add(const Duration(days: 1));
     await _plugin.zonedSchedule(
       _tipBaseId,

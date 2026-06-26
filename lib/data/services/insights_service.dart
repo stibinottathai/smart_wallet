@@ -161,50 +161,30 @@ class InsightsService {
       if (aiProvider == domain.AiProvider.anthropic) {
         headers['x-api-key'] = apiKey;
         headers['anthropic-version'] = '2023-06-01';
-      } else if (aiProvider == domain.AiProvider.gemini) {
-        headers['x-goog-api-key'] = apiKey;
       } else {
         headers['Authorization'] = 'Bearer $apiKey';
         headers['HTTP-Referer'] = 'https://github.com/stibinottathai/smart_wallet';
         headers['X-Title'] = 'Smart Wallet';
       }
 
-      final Map<String, dynamic> payload;
-      String endpointUrl = aiProvider.endpoint;
-      
-      if (aiProvider == domain.AiProvider.gemini) {
-        endpointUrl = '$endpointUrl/$aiModel:generateContent';
-        payload = {
-          'contents': [
-            {
-              'parts': [
-                {'text': prompt}
-              ]
-            }
-          ],
-          'generationConfig': {
-            'responseMimeType': 'application/json',
+      final Map<String, dynamic> payload = {
+        'model': aiModel,
+        'messages': [
+          {
+            'role': 'user',
+            'content': prompt,
           }
-        };
+        ],
+      };
+      
+      if (aiProvider != domain.AiProvider.anthropic) {
+        payload['response_format'] = {'type': 'json_object'};
       } else {
-        payload = {
-          'model': aiModel,
-          'messages': [
-            {
-              'role': 'user',
-              'content': prompt,
-            }
-          ],
-        };
-        if (aiProvider != domain.AiProvider.anthropic) {
-          payload['response_format'] = {'type': 'json_object'};
-        } else {
-          payload['max_tokens'] = 2000;
-        }
+        payload['max_tokens'] = 2000;
       }
 
       final response = await http.post(
-        Uri.parse(endpointUrl),
+        Uri.parse(aiProvider.endpoint),
         headers: headers,
         body: jsonEncode(payload),
       );
@@ -221,14 +201,6 @@ class InsightsService {
         final contentList = bodyDecoded['content'] as List<dynamic>?;
         if (contentList != null && contentList.isNotEmpty) {
           content = contentList[0]['text'] as String?;
-        }
-      } else if (aiProvider == domain.AiProvider.gemini) {
-        final candidates = bodyDecoded['candidates'] as List<dynamic>?;
-        if (candidates != null && candidates.isNotEmpty) {
-          final parts = candidates[0]['content']?['parts'] as List<dynamic>?;
-          if (parts != null && parts.isNotEmpty) {
-            content = parts[0]['text'] as String?;
-          }
         }
       } else {
         final choices = bodyDecoded['choices'] as List<dynamic>?;
@@ -530,8 +502,6 @@ class InsightsService {
       if (aiProvider == domain.AiProvider.anthropic) {
         headers['x-api-key'] = apiKey;
         headers['anthropic-version'] = '2023-06-01';
-      } else if (aiProvider == domain.AiProvider.gemini) {
-        headers['x-goog-api-key'] = apiKey;
       } else {
         headers['Authorization'] = 'Bearer $apiKey';
         headers['HTTP-Referer'] = 'https://github.com/stibinottathai/smart_wallet';
@@ -539,55 +509,30 @@ class InsightsService {
       }
 
       try {
-        String endpointUrl = aiProvider.endpoint;
-        final Map<String, dynamic> payload;
-
-        if (aiProvider == domain.AiProvider.gemini) {
-          endpointUrl = '$endpointUrl/$aiModel:streamGenerateContent?alt=sse';
-          
-          final contents = messages.where((m) => m['role'] != 'system').map((m) => {
-            'role': m['role'] == 'assistant' ? 'model' : 'user',
-            'parts': [{'text': m['content']}]
-          }).toList();
-
-          final systemMsgs = messages.where((m) => m['role'] == 'system').toList();
-          
-          payload = {
-            'contents': contents,
-          };
-
-          if (systemMsgs.isNotEmpty) {
-            payload['systemInstruction'] = {
-              'parts': [
-                {'text': systemMsgs.map((m) => m['content']).join('\n\n')}
-              ]
-            };
-          }
-        } else {
-          payload = {
-            'model': aiModel,
-            'messages': messages,
-            'stream': true,
-          };
-          
-          if (aiProvider == domain.AiProvider.anthropic) {
-            payload['max_tokens'] = 2000;
-            final systemMsgs = messages.where((m) => m['role'] == 'system').toList();
-            if (systemMsgs.isNotEmpty) {
-              payload['system'] = systemMsgs.map((m) => m['content']).join('\n\n');
-              payload['messages'] = messages.where((m) => m['role'] != 'system').toList();
-            }
-          } else {
-            payload['max_tokens'] = 512;
-            payload['provider'] = {'sort': 'throughput'};
-          }
-        }
-
         final request = http.Request(
           'POST',
-          Uri.parse(endpointUrl),
+          Uri.parse(aiProvider.endpoint),
         );
         request.headers.addAll(headers);
+        
+        final Map<String, dynamic> payload = {
+          'model': aiModel,
+          'messages': messages,
+          'stream': true,
+        };
+        
+        if (aiProvider == domain.AiProvider.anthropic) {
+          payload['max_tokens'] = 2000;
+          final systemMsgs = messages.where((m) => m['role'] == 'system').toList();
+          if (systemMsgs.isNotEmpty) {
+            payload['system'] = systemMsgs.map((m) => m['content']).join('\n\n');
+            payload['messages'] = messages.where((m) => m['role'] != 'system').toList();
+          }
+        } else {
+          payload['max_tokens'] = 512;
+          payload['provider'] = {'sort': 'throughput'};
+        }
+
         request.body = jsonEncode(payload);
 
         final streamedResponse = await _streamClient.send(request);
@@ -623,15 +568,6 @@ class InsightsService {
                     final delta = json['delta'];
                     if (delta != null && delta['text'] != null) {
                       yield delta['text'] as String;
-                    }
-                  }
-                } else if (aiProvider == domain.AiProvider.gemini) {
-                  final candidates = json['candidates'] as List<dynamic>?;
-                  if (candidates != null && candidates.isNotEmpty) {
-                    final parts = candidates[0]['content']?['parts'] as List<dynamic>?;
-                    if (parts != null && parts.isNotEmpty) {
-                      final text = parts[0]['text'] as String?;
-                      if (text != null) yield text;
                     }
                   }
                 } else {
