@@ -31,6 +31,15 @@ android {
             // TODO: Add your own signing config for the release build.
             // Signing with the debug keys for now, so `flutter run --release` works.
             signingConfig = signingConfigs.getByName("debug")
+            // Disable R8/ProGuard code shrinking & obfuscation. It was stripping
+            // the Gson generic type info that flutter_local_notifications relies
+            // on, which crashed the app whenever a scheduled notification fired
+            // or on boot ("TypeToken must be created with a type argument").
+            // The size saving is negligible here (the APK is dominated by ML Kit
+            // native libraries and the Dart AOT library, neither touched by R8),
+            // so correctness wins. Keep-rules below still apply if re-enabled.
+            isMinifyEnabled = false
+            isShrinkResources = false
             proguardFiles(getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro")
         }
     }
