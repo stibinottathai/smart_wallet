@@ -371,7 +371,12 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
                 ],
               ),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 20),
+            const _GroupHeader(
+              icon: Icons.notifications_active_rounded,
+              title: 'Notifications & Battery',
+            ),
+            const SizedBox(height: 8),
             _SectionCard(
               icon: Icons.notifications_rounded,
               title: 'Reminders',
@@ -598,7 +603,7 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
             ),
             const SizedBox(height: 12),
             const _BackgroundDeliverySection(),
-            const SizedBox(height: 12),
+            const SizedBox(height: 20),
             _CurrencySection(),
             const SizedBox(height: 12),
 
@@ -731,6 +736,36 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// A small label that visually groups the cards beneath it under one heading.
+class _GroupHeader extends StatelessWidget {
+  final IconData icon;
+  final String title;
+
+  const _GroupHeader({required this.icon, required this.title});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(left: 4, bottom: 2),
+      child: Row(
+        children: [
+          Icon(icon, size: 16, color: AppColors.primary),
+          const SizedBox(width: 8),
+          Text(
+            title.toUpperCase(),
+            style: GoogleFonts.inter(
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.8,
+              color: AppColors.textSecondary,
+            ),
+          ),
+        ],
       ),
     );
   }
