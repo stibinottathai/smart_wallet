@@ -62,6 +62,40 @@ class NotificationCoordinator {
     }
   }
 
+  /// Public preview of the current daily insight (title + body), built from the
+  /// same logic used for the scheduled notification. Used by the Settings
+  /// "test in 1 minute" action to exercise the real path.
+  static ({String title, String body}) dailyTipPreview({
+    required List<Expense> expenses,
+    required List<Income> incomes,
+    required List<Category> categories,
+    required String currencySymbol,
+  }) {
+    final tip = _buildDailyTip(
+      expenses: expenses,
+      incomes: incomes,
+      categories: categories,
+      currencySymbol: currencySymbol,
+    );
+    return (title: tip.title, body: tip.body);
+  }
+
+  /// Public preview of the current budget alert (title + body). Falls back to a
+  /// sample when no category is near its limit, so the Settings "test in 1
+  /// minute" action always has something to deliver.
+  static ({String title, String body}) budgetAlertPreview(
+    List<Expense> expenses,
+    List<Category> categories,
+  ) {
+    final alert = _buildBudgetAlert(expenses, categories);
+    if (alert != null) return (title: alert.title, body: alert.body);
+    return (
+      title: '⚠️ Budget Alert (sample)',
+      body: 'No category is near its limit yet — this is a sample alert so you '
+          'can confirm budget notifications are delivered.',
+    );
+  }
+
   /// Analyses the user's current-month finances and produces a single,
   /// personalised status + savings tip to deliver once a day. Runs entirely on
   /// local data so it works offline and is safe to schedule ahead of time.

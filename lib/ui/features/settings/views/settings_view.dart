@@ -17,6 +17,7 @@ import 'package:smart_wallet/domain/models/models.dart' as domain;
 import 'package:smart_wallet/data/services/csv_export_service.dart';
 import 'package:smart_wallet/data/services/csv_import_service.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 class SettingsView extends ConsumerStatefulWidget {
   const SettingsView({super.key});
@@ -148,10 +149,68 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
     );
   }
 
+  /// When the user turns a notification feature on, make sure the OS will
+  /// actually deliver it in the background (exact alarms + battery exemption).
+  Future<void> _ensureBackgroundDelivery() async {
+    await NotificationService().requestBackgroundDeliveryPermissions();
+  }
+
+  /// Schedules a real reminder one minute from now, so the user can verify the
+  /// reminder path end-to-end with the app closed.
+  Future<void> _testReminderScheduled() async {
+    await NotificationService().scheduleReminderSelfTest();
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Reminder scheduled in 1 min — close the app now.'),
+        duration: Duration(seconds: 5),
+      ),
+    );
+  }
+
+  /// Schedules the *real* budget alert one minute from now (sample if nothing is
+  /// at risk), so the user can verify the budget-alert path end-to-end.
+  Future<void> _testBudgetScheduled() async {
+    final alert = NotificationCoordinator.budgetAlertPreview(
+      ref.read(allExpensesProvider).value ?? [],
+      ref.read(allCategoriesProvider).value ?? [],
+    );
+    await NotificationService()
+        .scheduleBudgetSelfTest(title: alert.title, body: alert.body);
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Budget alert scheduled in 1 min — close the app now.'),
+        duration: Duration(seconds: 5),
+      ),
+    );
+  }
+
+  /// Schedules the *real* daily insight (same content as 6:40 PM) one minute
+  /// from now, so the user can verify the actual feature end-to-end.
+  Future<void> _testDailyInsightScheduled() async {
+    final tip = NotificationCoordinator.dailyTipPreview(
+      expenses: ref.read(allExpensesProvider).value ?? [],
+      incomes: ref.read(allIncomesProvider).value ?? [],
+      categories: ref.read(allCategoriesProvider).value ?? [],
+      currencySymbol: currencySymbol(ref.read(currencyCodeProvider)),
+    );
+    await NotificationService()
+        .scheduleTipSelfTest(title: tip.title, body: tip.body);
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Daily insight scheduled in 1 min — close the app now.'),
+        duration: Duration(seconds: 5),
+      ),
+    );
+  }
+
   Future<void> _toggleReminders(bool value) async {
     ref.read(remindersEnabledProvider.notifier).state = value;
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(NotificationCoordinator.remindersPrefKey, value);
+    if (value) await _ensureBackgroundDelivery();
     await _syncNotifications();
   }
 
@@ -159,6 +218,7 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
     ref.read(budgetAlertsEnabledProvider.notifier).state = value;
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(NotificationCoordinator.budgetAlertsPrefKey, value);
+    if (value) await _ensureBackgroundDelivery();
     await _syncNotifications();
   }
 
@@ -166,6 +226,7 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
     ref.read(dailyTipEnabledProvider.notifier).state = value;
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(NotificationCoordinator.dailyTipPrefKey, value);
+    if (value) await _ensureBackgroundDelivery();
     await _syncNotifications();
   }
 
@@ -347,7 +408,7 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
                       ],
                     ),
                   ),
-                  if (remindersOn)
+                  if (remindersOn) ...[
                     TextButton(
                       onPressed: () {
                         NotificationService().showTestNotification();
@@ -368,6 +429,20 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
                       ),
                       child: const Text('Test'),
                     ),
+                    TextButton(
+                      onPressed: _testReminderScheduled,
+                      style: TextButton.styleFrom(
+                        foregroundColor: AppColors.primary,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 8,
+                        ),
+                        minimumSize: Size.zero,
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      ),
+                      child: const Text('1 min'),
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -408,7 +483,7 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
                       ],
                     ),
                   ),
-                  if (budgetAlertsOn)
+                  if (budgetAlertsOn) ...[
                     TextButton(
                       onPressed: () {
                         NotificationService().showTestBudgetAlert();
@@ -429,6 +504,20 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
                       ),
                       child: const Text('Test'),
                     ),
+                    TextButton(
+                      onPressed: _testBudgetScheduled,
+                      style: TextButton.styleFrom(
+                        foregroundColor: AppColors.primary,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 8,
+                        ),
+                        minimumSize: Size.zero,
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      ),
+                      child: const Text('1 min'),
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -469,7 +558,7 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
                       ],
                     ),
                   ),
-                  if (dailyTipOn)
+                  if (dailyTipOn) ...[
                     TextButton(
                       onPressed: () {
                         NotificationService().showTestDailyInsight();
@@ -490,9 +579,25 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
                       ),
                       child: const Text('Test'),
                     ),
+                    TextButton(
+                      onPressed: _testDailyInsightScheduled,
+                      style: TextButton.styleFrom(
+                        foregroundColor: AppColors.primary,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 8,
+                        ),
+                        minimumSize: Size.zero,
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      ),
+                      child: const Text('1 min'),
+                    ),
+                  ],
                 ],
               ),
             ),
+            const SizedBox(height: 12),
+            const _BackgroundDeliverySection(),
             const SizedBox(height: 12),
             _CurrencySection(),
             const SizedBox(height: 12),
@@ -626,6 +731,166 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// Diagnostics + one-tap fix for the #1 reason scheduled notifications don't
+/// fire when the app is closed: OEM battery optimization. Also lets the user run
+/// a real scheduled (not instant) test to prove background delivery works.
+class _BackgroundDeliverySection extends StatefulWidget {
+  const _BackgroundDeliverySection();
+
+  @override
+  State<_BackgroundDeliverySection> createState() =>
+      _BackgroundDeliverySectionState();
+}
+
+class _BackgroundDeliverySectionState
+    extends State<_BackgroundDeliverySection> {
+  bool? _batteryOk;
+  int _pending = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _refresh();
+  }
+
+  Future<void> _refresh() async {
+    final service = NotificationService();
+    final battery = await service.isBatteryOptimizationDisabled();
+    final pending = await service.pendingCount();
+    if (!mounted) return;
+    setState(() {
+      _batteryOk = battery;
+      _pending = pending;
+    });
+  }
+
+  Future<void> _fix() async {
+    await NotificationService().requestBackgroundDeliveryPermissions();
+    await _refresh();
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('If a system screen opened, allow the app to run '
+            'unrestricted, then return here.'),
+      ),
+    );
+  }
+
+  Future<void> _scheduledTest() async {
+    await NotificationService().scheduleSelfTest(
+      delay: const Duration(minutes: 1),
+    );
+    await _refresh();
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Scheduled in 1 minute — now CLOSE the app and wait.'),
+        duration: Duration(seconds: 5),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final ok = _batteryOk ?? false;
+    return _SectionCard(
+      icon: Icons.battery_saver_rounded,
+      title: 'Background Delivery',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                ok ? Icons.check_circle_rounded : Icons.error_outline_rounded,
+                size: 18,
+                color: ok ? AppColors.primary : AppColors.secondary,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  ok
+                      ? 'Battery optimization is OFF — notifications can fire when the app is closed.'
+                      : 'Battery optimization is ON — Android may block notifications while the app is closed.',
+                  style: const TextStyle(
+                    fontSize: 12.5,
+                    color: AppColors.text,
+                    height: 1.4,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Text(
+            '$_pending notification(s) currently scheduled with the system.',
+            style: const TextStyle(
+              fontSize: 12,
+              color: AppColors.textSecondary,
+            ),
+          ),
+          const SizedBox(height: 14),
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton.icon(
+              onPressed: _fix,
+              icon: const Icon(Icons.settings_suggest_rounded, size: 18),
+              label: const Text('Allow background notifications'),
+              style: FilledButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: _scheduledTest,
+              icon: const Icon(Icons.timer_outlined, size: 18),
+              label: const Text('Test scheduled notification (1 min)'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: AppColors.primary,
+                side: const BorderSide(color: AppColors.primary),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+          SizedBox(
+            width: double.infinity,
+            child: TextButton.icon(
+              onPressed: () => openAppSettings(),
+              icon: const Icon(Icons.open_in_new_rounded, size: 18),
+              label: const Text('Open app settings'),
+              style: TextButton.styleFrom(
+                foregroundColor: AppColors.textSecondary,
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Tip: tap the 1-minute test, then immediately close the app. If it '
+            'appears, background delivery works. If not, your device is killing '
+            'it — turn off battery optimization above (and enable Autostart on '
+            'Xiaomi/Oppo/Vivo).',
+            style: TextStyle(
+              fontSize: 11.5,
+              color: AppColors.text.withValues(alpha: 0.5),
+              height: 1.4,
+            ),
+          ),
+        ],
       ),
     );
   }

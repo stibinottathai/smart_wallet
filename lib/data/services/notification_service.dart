@@ -1,5 +1,6 @@
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_timezone/flutter_timezone.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:timezone/timezone.dart' as tz;
 import 'package:timezone/data/latest.dart' as tz_data;
 
@@ -320,5 +321,118 @@ class NotificationService {
       'This is a test insight. Daily insights are working correctly!',
       _details(_tipChannelId, _tipChannelName),
     );
+  }
+
+  /// Asks the OS for everything required for *background* delivery to be
+  /// reliable: notification permission, exact-alarm permission (Android 12+),
+  /// and — crucially on aggressive OEMs (Xiaomi, Samsung, Oppo, Vivo …) — an
+  /// exemption from battery optimization, which is the usual reason scheduled
+  /// alarms never fire once the app is swiped away.
+  ///
+  /// Returns true if battery-optimization is (now) disabled for the app.
+  Future<bool> requestBackgroundDeliveryPermissions() async {
+    await initialize();
+
+    // Notifications (Android 13+ / iOS).
+    if (await Permission.notification.isDenied) {
+      await Permission.notification.request();
+    }
+
+    // Exact alarms (Android 12+). Opens the system screen if not yet allowed.
+    final androidPlugin = _plugin.resolvePlatformSpecificImplementation<
+        AndroidFlutterLocalNotificationsPlugin>();
+    final canExact =
+        await androidPlugin?.canScheduleExactNotifications() ?? true;
+    if (!canExact) {
+      await androidPlugin?.requestExactAlarmsPermission();
+    }
+
+    // Battery optimization exemption — the big one for "fires when closed".
+    if (await Permission.ignoreBatteryOptimizations.isGranted) return true;
+    final status = await Permission.ignoreBatteryOptimizations.request();
+    return status.isGranted;
+  }
+
+  /// True if the app is exempt from battery optimization. Used by the UI to show
+  /// whether background delivery is in a healthy state.
+  Future<bool> isBatteryOptimizationDisabled() async {
+    return Permission.ignoreBatteryOptimizations.isGranted;
+  }
+
+  /// Schedules a real (not instant) notification [delay] from now via the exact
+  /// same alarm pipeline the daily features use. Let the user close the app and
+  /// confirm it still fires — proving background delivery end-to-end and
+  /// isolating device battery-killing from app bugs.
+  Future<void> scheduleSelfTest(
+      {Duration delay = const Duration(minutes: 1)}) async {
+    await initialize();
+    final fire = tz.TZDateTime.now(tz.local).add(delay);
+    await _zonedSchedule(
+      _testId,
+      'Scheduled test ⏰',
+      'If you see this with the app closed, background notifications work!',
+      fire,
+      _details(_reminderChannelId, _reminderChannelName),
+    );
+  }
+
+  /// Schedules a notification on the daily-insight channel [delay] from now with
+  /// the real computed [title]/[body], so the user can verify the *actual* daily
+  /// insight path (not just a generic test) without waiting for 6:40 PM.
+  Future<void> scheduleTipSelfTest({
+    required String title,
+    required String body,
+    Duration delay = const Duration(minutes: 1),
+  }) async {
+    await initialize();
+    final fire = tz.TZDateTime.now(tz.local).add(delay);
+    await _zonedSchedule(
+      _testId,
+      title,
+      body,
+      fire,
+      _details(_tipChannelId, _tipChannelName),
+    );
+  }
+
+  /// Schedules a real reminder on the reminder channel [delay] from now, so the
+  /// user can verify the reminder path end-to-end with the app closed.
+  Future<void> scheduleReminderSelfTest({
+    Duration delay = const Duration(minutes: 1),
+  }) async {
+    await initialize();
+    final fire = tz.TZDateTime.now(tz.local).add(delay);
+    await _zonedSchedule(
+      _testId,
+      'Record your expenses',
+      "Don't forget to log today's spending in Smart Wallet.",
+      fire,
+      _details(_reminderChannelId, _reminderChannelName),
+    );
+  }
+
+  /// Schedules a real budget alert on the budget channel [delay] from now with
+  /// the given [title]/[body], so the user can verify the budget-alert path.
+  Future<void> scheduleBudgetSelfTest({
+    required String title,
+    required String body,
+    Duration delay = const Duration(minutes: 1),
+  }) async {
+    await initialize();
+    final fire = tz.TZDateTime.now(tz.local).add(delay);
+    await _zonedSchedule(
+      _testId,
+      title,
+      body,
+      fire,
+      _details(_budgetChannelId, _budgetChannelName),
+    );
+  }
+
+  /// Number of notifications currently registered with the OS. A quick way to
+  /// confirm scheduling actually happened (should be > 0 when features are on).
+  Future<int> pendingCount() async {
+    final pending = await _plugin.pendingNotificationRequests();
+    return pending.length;
   }
 }
