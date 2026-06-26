@@ -460,7 +460,7 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
                         ),
                         const SizedBox(height: 2),
                         Text(
-                          'A 6:25 PM summary of your finances with a personalised savings tip based on your data',
+                          'A 6:40 PM summary of your finances with a personalised savings tip based on your data',
                           style: const TextStyle(
                             fontSize: 12,
                             color: AppColors.textSecondary,

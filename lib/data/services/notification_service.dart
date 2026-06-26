@@ -29,8 +29,8 @@ class NotificationService {
   static const _budgetHours = [9, 13, 17, 21]; // 9AM, 1PM, 5PM, 9PM
   // Daily insight / savings tip: one repeating notification each day.
   static const _tipBaseId = 1300;
-  static const _tipHour = 18; // 6:25 PM daily
-  static const _tipMinute = 25;
+  static const _tipHour = 18; // 6:40 PM daily
+  static const _tipMinute = 40;
   static const _testId = 9999;
 
   Future<void> initialize() async {
@@ -119,6 +119,60 @@ class NotificationService {
         iOS: const DarwinNotificationDetails(),
       );
 
+  /// Schedules a zoned notification, choosing an alarm mode that won't silently
+  /// fail.
+  ///
+  /// On Android 12+ an *exact* alarm requires the SCHEDULE_EXACT_ALARM
+  /// permission; if it isn't granted, [zonedSchedule] with an exact mode throws
+  /// and the notification is never registered — which is why the instant "Test"
+  /// works but nothing fires automatically. We use exact only when the OS
+  /// reports it as allowed, and otherwise fall back to an inexact (still
+  /// while-idle) alarm so the notification always gets scheduled; it may just
+  /// fire a few minutes late.
+  Future<void> _zonedSchedule(
+    int id,
+    String title,
+    String body,
+    tz.TZDateTime fire,
+    NotificationDetails details, {
+    DateTimeComponents? matchDateTimeComponents,
+  }) async {
+    final androidPlugin = _plugin.resolvePlatformSpecificImplementation<
+        AndroidFlutterLocalNotificationsPlugin>();
+    final canExact =
+        await androidPlugin?.canScheduleExactNotifications() ?? true;
+    final mode = canExact
+        ? AndroidScheduleMode.exactAllowWhileIdle
+        : AndroidScheduleMode.inexactAllowWhileIdle;
+    try {
+      await _plugin.zonedSchedule(
+        id,
+        title,
+        body,
+        fire,
+        details,
+        androidScheduleMode: mode,
+        uiLocalNotificationDateInterpretation:
+            UILocalNotificationDateInterpretation.absoluteTime,
+        matchDateTimeComponents: matchDateTimeComponents,
+      );
+    } catch (_) {
+      // Some OEM ROMs report exact alarms as allowed but still reject them.
+      // Retry once with an inexact alarm so scheduling never fails outright.
+      await _plugin.zonedSchedule(
+        id,
+        title,
+        body,
+        fire,
+        details,
+        androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+        uiLocalNotificationDateInterpretation:
+            UILocalNotificationDateInterpretation.absoluteTime,
+        matchDateTimeComponents: matchDateTimeComponents,
+      );
+    }
+  }
+
   /// (Re)schedules the daily "log your expenses" reminders at noon and 8 PM as
   /// truly repeating alarms, so they fire every day indefinitely — even if the
   /// app is never reopened (and they survive a reboot via the boot receiver).
@@ -137,7 +191,7 @@ class NotificationService {
       var fire = tz.TZDateTime(tz.local, now.year, now.month, now.day, hour);
       if (!fire.isAfter(now)) fire = fire.add(const Duration(days: 1));
       final isNoon = hour == 12;
-      await _plugin.zonedSchedule(
+      await _zonedSchedule(
         _reminderBaseId + slot,
         isNoon ? 'Record your expenses' : 'Review your day',
         isNoon
@@ -145,9 +199,6 @@ class NotificationService {
             : 'Log any remaining expenses before bedtime.',
         fire,
         _details(_reminderChannelId, _reminderChannelName),
-        androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-        uiLocalNotificationDateInterpretation:
-            UILocalNotificationDateInterpretation.absoluteTime,
         matchDateTimeComponents: DateTimeComponents.time, // repeat daily forever
       );
     }
@@ -179,15 +230,12 @@ class NotificationService {
       final hour = _budgetHours[i];
       var fire = tz.TZDateTime(tz.local, now.year, now.month, now.day, hour);
       if (!fire.isAfter(now)) fire = fire.add(const Duration(days: 1));
-      await _plugin.zonedSchedule(
+      await _zonedSchedule(
         _budgetBaseId + i,
         title,
         body,
         fire,
         _details(_budgetChannelId, _budgetChannelName),
-        androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-        uiLocalNotificationDateInterpretation:
-            UILocalNotificationDateInterpretation.absoluteTime,
         matchDateTimeComponents: DateTimeComponents.time, // repeat daily
       );
     }
@@ -215,15 +263,12 @@ class NotificationService {
     var fire = tz.TZDateTime(
         tz.local, now.year, now.month, now.day, _tipHour, _tipMinute);
     if (!fire.isAfter(now)) fire = fire.add(const Duration(days: 1));
-    await _plugin.zonedSchedule(
+    await _zonedSchedule(
       _tipBaseId,
       title,
       body,
       fire,
       _details(_tipChannelId, _tipChannelName),
-      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-      uiLocalNotificationDateInterpretation:
-          UILocalNotificationDateInterpretation.absoluteTime,
       matchDateTimeComponents: DateTimeComponents.time, // repeat daily
     );
   }
