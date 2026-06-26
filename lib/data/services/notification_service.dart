@@ -50,7 +50,7 @@ class NotificationService {
     }
 
     const androidSettings =
-        AndroidInitializationSettings('@mipmap/ic_launcher');
+        AndroidInitializationSettings('@drawable/ic_launcher_foreground');
     const iosSettings = DarwinInitializationSettings(
       requestAlertPermission: true,
       requestBadgePermission: true,
@@ -113,7 +113,14 @@ class NotificationService {
         android: AndroidNotificationDetails(
           channelId,
           channelName,
-          icon: '@mipmap/ic_launcher',
+          // Status-bar (small) icon: Android draws this using only the alpha
+          // channel, so it must be a transparent silhouette — the colored
+          // launcher icon would render as a blank white square. The adaptive
+          // foreground (logo on transparent) renders correctly as the app's
+          // white silhouette.
+          icon: '@drawable/ic_launcher_foreground',
+          // Large icon shown in the notification body — full-colour app icon.
+          largeIcon: const DrawableResourceAndroidBitmap('@mipmap/ic_launcher'),
           importance: Importance.max,
           priority: Priority.high,
         ),
