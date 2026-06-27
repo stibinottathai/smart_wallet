@@ -1,0 +1,11 @@
+# Copy this file to `android/key.properties` and fill in your real values.
+# `android/key.properties` is gitignored — never commit it or your keystore.
+#
+# storeFile is resolved relative to the android/app/ folder. The example below
+# expects upload-keystore.jks to sit in android/app/. You may also use an
+# absolute path (use forward slashes on Windows, e.g. C:/keys/upload-keystore.jks).
+
+storePassword=YOUR_KEYSTORE_PASSWORD
+keyPassword=YOUR_KEY_PASSWORD
+keyAlias=upload
+storeFile=upload-keystore.jks

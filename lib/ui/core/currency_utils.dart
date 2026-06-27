@@ -17,11 +17,11 @@ const Map<String, String> currencySymbols = {
 };
 
 const List<String> supportedCurrencies = [
+  'INR',
   'AED',
   'USD',
   'EUR',
   'GBP',
-  'INR',
   'SAR',
   'QAR',
   'KWD',
@@ -31,11 +31,11 @@ const List<String> supportedCurrencies = [
   'CNY',
 ];
 
-String _initialCurrency = 'AED';
+String _initialCurrency = 'INR';
 
 Future<void> loadCurrencyPref() async {
   final prefs = await SharedPreferences.getInstance();
-  _initialCurrency = prefs.getString('currency_code') ?? 'AED';
+  _initialCurrency = prefs.getString('currency_code') ?? 'INR';
 }
 
 final currencyCodeProvider = StateProvider<String>((ref) => _initialCurrency);

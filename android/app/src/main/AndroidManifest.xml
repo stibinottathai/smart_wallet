@@ -7,6 +7,8 @@
     <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
     <uses-permission android:name="android.permission.USE_BIOMETRIC" />
+    <!-- Voice input for the AI chat (on-device speech recognition). -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <application
         android:label="Smart Wallet"
         android:name="${applicationName}"
@@ -69,6 +71,11 @@
         <intent>
             <action android:name="android.intent.action.PROCESS_TEXT"/>
             <data android:mimeType="text/plain"/>
+        </intent>
+        <!-- Required on Android 11+ so speech_to_text can find the device's
+             speech recognition service. -->
+        <intent>
+            <action android:name="android.speech.RecognitionService" />
         </intent>
     </queries>
 </manifest>

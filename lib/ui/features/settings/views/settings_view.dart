@@ -10,6 +10,7 @@ import 'package:smart_wallet/ui/features/lock/views/lock_screen.dart';
 import 'package:smart_wallet/ui/features/lock/views/pin_setup_view.dart';
 import 'package:smart_wallet/ui/core/currency_utils.dart';
 import 'package:smart_wallet/ui/core/theme.dart';
+import 'package:smart_wallet/ui/features/onboarding/onboarding_view.dart';
 import 'package:smart_wallet/ui/features/reports/views/report_view.dart';
 import 'package:smart_wallet/ui/providers.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -136,6 +137,18 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
     return result ?? false;
   }
 
+  /// Re-shows the one-time onboarding flow on demand. Pops back to Settings
+  /// once finished or skipped.
+  void _replayOnboarding() {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (ctx) => OnboardingView(
+          onComplete: () => Navigator.of(ctx).pop(),
+        ),
+      ),
+    );
+  }
+
   /// Re-evaluates and re-schedules all notifications from the current data and
   /// preferences.
   Future<void> _syncNotifications() async {
@@ -153,57 +166,6 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
   /// actually deliver it in the background (exact alarms + battery exemption).
   Future<void> _ensureBackgroundDelivery() async {
     await NotificationService().requestBackgroundDeliveryPermissions();
-  }
-
-  /// Schedules a real reminder one minute from now, so the user can verify the
-  /// reminder path end-to-end with the app closed.
-  Future<void> _testReminderScheduled() async {
-    await NotificationService().scheduleReminderSelfTest();
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Reminder scheduled in 1 min — close the app now.'),
-        duration: Duration(seconds: 5),
-      ),
-    );
-  }
-
-  /// Schedules the *real* budget alert one minute from now (sample if nothing is
-  /// at risk), so the user can verify the budget-alert path end-to-end.
-  Future<void> _testBudgetScheduled() async {
-    final alert = NotificationCoordinator.budgetAlertPreview(
-      ref.read(allExpensesProvider).value ?? [],
-      ref.read(allCategoriesProvider).value ?? [],
-    );
-    await NotificationService()
-        .scheduleBudgetSelfTest(title: alert.title, body: alert.body);
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Budget alert scheduled in 1 min — close the app now.'),
-        duration: Duration(seconds: 5),
-      ),
-    );
-  }
-
-  /// Schedules the *real* daily insight (same content as 6:40 PM) one minute
-  /// from now, so the user can verify the actual feature end-to-end.
-  Future<void> _testDailyInsightScheduled() async {
-    final tip = NotificationCoordinator.dailyTipPreview(
-      expenses: ref.read(allExpensesProvider).value ?? [],
-      incomes: ref.read(allIncomesProvider).value ?? [],
-      categories: ref.read(allCategoriesProvider).value ?? [],
-      currencySymbol: currencySymbol(ref.read(currencyCodeProvider)),
-    );
-    await NotificationService()
-        .scheduleTipSelfTest(title: tip.title, body: tip.body);
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Daily insight scheduled in 1 min — close the app now.'),
-        duration: Duration(seconds: 5),
-      ),
-    );
   }
 
   Future<void> _toggleReminders(bool value) async {
@@ -386,68 +348,25 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
                 activeTrackColor: AppColors.primary.withValues(alpha: 0.4),
                 activeThumbColor: AppColors.primary,
               ),
-              child: Row(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          remindersOn
-                              ? 'Daily reminders on'
-                              : 'Daily reminders off',
-                          style: const TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.text,
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          '12:00 PM & 8:00 PM notifications',
-                          style: const TextStyle(
-                            fontSize: 12,
-                            color: AppColors.textSecondary,
-                          ),
-                        ),
-                      ],
+                  Text(
+                    remindersOn ? 'Daily reminders on' : 'Daily reminders off',
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.text,
                     ),
                   ),
-                  if (remindersOn) ...[
-                    TextButton(
-                      onPressed: () {
-                        NotificationService().showTestNotification();
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Test notification sent'),
-                          ),
-                        );
-                      },
-                      style: TextButton.styleFrom(
-                        foregroundColor: AppColors.primary,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 8,
-                        ),
-                        minimumSize: Size.zero,
-                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                      ),
-                      child: const Text('Test'),
+                  const SizedBox(height: 2),
+                  Text(
+                    '12:00 PM & 8:00 PM notifications',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: AppColors.textSecondary,
                     ),
-                    TextButton(
-                      onPressed: _testReminderScheduled,
-                      style: TextButton.styleFrom(
-                        foregroundColor: AppColors.primary,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 8,
-                        ),
-                        minimumSize: Size.zero,
-                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                      ),
-                      child: const Text('1 min'),
-                    ),
-                  ],
+                  ),
                 ],
               ),
             ),
@@ -461,68 +380,27 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
                 activeTrackColor: AppColors.primary.withValues(alpha: 0.4),
                 activeThumbColor: AppColors.primary,
               ),
-              child: Row(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          budgetAlertsOn
-                              ? 'Budget limit alerts on'
-                              : 'Budget limit alerts off',
-                          style: const TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.text,
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          'Get notified (up to 4×/day) when a category reaches 80% of its monthly limit',
-                          style: const TextStyle(
-                            fontSize: 12,
-                            color: AppColors.textSecondary,
-                          ),
-                        ),
-                      ],
+                  Text(
+                    budgetAlertsOn
+                        ? 'Budget limit alerts on'
+                        : 'Budget limit alerts off',
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.text,
                     ),
                   ),
-                  if (budgetAlertsOn) ...[
-                    TextButton(
-                      onPressed: () {
-                        NotificationService().showTestBudgetAlert();
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Test budget alert sent'),
-                          ),
-                        );
-                      },
-                      style: TextButton.styleFrom(
-                        foregroundColor: AppColors.primary,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 8,
-                        ),
-                        minimumSize: Size.zero,
-                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                      ),
-                      child: const Text('Test'),
+                  const SizedBox(height: 2),
+                  Text(
+                    'Get notified (up to 4×/day) when a category reaches 80% of its monthly limit',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: AppColors.textSecondary,
                     ),
-                    TextButton(
-                      onPressed: _testBudgetScheduled,
-                      style: TextButton.styleFrom(
-                        foregroundColor: AppColors.primary,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 8,
-                        ),
-                        minimumSize: Size.zero,
-                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                      ),
-                      child: const Text('1 min'),
-                    ),
-                  ],
+                  ),
                 ],
               ),
             ),
@@ -536,68 +414,27 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
                 activeTrackColor: AppColors.primary.withValues(alpha: 0.4),
                 activeThumbColor: AppColors.primary,
               ),
-              child: Row(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          dailyTipOn
-                              ? 'Daily savings tip on'
-                              : 'Daily savings tip off',
-                          style: const TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.text,
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          'A 6:40 PM summary of your finances with a personalised savings tip based on your data',
-                          style: const TextStyle(
-                            fontSize: 12,
-                            color: AppColors.textSecondary,
-                          ),
-                        ),
-                      ],
+                  Text(
+                    dailyTipOn
+                        ? 'Daily savings tip on'
+                        : 'Daily savings tip off',
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.text,
                     ),
                   ),
-                  if (dailyTipOn) ...[
-                    TextButton(
-                      onPressed: () {
-                        NotificationService().showTestDailyInsight();
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Test daily insight sent'),
-                          ),
-                        );
-                      },
-                      style: TextButton.styleFrom(
-                        foregroundColor: AppColors.primary,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 8,
-                        ),
-                        minimumSize: Size.zero,
-                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                      ),
-                      child: const Text('Test'),
+                  const SizedBox(height: 2),
+                  Text(
+                    'A 6:40 PM summary of your finances with a personalised savings tip based on your data',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: AppColors.textSecondary,
                     ),
-                    TextButton(
-                      onPressed: _testDailyInsightScheduled,
-                      style: TextButton.styleFrom(
-                        foregroundColor: AppColors.primary,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 8,
-                        ),
-                        minimumSize: Size.zero,
-                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                      ),
-                      child: const Text('1 min'),
-                    ),
-                  ],
+                  ),
                 ],
               ),
             ),
@@ -680,7 +517,7 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
                         ),
                       ),
                       const Text(
-                        '1.0.0',
+                        '1.0.1',
                         style: TextStyle(
                           fontSize: 13,
                           fontWeight: FontWeight.w600,
@@ -730,6 +567,35 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
                         ),
                       ),
                     ],
+                  ),
+                  const SizedBox(height: 12),
+                  const Divider(),
+                  const SizedBox(height: 4),
+                  InkWell(
+                    borderRadius: BorderRadius.circular(8),
+                    onTap: _replayOnboarding,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.auto_awesome_rounded,
+                              size: 18, color: AppColors.primary),
+                          const SizedBox(width: 10),
+                          const Expanded(
+                            child: Text(
+                              'View app tour',
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.text,
+                              ),
+                            ),
+                          ),
+                          const Icon(Icons.chevron_right_rounded,
+                              size: 20, color: AppColors.textSecondary),
+                        ],
+                      ),
+                    ),
                   ),
                 ],
               ),
@@ -816,20 +682,6 @@ class _BackgroundDeliverySectionState
     );
   }
 
-  Future<void> _scheduledTest() async {
-    await NotificationService().scheduleSelfTest(
-      delay: const Duration(minutes: 1),
-    );
-    await _refresh();
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Scheduled in 1 minute — now CLOSE the app and wait.'),
-        duration: Duration(seconds: 5),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final ok = _batteryOk ?? false;
@@ -888,22 +740,6 @@ class _BackgroundDeliverySectionState
           const SizedBox(height: 8),
           SizedBox(
             width: double.infinity,
-            child: OutlinedButton.icon(
-              onPressed: _scheduledTest,
-              icon: const Icon(Icons.timer_outlined, size: 18),
-              label: const Text('Test scheduled notification (1 min)'),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: AppColors.primary,
-                side: const BorderSide(color: AppColors.primary),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(height: 8),
-          SizedBox(
-            width: double.infinity,
             child: TextButton.icon(
               onPressed: () => openAppSettings(),
               icon: const Icon(Icons.open_in_new_rounded, size: 18),
@@ -915,10 +751,9 @@ class _BackgroundDeliverySectionState
           ),
           const SizedBox(height: 8),
           Text(
-            'Tip: tap the 1-minute test, then immediately close the app. If it '
-            'appears, background delivery works. If not, your device is killing '
-            'it — turn off battery optimization above (and enable Autostart on '
-            'Xiaomi/Oppo/Vivo).',
+            'Tip: if reminders don\'t arrive when the app is closed, your device '
+            'is likely killing it — turn off battery optimization above (and '
+            'enable Autostart on Xiaomi/Oppo/Vivo).',
             style: TextStyle(
               fontSize: 11.5,
               color: AppColors.text.withValues(alpha: 0.5),

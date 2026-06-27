@@ -32,7 +32,6 @@ class NotificationService {
   static const _tipBaseId = 1300;
   static const _tipHour = 18; // 6:40 PM daily
   static const _tipMinute = 40;
-  static const _testId = 9999;
 
   Future<void> initialize() async {
     if (_initialized) return;
@@ -296,40 +295,6 @@ class NotificationService {
     await cancelDailyDigest();
   }
 
-  Future<void> showTestNotification() async {
-    await initialize();
-    await _plugin.show(
-      _testId,
-      'Test Reminder',
-      'This is a test notification. Reminders are working correctly!',
-      _details(_reminderChannelId, _reminderChannelName),
-    );
-  }
-
-  /// Immediately shows a sample budget alert so the user can confirm the channel
-  /// works, independent of whether any category is currently over its limit.
-  Future<void> showTestBudgetAlert() async {
-    await initialize();
-    await _plugin.show(
-      _testId,
-      '⚠️ Budget Alert (test)',
-      'This is a test alert. Budget notifications are working correctly!',
-      _details(_budgetChannelId, _budgetChannelName),
-    );
-  }
-
-  /// Immediately shows a sample daily insight so the user can confirm the
-  /// channel works without waiting for the scheduled 8 AM delivery.
-  Future<void> showTestDailyInsight() async {
-    await initialize();
-    await _plugin.show(
-      _testId,
-      'Daily Insight (test)',
-      'This is a test insight. Daily insights are working correctly!',
-      _details(_tipChannelId, _tipChannelName),
-    );
-  }
-
   /// Asks the OS for everything required for *background* delivery to be
   /// reliable: notification permission, exact-alarm permission (Android 12+),
   /// and — crucially on aggressive OEMs (Xiaomi, Samsung, Oppo, Vivo …) — an
@@ -364,76 +329,6 @@ class NotificationService {
   /// whether background delivery is in a healthy state.
   Future<bool> isBatteryOptimizationDisabled() async {
     return Permission.ignoreBatteryOptimizations.isGranted;
-  }
-
-  /// Schedules a real (not instant) notification [delay] from now via the exact
-  /// same alarm pipeline the daily features use. Let the user close the app and
-  /// confirm it still fires — proving background delivery end-to-end and
-  /// isolating device battery-killing from app bugs.
-  Future<void> scheduleSelfTest(
-      {Duration delay = const Duration(minutes: 1)}) async {
-    await initialize();
-    final fire = tz.TZDateTime.now(tz.local).add(delay);
-    await _zonedSchedule(
-      _testId,
-      'Scheduled test ⏰',
-      'If you see this with the app closed, background notifications work!',
-      fire,
-      _details(_reminderChannelId, _reminderChannelName),
-    );
-  }
-
-  /// Schedules a notification on the daily-insight channel [delay] from now with
-  /// the real computed [title]/[body], so the user can verify the *actual* daily
-  /// insight path (not just a generic test) without waiting for 6:40 PM.
-  Future<void> scheduleTipSelfTest({
-    required String title,
-    required String body,
-    Duration delay = const Duration(minutes: 1),
-  }) async {
-    await initialize();
-    final fire = tz.TZDateTime.now(tz.local).add(delay);
-    await _zonedSchedule(
-      _testId,
-      title,
-      body,
-      fire,
-      _details(_tipChannelId, _tipChannelName),
-    );
-  }
-
-  /// Schedules a real reminder on the reminder channel [delay] from now, so the
-  /// user can verify the reminder path end-to-end with the app closed.
-  Future<void> scheduleReminderSelfTest({
-    Duration delay = const Duration(minutes: 1),
-  }) async {
-    await initialize();
-    final fire = tz.TZDateTime.now(tz.local).add(delay);
-    await _zonedSchedule(
-      _testId,
-      'Record your expenses',
-      "Don't forget to log today's spending in Smart Wallet.",
-      fire,
-      _details(_reminderChannelId, _reminderChannelName),
-    );
-  }
-
-  /// Schedules a real budget alert on the budget channel [delay] from now with
-  /// the given [title]/[body], so the user can verify the budget-alert path.
-  Future<void> scheduleBudgetSelfTest({
-    required String title,
-    required String body,
-    Duration delay = const Duration(minutes: 1),
-  }) async {
-    await initialize();
-    final fire = tz.TZDateTime.now(tz.local).add(delay);
-    await _zonedSchedule(
-      _testId,
-      title,
-      body,
-      fire,
-      _details(_budgetChannelId, _budgetChannelName),
-    );
   }
 
   /// Number of notifications currently registered with the OS. A quick way to

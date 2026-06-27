@@ -6,6 +6,8 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:smart_wallet/ui/core/theme.dart';
 import 'package:smart_wallet/data/services/notification_service.dart';
 import 'package:smart_wallet/ui/features/lock/views/app_lock_gate.dart';
+import 'package:smart_wallet/ui/features/onboarding/onboarding_prefs.dart';
+import 'package:smart_wallet/ui/features/onboarding/onboarding_view.dart';
 
 /// Total time the splash is on screen before navigating away.
 const _kSplashDuration = Duration(milliseconds: 3200);
@@ -69,7 +71,10 @@ class _SplashScreenState extends State<SplashScreen>
       if (!mounted) return;
       Navigator.of(context).pushReplacement(
         PageRouteBuilder(
-          pageBuilder: (_, __, ___) => const AppLockGate(),
+          // Show the one-time onboarding on the very first launch, otherwise go
+          // straight to the (optionally locked) main app.
+          pageBuilder: (_, __, ___) =>
+              onboardingSeen ? const AppLockGate() : const OnboardingView(),
           transitionsBuilder: (_, animation, __, child) {
             return FadeTransition(
               opacity: animation,

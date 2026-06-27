@@ -7,6 +7,7 @@ import 'package:smart_wallet/ui/core/currency_utils.dart';
 import 'package:smart_wallet/ui/providers.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:uuid/uuid.dart';
+import 'package:speech_to_text/speech_to_text.dart' as stt;
 import 'package:smart_wallet/data/services/insights_service.dart';
 import 'package:smart_wallet/domain/models/proactive_insight.dart';
 import 'package:smart_wallet/domain/models/models.dart' as domain;
@@ -26,6 +27,11 @@ class _InsightsViewState extends ConsumerState<InsightsView> {
   bool _isTyping = false;
   bool _isRefreshing = false;
 
+  // ── Voice input (on-device speech-to-text) ────────────────────────────────
+  final stt.SpeechToText _speech = stt.SpeechToText();
+  bool _speechReady = false;
+  bool _isListening = false;
+
   @override
   void initState() {
     super.initState();
@@ -34,9 +40,66 @@ class _InsightsViewState extends ConsumerState<InsightsView> {
 
   @override
   void dispose() {
+    _speech.cancel();
     _inputCtrl.dispose();
     _scrollCtrl.dispose();
     super.dispose();
+  }
+
+  /// Toggles voice dictation. Transcribed speech is written into the input
+  /// field (not auto-sent) so the user can review it before sending — important
+  /// since a misheard command would otherwise log a wrong transaction.
+  Future<void> _toggleListening() async {
+    if (_isListening) {
+      await _speech.stop();
+      if (mounted) setState(() => _isListening = false);
+      return;
+    }
+
+    if (!_speechReady) {
+      _speechReady = await _speech.initialize(
+        onStatus: (status) {
+          if ((status == 'done' || status == 'notListening') && mounted) {
+            setState(() => _isListening = false);
+          }
+        },
+        onError: (error) {
+          if (mounted) setState(() => _isListening = false);
+        },
+      );
+    }
+
+    if (!_speechReady) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Microphone unavailable. Enable mic permission to use voice input.'),
+          ),
+        );
+      }
+      return;
+    }
+
+    setState(() => _isListening = true);
+    await _speech.listen(
+      onResult: (result) {
+        if (!mounted) return;
+        setState(() {
+          _inputCtrl.text = result.recognizedWords;
+          _inputCtrl.selection = TextSelection.fromPosition(
+            TextPosition(offset: _inputCtrl.text.length),
+          );
+          if (result.finalResult) _isListening = false;
+        });
+      },
+      listenOptions: stt.SpeechListenOptions(
+        partialResults: true,
+        listenMode: stt.ListenMode.dictation,
+        cancelOnError: true,
+        pauseFor: const Duration(seconds: 3),
+        listenFor: const Duration(seconds: 30),
+      ),
+    );
   }
 
   void _scrollDown() {
@@ -65,6 +128,11 @@ class _InsightsViewState extends ConsumerState<InsightsView> {
 
   Future<void> _sendMessage(String query) async {
     if (query.trim().isEmpty) return;
+
+    if (_isListening) {
+      _speech.stop();
+      setState(() => _isListening = false);
+    }
 
     final userMsg = ChatMessage(text: query, isUser: true, timestamp: DateTime.now());
     setState(() { _messages.add(userMsg); _isTyping = true; });
@@ -387,7 +455,12 @@ class _InsightsViewState extends ConsumerState<InsightsView> {
           ),
           if (_isTyping) _TypingIndicator(),
           if (!_isTyping) _QuickChips(onTap: _sendMessage),
-          _InputBar(controller: _inputCtrl, onSend: _sendMessage),
+          _InputBar(
+            controller: _inputCtrl,
+            onSend: _sendMessage,
+            isListening: _isListening,
+            onMic: _toggleListening,
+          ),
         ],
       ),
     );
@@ -717,7 +790,14 @@ class _QuickChips extends StatelessWidget {
 class _InputBar extends StatelessWidget {
   final TextEditingController controller;
   final ValueChanged<String> onSend;
-  const _InputBar({required this.controller, required this.onSend});
+  final bool isListening;
+  final VoidCallback onMic;
+  const _InputBar({
+    required this.controller,
+    required this.onSend,
+    required this.isListening,
+    required this.onMic,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -737,13 +817,23 @@ class _InputBar extends StatelessWidget {
                 textCapitalization: TextCapitalization.sentences,
                 style: const TextStyle(fontSize: 14),
                 decoration: InputDecoration(
-                  hintText: 'Ask anything...',
+                  hintText: isListening ? 'Listening… speak now' : 'Ask or say a command…',
                   contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
                   filled: true,
                   fillColor: AppColors.surface,
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(24),
                     borderSide: BorderSide.none,
+                  ),
+                  // Mic button lives inside the field so it's always reachable.
+                  suffixIcon: IconButton(
+                    icon: Icon(
+                      isListening ? Icons.mic_rounded : Icons.mic_none_rounded,
+                      color: isListening ? AppColors.error : AppColors.textSecondary,
+                      size: 22,
+                    ),
+                    tooltip: isListening ? 'Stop listening' : 'Speak',
+                    onPressed: onMic,
                   ),
                 ),
                 onSubmitted: onSend,
