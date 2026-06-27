@@ -144,117 +144,8 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
             ),
             const SizedBox(height: 12),
             _AiSettingsSection(),
-            const SizedBox(height: 20),
-            const _GroupHeader(
-              icon: Icons.notifications_active_rounded,
-              title: 'Notifications & Battery',
-            ),
-            const SizedBox(height: 8),
-            _SectionCard(
-              icon: Icons.notifications_rounded,
-              title: 'Reminders',
-              trailing: Switch(
-                value: remindersOn,
-                onChanged: _toggleReminders,
-                activeTrackColor: AppColors.primary.withValues(alpha: 0.4),
-                activeThumbColor: AppColors.primary,
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    remindersOn ? 'Daily reminders on' : 'Daily reminders off',
-                    style: const TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.text,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    '12:00 PM & 8:00 PM notifications',
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
-                ],
-              ),
-            ),
             const SizedBox(height: 12),
-            _SectionCard(
-              icon: Icons.pie_chart_outline_rounded,
-              title: 'Budget Alerts',
-              trailing: Switch(
-                value: budgetAlertsOn,
-                onChanged: _toggleBudgetAlerts,
-                activeTrackColor: AppColors.primary.withValues(alpha: 0.4),
-                activeThumbColor: AppColors.primary,
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    budgetAlertsOn
-                        ? 'Budget limit alerts on'
-                        : 'Budget limit alerts off',
-                    style: const TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.text,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    'Get notified (up to 4×/day) when a category reaches 80% of its monthly limit',
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 12),
-            _SectionCard(
-              icon: Icons.auto_awesome_rounded,
-              title: 'Daily Insight',
-              trailing: Switch(
-                value: dailyTipOn,
-                onChanged: _toggleDailyTip,
-                activeTrackColor: AppColors.primary.withValues(alpha: 0.4),
-                activeThumbColor: AppColors.primary,
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    dailyTipOn
-                        ? 'Daily savings tip on'
-                        : 'Daily savings tip off',
-                    style: const TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.text,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    'A 6:40 PM summary of your finances with a personalised savings tip based on your data',
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 12),
-            const _BackgroundDeliverySection(),
-            const SizedBox(height: 20),
             _CurrencySection(),
-            const SizedBox(height: 12),
-
             const SizedBox(height: 12),
             _SectionCard(
               icon: Icons.description_rounded,
@@ -411,6 +302,113 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
                 ],
               ),
             ),
+            const SizedBox(height: 20),
+            const _GroupHeader(
+              icon: Icons.notifications_active_rounded,
+              title: 'Notifications & Battery',
+            ),
+            const SizedBox(height: 8),
+            _SectionCard(
+              icon: Icons.notifications_rounded,
+              title: 'Reminders',
+              trailing: Switch(
+                value: remindersOn,
+                onChanged: _toggleReminders,
+                activeTrackColor: AppColors.primary.withValues(alpha: 0.4),
+                activeThumbColor: AppColors.primary,
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    remindersOn ? 'Daily reminders on' : 'Daily reminders off',
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.text,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    '12:00 PM & 8:00 PM notifications',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+            _SectionCard(
+              icon: Icons.pie_chart_outline_rounded,
+              title: 'Budget Alerts',
+              trailing: Switch(
+                value: budgetAlertsOn,
+                onChanged: _toggleBudgetAlerts,
+                activeTrackColor: AppColors.primary.withValues(alpha: 0.4),
+                activeThumbColor: AppColors.primary,
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    budgetAlertsOn
+                        ? 'Budget limit alerts on'
+                        : 'Budget limit alerts off',
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.text,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    'Get notified (up to 4×/day) when a category reaches 80% of its monthly limit',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+            _SectionCard(
+              icon: Icons.auto_awesome_rounded,
+              title: 'Daily Insight',
+              trailing: Switch(
+                value: dailyTipOn,
+                onChanged: _toggleDailyTip,
+                activeTrackColor: AppColors.primary.withValues(alpha: 0.4),
+                activeThumbColor: AppColors.primary,
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    dailyTipOn
+                        ? 'Daily savings tip on'
+                        : 'Daily savings tip off',
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.text,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    'A 6:40 PM summary of your finances with a personalised savings tip based on your data',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+            const _BackgroundDeliverySection(),
           ],
         ),
       ),

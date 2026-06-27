@@ -10,6 +10,7 @@ import 'package:smart_wallet/ui/features/settings/views/settings_view.dart';
 import 'package:smart_wallet/ui/providers.dart';
 import 'package:smart_wallet/ui/core/currency_utils.dart';
 import 'package:smart_wallet/data/services/notification_coordinator.dart';
+import 'package:smart_wallet/data/services/app_update_service.dart';
 
 class MainNavigationWrapper extends ConsumerStatefulWidget {
   const MainNavigationWrapper({super.key});
@@ -28,8 +29,12 @@ class _MainNavigationWrapperState extends ConsumerState<MainNavigationWrapper> w
       vsync: this,
       duration: const Duration(seconds: 4),
     )..repeat();
-    // Schedule reminders / budget alerts on launch, once initial data is ready.
-    WidgetsBinding.instance.addPostFrameCallback((_) => _syncNotifications());
+    // Schedule reminders / budget alerts on launch, once initial data is ready,
+    // and prompt for a Play Store update if a newer version is available.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _syncNotifications();
+      if (mounted) AppUpdateService.checkAndPrompt(context);
+    });
   }
 
   void _syncNotifications() {
