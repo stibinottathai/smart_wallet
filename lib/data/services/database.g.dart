@@ -71,6 +71,21 @@ class $CategoriesTable extends Categories
     type: DriftSqlType.double,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _rolloverEnabledMeta = const VerificationMeta(
+    'rolloverEnabled',
+  );
+  @override
+  late final GeneratedColumn<bool> rolloverEnabled = GeneratedColumn<bool>(
+    'rollover_enabled',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("rollover_enabled" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -79,6 +94,7 @@ class $CategoriesTable extends Categories
     color,
     isDefault,
     budgetLimit,
+    rolloverEnabled,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -136,6 +152,15 @@ class $CategoriesTable extends Categories
         ),
       );
     }
+    if (data.containsKey('rollover_enabled')) {
+      context.handle(
+        _rolloverEnabledMeta,
+        rolloverEnabled.isAcceptableOrUnknown(
+          data['rollover_enabled']!,
+          _rolloverEnabledMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -169,6 +194,10 @@ class $CategoriesTable extends Categories
         DriftSqlType.double,
         data['${effectivePrefix}budget_limit'],
       ),
+      rolloverEnabled: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}rollover_enabled'],
+      )!,
     );
   }
 
@@ -185,6 +214,7 @@ class Category extends DataClass implements Insertable<Category> {
   final String color;
   final bool isDefault;
   final double? budgetLimit;
+  final bool rolloverEnabled;
   const Category({
     required this.id,
     required this.name,
@@ -192,6 +222,7 @@ class Category extends DataClass implements Insertable<Category> {
     required this.color,
     required this.isDefault,
     this.budgetLimit,
+    required this.rolloverEnabled,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -204,6 +235,7 @@ class Category extends DataClass implements Insertable<Category> {
     if (!nullToAbsent || budgetLimit != null) {
       map['budget_limit'] = Variable<double>(budgetLimit);
     }
+    map['rollover_enabled'] = Variable<bool>(rolloverEnabled);
     return map;
   }
 
@@ -217,6 +249,7 @@ class Category extends DataClass implements Insertable<Category> {
       budgetLimit: budgetLimit == null && nullToAbsent
           ? const Value.absent()
           : Value(budgetLimit),
+      rolloverEnabled: Value(rolloverEnabled),
     );
   }
 
@@ -232,6 +265,7 @@ class Category extends DataClass implements Insertable<Category> {
       color: serializer.fromJson<String>(json['color']),
       isDefault: serializer.fromJson<bool>(json['isDefault']),
       budgetLimit: serializer.fromJson<double?>(json['budgetLimit']),
+      rolloverEnabled: serializer.fromJson<bool>(json['rolloverEnabled']),
     );
   }
   @override
@@ -244,6 +278,7 @@ class Category extends DataClass implements Insertable<Category> {
       'color': serializer.toJson<String>(color),
       'isDefault': serializer.toJson<bool>(isDefault),
       'budgetLimit': serializer.toJson<double?>(budgetLimit),
+      'rolloverEnabled': serializer.toJson<bool>(rolloverEnabled),
     };
   }
 
@@ -254,6 +289,7 @@ class Category extends DataClass implements Insertable<Category> {
     String? color,
     bool? isDefault,
     Value<double?> budgetLimit = const Value.absent(),
+    bool? rolloverEnabled,
   }) => Category(
     id: id ?? this.id,
     name: name ?? this.name,
@@ -261,6 +297,7 @@ class Category extends DataClass implements Insertable<Category> {
     color: color ?? this.color,
     isDefault: isDefault ?? this.isDefault,
     budgetLimit: budgetLimit.present ? budgetLimit.value : this.budgetLimit,
+    rolloverEnabled: rolloverEnabled ?? this.rolloverEnabled,
   );
   Category copyWithCompanion(CategoriesCompanion data) {
     return Category(
@@ -272,6 +309,9 @@ class Category extends DataClass implements Insertable<Category> {
       budgetLimit: data.budgetLimit.present
           ? data.budgetLimit.value
           : this.budgetLimit,
+      rolloverEnabled: data.rolloverEnabled.present
+          ? data.rolloverEnabled.value
+          : this.rolloverEnabled,
     );
   }
 
@@ -283,14 +323,22 @@ class Category extends DataClass implements Insertable<Category> {
           ..write('icon: $icon, ')
           ..write('color: $color, ')
           ..write('isDefault: $isDefault, ')
-          ..write('budgetLimit: $budgetLimit')
+          ..write('budgetLimit: $budgetLimit, ')
+          ..write('rolloverEnabled: $rolloverEnabled')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode =>
-      Object.hash(id, name, icon, color, isDefault, budgetLimit);
+  int get hashCode => Object.hash(
+    id,
+    name,
+    icon,
+    color,
+    isDefault,
+    budgetLimit,
+    rolloverEnabled,
+  );
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -300,7 +348,8 @@ class Category extends DataClass implements Insertable<Category> {
           other.icon == this.icon &&
           other.color == this.color &&
           other.isDefault == this.isDefault &&
-          other.budgetLimit == this.budgetLimit);
+          other.budgetLimit == this.budgetLimit &&
+          other.rolloverEnabled == this.rolloverEnabled);
 }
 
 class CategoriesCompanion extends UpdateCompanion<Category> {
@@ -310,6 +359,7 @@ class CategoriesCompanion extends UpdateCompanion<Category> {
   final Value<String> color;
   final Value<bool> isDefault;
   final Value<double?> budgetLimit;
+  final Value<bool> rolloverEnabled;
   final Value<int> rowid;
   const CategoriesCompanion({
     this.id = const Value.absent(),
@@ -318,6 +368,7 @@ class CategoriesCompanion extends UpdateCompanion<Category> {
     this.color = const Value.absent(),
     this.isDefault = const Value.absent(),
     this.budgetLimit = const Value.absent(),
+    this.rolloverEnabled = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   CategoriesCompanion.insert({
@@ -327,6 +378,7 @@ class CategoriesCompanion extends UpdateCompanion<Category> {
     required String color,
     this.isDefault = const Value.absent(),
     this.budgetLimit = const Value.absent(),
+    this.rolloverEnabled = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        name = Value(name),
@@ -339,6 +391,7 @@ class CategoriesCompanion extends UpdateCompanion<Category> {
     Expression<String>? color,
     Expression<bool>? isDefault,
     Expression<double>? budgetLimit,
+    Expression<bool>? rolloverEnabled,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -348,6 +401,7 @@ class CategoriesCompanion extends UpdateCompanion<Category> {
       if (color != null) 'color': color,
       if (isDefault != null) 'is_default': isDefault,
       if (budgetLimit != null) 'budget_limit': budgetLimit,
+      if (rolloverEnabled != null) 'rollover_enabled': rolloverEnabled,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -359,6 +413,7 @@ class CategoriesCompanion extends UpdateCompanion<Category> {
     Value<String>? color,
     Value<bool>? isDefault,
     Value<double?>? budgetLimit,
+    Value<bool>? rolloverEnabled,
     Value<int>? rowid,
   }) {
     return CategoriesCompanion(
@@ -368,6 +423,7 @@ class CategoriesCompanion extends UpdateCompanion<Category> {
       color: color ?? this.color,
       isDefault: isDefault ?? this.isDefault,
       budgetLimit: budgetLimit ?? this.budgetLimit,
+      rolloverEnabled: rolloverEnabled ?? this.rolloverEnabled,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -393,6 +449,9 @@ class CategoriesCompanion extends UpdateCompanion<Category> {
     if (budgetLimit.present) {
       map['budget_limit'] = Variable<double>(budgetLimit.value);
     }
+    if (rolloverEnabled.present) {
+      map['rollover_enabled'] = Variable<bool>(rolloverEnabled.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -408,6 +467,7 @@ class CategoriesCompanion extends UpdateCompanion<Category> {
           ..write('color: $color, ')
           ..write('isDefault: $isDefault, ')
           ..write('budgetLimit: $budgetLimit, ')
+          ..write('rolloverEnabled: $rolloverEnabled, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -4359,6 +4419,7 @@ typedef $$CategoriesTableCreateCompanionBuilder =
       required String color,
       Value<bool> isDefault,
       Value<double?> budgetLimit,
+      Value<bool> rolloverEnabled,
       Value<int> rowid,
     });
 typedef $$CategoriesTableUpdateCompanionBuilder =
@@ -4369,6 +4430,7 @@ typedef $$CategoriesTableUpdateCompanionBuilder =
       Value<String> color,
       Value<bool> isDefault,
       Value<double?> budgetLimit,
+      Value<bool> rolloverEnabled,
       Value<int> rowid,
     });
 
@@ -4408,6 +4470,11 @@ class $$CategoriesTableFilterComposer
 
   ColumnFilters<double> get budgetLimit => $composableBuilder(
     column: $table.budgetLimit,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get rolloverEnabled => $composableBuilder(
+    column: $table.rolloverEnabled,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -4450,6 +4517,11 @@ class $$CategoriesTableOrderingComposer
     column: $table.budgetLimit,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<bool> get rolloverEnabled => $composableBuilder(
+    column: $table.rolloverEnabled,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$CategoriesTableAnnotationComposer
@@ -4478,6 +4550,11 @@ class $$CategoriesTableAnnotationComposer
 
   GeneratedColumn<double> get budgetLimit => $composableBuilder(
     column: $table.budgetLimit,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<bool> get rolloverEnabled => $composableBuilder(
+    column: $table.rolloverEnabled,
     builder: (column) => column,
   );
 }
@@ -4516,6 +4593,7 @@ class $$CategoriesTableTableManager
                 Value<String> color = const Value.absent(),
                 Value<bool> isDefault = const Value.absent(),
                 Value<double?> budgetLimit = const Value.absent(),
+                Value<bool> rolloverEnabled = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => CategoriesCompanion(
                 id: id,
@@ -4524,6 +4602,7 @@ class $$CategoriesTableTableManager
                 color: color,
                 isDefault: isDefault,
                 budgetLimit: budgetLimit,
+                rolloverEnabled: rolloverEnabled,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -4534,6 +4613,7 @@ class $$CategoriesTableTableManager
                 required String color,
                 Value<bool> isDefault = const Value.absent(),
                 Value<double?> budgetLimit = const Value.absent(),
+                Value<bool> rolloverEnabled = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => CategoriesCompanion.insert(
                 id: id,
@@ -4542,6 +4622,7 @@ class $$CategoriesTableTableManager
                 color: color,
                 isDefault: isDefault,
                 budgetLimit: budgetLimit,
+                rolloverEnabled: rolloverEnabled,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0

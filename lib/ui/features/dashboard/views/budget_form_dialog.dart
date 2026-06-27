@@ -18,19 +18,21 @@ class BudgetFormDialog extends ConsumerStatefulWidget {
 
 class _BudgetFormDialogState extends ConsumerState<BudgetFormDialog> {
   final Map<String, TextEditingController> _controllers = {};
+  final Map<String, bool> _rollover = {};
 
   @override
   void initState() {
     super.initState();
     for (final category in widget.categories) {
       if (category.id == 'cat_income') continue;
-      
+
       final currentLimit = category.budgetLimit;
       _controllers[category.id] = TextEditingController(
         text: currentLimit != null && currentLimit > 0
             ? currentLimit.toStringAsFixed(0)
             : '',
       );
+      _rollover[category.id] = category.rolloverEnabled;
     }
   }
 
@@ -54,21 +56,30 @@ class _BudgetFormDialogState extends ConsumerState<BudgetFormDialog> {
 
       final text = ctrl.text.trim();
       final newLimit = double.tryParse(text);
+      final rolloverOn = _rollover[category.id] ?? false;
+      final hasLimit = !(text.isEmpty || newLimit == null || newLimit <= 0);
 
-      if (text.isEmpty || newLimit == null || newLimit <= 0) {
-        // If it was previously set, clear it
-        if (category.budgetLimit != null) {
-          final updated = category.copyWith(clearBudgetLimit: true);
+      // Rollover only makes sense with a limit set; drop it otherwise.
+      final effectiveRollover = hasLimit && rolloverOn;
+
+      if (!hasLimit) {
+        // Clear the limit (and any rollover) if it was previously set.
+        if (category.budgetLimit != null || category.rolloverEnabled) {
+          final updated = category.copyWith(
+            clearBudgetLimit: true,
+            rolloverEnabled: false,
+          );
           await repo.updateCategory(updated);
           hasChanges = true;
         }
-      } else {
-        // If it changed, update it
-        if (category.budgetLimit != newLimit) {
-          final updated = category.copyWith(budgetLimit: newLimit);
-          await repo.updateCategory(updated);
-          hasChanges = true;
-        }
+      } else if (category.budgetLimit != newLimit ||
+          category.rolloverEnabled != effectiveRollover) {
+        final updated = category.copyWith(
+          budgetLimit: newLimit,
+          rolloverEnabled: effectiveRollover,
+        );
+        await repo.updateCategory(updated);
+        hasChanges = true;
       }
     }
 
@@ -145,7 +156,7 @@ class _BudgetFormDialogState extends ConsumerState<BudgetFormDialog> {
                         ],
                       ),
                       Text(
-                        'Set monthly spending limits for each category. Enter 0 or leave empty to disable limits.',
+                        'Set monthly spending limits per category. Turn on rollover to carry unspent budget into next month. Leave empty to disable.',
                         style: TextStyle(
                           fontSize: 12,
                           color: AppColors.textSecondary,
@@ -171,59 +182,101 @@ class _BudgetFormDialogState extends ConsumerState<BudgetFormDialog> {
 
                       return Padding(
                         padding: const EdgeInsets.symmetric(vertical: 8.0),
-                        child: Row(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Container(
-                              width: 36,
-                              height: 36,
-                              decoration: BoxDecoration(
-                                color: catColor.withValues(alpha: 0.12),
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                              child: Icon(
-                                getCategoryIcon(category.icon),
-                                color: catColor,
-                                size: 16,
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              flex: 3,
-                              child: Text(
-                                category.name,
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.w600,
-                                  fontSize: 14,
-                                  color: AppColors.text,
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 16),
-                            Expanded(
-                              flex: 2,
-                              child: SizedBox(
-                                height: 40,
-                                child: TextField(
-                                  controller: controller,
-                                  keyboardType: const TextInputType.numberWithOptions(
-                                    decimal: false,
+                            Row(
+                              children: [
+                                Container(
+                                  width: 36,
+                                  height: 36,
+                                  decoration: BoxDecoration(
+                                    color: catColor.withValues(alpha: 0.12),
+                                    borderRadius: BorderRadius.circular(10),
                                   ),
-                                  style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
-                                  decoration: InputDecoration(
-                                    prefixText: '$currencySym ',
-                                    prefixStyle: TextStyle(
-                                      color: AppColors.text.withValues(alpha: 0.5),
+                                  child: Icon(
+                                    getCategoryIcon(category.icon),
+                                    color: catColor,
+                                    size: 16,
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  flex: 3,
+                                  child: Text(
+                                    category.name,
+                                    style: const TextStyle(
                                       fontWeight: FontWeight.w600,
-                                    ),
-                                    hintText: 'No limit',
-                                    contentPadding: const EdgeInsets.symmetric(
-                                      horizontal: 10,
-                                      vertical: 0,
+                                      fontSize: 14,
+                                      color: AppColors.text,
                                     ),
                                   ),
                                 ),
-                              ),
+                                const SizedBox(width: 16),
+                                Expanded(
+                                  flex: 2,
+                                  child: SizedBox(
+                                    height: 40,
+                                    child: TextField(
+                                      controller: controller,
+                                      keyboardType: const TextInputType.numberWithOptions(
+                                        decimal: false,
+                                      ),
+                                      style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                                      onChanged: (_) => setState(() {}),
+                                      decoration: InputDecoration(
+                                        prefixText: '$currencySym ',
+                                        prefixStyle: TextStyle(
+                                          color: AppColors.text.withValues(alpha: 0.5),
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                        hintText: 'No limit',
+                                        contentPadding: const EdgeInsets.symmetric(
+                                          horizontal: 10,
+                                          vertical: 0,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
+                            if ((controller?.text.trim().isNotEmpty ?? false))
+                              Padding(
+                                padding: const EdgeInsets.only(left: 48, top: 2),
+                                child: InkWell(
+                                  borderRadius: BorderRadius.circular(8),
+                                  onTap: () => setState(() {
+                                    _rollover[category.id] = !(_rollover[category.id] ?? false);
+                                  }),
+                                  child: Row(
+                                    children: [
+                                      SizedBox(
+                                        height: 28,
+                                        width: 36,
+                                        child: Transform.scale(
+                                          scale: 0.7,
+                                          alignment: Alignment.centerLeft,
+                                          child: Switch(
+                                            value: _rollover[category.id] ?? false,
+                                            activeThumbColor: AppColors.primary,
+                                            onChanged: (v) => setState(() => _rollover[category.id] = v),
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        'Roll over unspent budget',
+                                        style: TextStyle(
+                                          fontSize: 11.5,
+                                          fontWeight: FontWeight.w500,
+                                          color: AppColors.textSecondary,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
                           ],
                         ),
                       );

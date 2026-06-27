@@ -1,5 +1,6 @@
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../domain/models/models.dart';
+import 'budget_rollover_service.dart';
 import 'notification_service.dart';
 
 /// Central place that decides what notifications should currently be scheduled,
@@ -206,25 +207,20 @@ class NotificationCoordinator {
     List<Expense> expenses,
     List<Category> categories,
   ) {
-    final now = DateTime.now();
-
-    // Current-month spend per category.
-    final spend = <String, double>{};
-    for (final e in expenses) {
-      if (e.date.year == now.year && e.date.month == now.month) {
-        spend[e.categoryId] = (spend[e.categoryId] ?? 0) + e.amount;
-      }
-    }
+    // Use the envelope budgets so rollover categories are measured against their
+    // effective budget (monthly limit + carried-over balance), not the raw cap.
+    final envelopes = BudgetRolloverService.computeEnvelopes(
+      categories: categories,
+      expenses: expenses,
+    );
 
     final atRisk = <String>[];
     var anyOver = false;
-    for (final c in categories) {
-      final limit = c.budgetLimit;
-      if (limit == null || limit <= 0) continue;
-      final used = spend[c.id] ?? 0;
-      final ratio = used / limit;
+    for (final env in envelopes) {
+      if (env.effectiveBudget <= 0) continue;
+      final ratio = env.spentThisMonth / env.effectiveBudget;
       if (ratio >= _budgetThreshold) {
-        atRisk.add('${c.name} (${(ratio * 100).round()}%)');
+        atRisk.add('${env.category.name} (${(ratio * 100).round()}%)');
         if (ratio >= 1.0) anyOver = true;
       }
     }

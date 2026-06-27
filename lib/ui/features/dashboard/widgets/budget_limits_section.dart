@@ -1,34 +1,24 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:smart_wallet/data/services/budget_rollover_service.dart';
 import 'package:smart_wallet/domain/models/models.dart' as domain;
 import 'package:smart_wallet/ui/core/category_icons.dart';
 import 'package:smart_wallet/ui/core/theme.dart';
 import '../views/budget_form_dialog.dart';
+import '../../budget/views/envelope_view.dart';
 import 'section_header.dart';
 
-class _BudgetItem {
-  final domain.Category category;
-  final double spend;
-  final double limit;
-
-  _BudgetItem({
-    required this.category,
-    required this.spend,
-    required this.limit,
-  });
-
-  double get percent => limit > 0 ? (spend / limit) : 0.0;
-}
-
 /// Monthly budget-limit progress bars for categories that have a cap set.
+/// Rollover-enabled categories are measured against their effective budget
+/// (monthly limit + carried-over balance).
 class BudgetLimitsSection extends StatelessWidget {
-  final Map<String, double> monthlySpendMap;
+  final List<domain.Expense> expenses;
   final List<domain.Category> categories;
   final String symbol;
 
   const BudgetLimitsSection({
     super.key,
-    required this.monthlySpendMap,
+    required this.expenses,
     required this.categories,
     required this.symbol,
   });
@@ -42,21 +32,36 @@ class BudgetLimitsSection extends StatelessWidget {
     );
   }
 
+  void _openEnvelopes(BuildContext context) {
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const EnvelopeView()),
+    );
+  }
+
+  /// Header actions: open the envelope view + edit budgets.
+  Widget _headerActions(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        AddIconButton(
+          icon: Icons.mail_outline_rounded,
+          onTap: () => _openEnvelopes(context),
+        ),
+        const SizedBox(width: 8),
+        AddIconButton(
+          icon: Icons.edit_rounded,
+          onTap: () => _showManageBudgetsDialog(context),
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    final items = <_BudgetItem>[];
-    for (final category in categories) {
-      if (category.id == 'cat_income') continue;
-      final limit = category.budgetLimit;
-      if (limit != null && limit > 0) {
-        final spend = monthlySpendMap[category.id] ?? 0.0;
-        items.add(_BudgetItem(
-          category: category,
-          spend: spend,
-          limit: limit,
-        ));
-      }
-    }
+    final items = BudgetRolloverService.computeEnvelopes(
+      categories: categories,
+      expenses: expenses,
+    );
 
     items.sort((a, b) => b.percent.compareTo(a.percent));
 
@@ -72,10 +77,7 @@ class BudgetLimitsSection extends StatelessWidget {
               children: [
                 SectionHeader(
                   title: 'Monthly Budget Limits',
-                  action: AddIconButton(
-                    icon: Icons.edit_rounded,
-                    onTap: () => _showManageBudgetsDialog(context),
-                  ),
+                  action: _headerActions(context),
                 ),
                 const SizedBox(height: 14),
                 Row(
@@ -141,16 +143,13 @@ class BudgetLimitsSection extends StatelessWidget {
               SectionHeader(
                 title: 'Monthly Budget Limits',
                 subtitle: 'Spending progress against category caps',
-                action: AddIconButton(
-                  icon: Icons.edit_rounded,
-                  onTap: () => _showManageBudgetsDialog(context),
-                ),
+                action: _headerActions(context),
               ),
               const SizedBox(height: 20),
               ...items.map((item) {
                 final catColor = Color(int.parse(item.category.color.replaceAll('#', '0xFF')));
                 final percentLabel = '${(item.percent * 100).toStringAsFixed(0)}%';
-                final isOverBudget = item.spend > item.limit;
+                final isOverBudget = item.isOverBudget;
 
                 return Padding(
                   padding: const EdgeInsets.only(bottom: 16),
@@ -176,10 +175,14 @@ class BudgetLimitsSection extends StatelessWidget {
                                   color: AppColors.text,
                                 ),
                               ),
+                              if (item.hasRollover) ...[
+                                const SizedBox(width: 5),
+                                Icon(Icons.refresh_rounded, size: 12, color: AppColors.primary),
+                              ],
                             ],
                           ),
                           Text(
-                            '$symbol${item.spend.toStringAsFixed(0)} / $symbol${item.limit.toStringAsFixed(0)} ($percentLabel)',
+                            '$symbol${item.spentThisMonth.toStringAsFixed(0)} / $symbol${item.effectiveBudget.toStringAsFixed(0)} ($percentLabel)',
                             style: GoogleFonts.inter(
                               fontSize: 12,
                               fontWeight: FontWeight.w600,
@@ -200,6 +203,13 @@ class BudgetLimitsSection extends StatelessWidget {
                           minHeight: 6,
                         ),
                       ),
+                      if (item.hasRollover) ...[
+                        const SizedBox(height: 4),
+                        Text(
+                          'Includes $symbol${item.rolloverIn.toStringAsFixed(0)} rolled over',
+                          style: const TextStyle(fontSize: 10.5, color: AppColors.primary),
+                        ),
+                      ],
                     ],
                   ),
                 );

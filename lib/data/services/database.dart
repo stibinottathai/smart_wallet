@@ -10,6 +10,8 @@ class Categories extends Table {
   TextColumn get color => text()(); // Hex color string
   BoolColumn get isDefault => boolean().withDefault(const Constant(false))();
   RealColumn get budgetLimit => real().nullable()();
+  // Envelope budgeting: when true, unspent budget carries into the next month.
+  BoolColumn get rolloverEnabled => boolean().withDefault(const Constant(false))();
 
   @override
   Set<Column> get primaryKey => {id};
@@ -168,7 +170,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(driftDatabase(name: 'smart_wallet'));
 
   @override
-  int get schemaVersion => 7;
+  int get schemaVersion => 8;
 
   @override
   MigrationStrategy get migration {
@@ -235,6 +237,14 @@ class AppDatabase extends _$AppDatabase {
           await customStatement(
             "UPDATE incomes SET account_id = 'acc_cash' WHERE account_id IS NULL",
           );
+        }
+        if (from < 8) {
+          // Envelope budgeting: per-category rollover flag.
+          final cols = await customSelect("PRAGMA table_info('categories')").get();
+          final hasColumn = cols.any((row) => row.read<String>('name') == 'rollover_enabled');
+          if (!hasColumn) {
+            await m.addColumn(categories, categories.rolloverEnabled);
+          }
         }
       },
       beforeOpen: (details) async {

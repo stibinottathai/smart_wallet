@@ -61,19 +61,11 @@ class DashboardView extends ConsumerWidget {
                     : (totalExpense > 0 ? 1.0 : 0.0);
 
                 final categoryMap = {for (var c in categories) c.id: c};
+                // All-time spend per category — used by the spending breakdown.
                 final categorySpendMap = <String, double>{};
-                // Current-month spend per category — used for the monthly budget
-                // limits section so progress resets each month and matches the
-                // budget-limit notifications.
-                final now = DateTime.now();
-                final monthlySpendMap = <String, double>{};
                 for (final exp in expenses) {
                   categorySpendMap[exp.categoryId] =
                       (categorySpendMap[exp.categoryId] ?? 0.0) + exp.amount;
-                  if (exp.date.year == now.year && exp.date.month == now.month) {
-                    monthlySpendMap[exp.categoryId] =
-                        (monthlySpendMap[exp.categoryId] ?? 0.0) + exp.amount;
-                  }
                 }
 
                 return Scaffold(
@@ -88,7 +80,6 @@ class DashboardView extends ConsumerWidget {
                           totalIncome: totalIncome,
                           totalExpense: totalExpense,
                           categorySpendMap: categorySpendMap,
-                          monthlySpendMap: monthlySpendMap,
                           categoryMap: categoryMap,
                           expenses: expenses,
                           savingsGoals: savingsGoals,
@@ -154,7 +145,6 @@ class _DashboardContent extends StatelessWidget {
   final double totalIncome;
   final double totalExpense;
   final Map<String, double> categorySpendMap;
-  final Map<String, double> monthlySpendMap;
   final Map<String, domain.Category> categoryMap;
   final List<domain.Expense> expenses;
   final List<domain.SavingsGoal> savingsGoals;
@@ -168,7 +158,6 @@ class _DashboardContent extends StatelessWidget {
     required this.totalIncome,
     required this.totalExpense,
     required this.categorySpendMap,
-    required this.monthlySpendMap,
     required this.categoryMap,
     required this.expenses,
     required this.savingsGoals,
@@ -205,7 +194,7 @@ class _DashboardContent extends StatelessWidget {
           RepaintBoundary(child: WeeklyTrendSection(expenses: expenses, symbol: symbol)),
           RepaintBoundary(
             child: BudgetLimitsSection(
-              monthlySpendMap: monthlySpendMap,
+              expenses: expenses,
               categories: categories,
               symbol: symbol,
             ),

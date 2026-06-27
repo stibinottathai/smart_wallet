@@ -47,6 +47,7 @@ class Category {
   final String color; // Hex string (e.g. '#2F6F5E')
   final bool isDefault;
   final double? budgetLimit;
+  final bool rolloverEnabled;
 
   const Category({
     required this.id,
@@ -55,6 +56,7 @@ class Category {
     required this.color,
     this.isDefault = false,
     this.budgetLimit,
+    this.rolloverEnabled = false,
   });
 
   Category copyWith({
@@ -65,6 +67,7 @@ class Category {
     bool? isDefault,
     double? budgetLimit,
     bool clearBudgetLimit = false,
+    bool? rolloverEnabled,
   }) {
     return Category(
       id: id ?? this.id,
@@ -73,6 +76,7 @@ class Category {
       color: color ?? this.color,
       isDefault: isDefault ?? this.isDefault,
       budgetLimit: clearBudgetLimit ? null : (budgetLimit ?? this.budgetLimit),
+      rolloverEnabled: rolloverEnabled ?? this.rolloverEnabled,
     );
   }
 }

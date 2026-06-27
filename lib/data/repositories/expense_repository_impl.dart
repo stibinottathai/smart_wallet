@@ -67,6 +67,7 @@ class ExpenseRepositoryImpl implements ExpenseRepository {
       color: dbCategory.color,
       isDefault: dbCategory.isDefault,
       budgetLimit: dbCategory.budgetLimit,
+      rolloverEnabled: dbCategory.rolloverEnabled,
     );
   }
 
@@ -78,6 +79,7 @@ class ExpenseRepositoryImpl implements ExpenseRepository {
       color: Value(category.color),
       isDefault: Value(category.isDefault),
       budgetLimit: Value(category.budgetLimit),
+      rolloverEnabled: Value(category.rolloverEnabled),
     );
   }
 
