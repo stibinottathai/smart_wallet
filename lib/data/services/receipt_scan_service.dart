@@ -276,18 +276,57 @@ $extractedText''';
   }
 
   String matchCategory(String categoryGuess, List<domain.Category> categories) {
-    final guess = categoryGuess.trim();
-    if (categories.any((c) => c.id == guess)) {
-      return guess;
+    final guess = categoryGuess.trim().toLowerCase();
+    if (guess.isEmpty) {
+      return categories.isNotEmpty ? categories.first.id : '';
     }
-    // Fallback: search for names
-    final lowerGuess = guess.toLowerCase();
-    try {
-      final cat = categories.firstWhere((c) => c.name.toLowerCase() == lowerGuess);
-      return cat.id;
-    } catch (_) {
-      return categories.first.id;
+
+    // 1. Exact match on ID
+    for (final c in categories) {
+      if (c.id.toLowerCase() == guess) {
+        return c.id;
+      }
     }
+
+    // 2. Exact match on Name
+    for (final c in categories) {
+      if (c.name.toLowerCase() == guess) {
+        return c.id;
+      }
+    }
+
+    // 3. Keyword / synonym match
+    final keywordMap = {
+      'dining': ['dining', 'restaurant', 'drinks', 'food', 'cafe', 'eat', 'bar'],
+      'groceries': ['groceries', 'grocery', 'supermarket', 'shop', 'store'],
+      'transport': ['transport', 'uber', 'taxi', 'ride', 'car', 'bus', 'train', 'flight', 'travel', 'metro'],
+    };
+
+    for (final c in categories) {
+      final idLower = c.id.toLowerCase();
+      for (final entry in keywordMap.entries) {
+        if (idLower.contains(entry.key)) {
+          for (final keyword in entry.value) {
+            if (guess.contains(keyword)) {
+              return c.id;
+            }
+          }
+        }
+      }
+    }
+
+    // 4. Substring match on category name or ID
+    for (final c in categories) {
+      final nameLower = c.name.toLowerCase();
+      final idLower = c.id.toLowerCase();
+      if (guess.contains(nameLower) || nameLower.contains(guess) ||
+          guess.contains(idLower) || idLower.contains(guess)) {
+        return c.id;
+      }
+    }
+
+    // Fallback: return the first category (often uncategorized)
+    return categories.isNotEmpty ? categories.first.id : '';
   }
 
   String _extractErrorDetail(String body, int statusCode) {

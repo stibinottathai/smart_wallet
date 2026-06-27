@@ -4,6 +4,7 @@ import 'package:uuid/uuid.dart';
 import '../../domain/models/models.dart' as domain;
 import '../../domain/models/proactive_insight.dart';
 import '../repositories/proactive_insight_repository_impl.dart';
+import 'subscription_detection_service.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Fact schemas — mirrors the spec exactly
@@ -222,6 +223,41 @@ List<Map<String, dynamic>> runRuleEngine({
       'trigger_type': 'savings_streak',
       'metric': 'no_spend_days',
       'count': streak,
+    });
+  }
+
+  // ── 8. subscriptions ─────────────────────────────────────────────────────
+  // Auto-detected recurring merchants: surface the total monthly cost and the
+  // single biggest price increase so the AI can narrate them as cards.
+  final subs = SubscriptionDetectionService.detect(
+    expenses: expenses,
+    categories: categories,
+    now: now,
+  );
+  final activeSubs = subs.where((s) => s.isActive).toList();
+  if (activeSubs.length >= 2) {
+    final monthlyTotal = activeSubs.fold<double>(0, (s, x) => s + x.monthlyCost);
+    facts.add({
+      'trigger_type': 'subscription_summary',
+      'monthly_total': monthlyTotal.round(),
+      'count': activeSubs.length,
+      'largest_merchant': activeSubs.first.merchant, // sorted by monthly cost desc
+      'largest_monthly': activeSubs.first.monthlyCost.round(),
+    });
+  }
+  Subscription? topHike;
+  for (final s in activeSubs) {
+    if (!s.hasPriceHike) continue;
+    if (topHike == null || s.priceHikePercent > topHike.priceHikePercent) topHike = s;
+  }
+  if (topHike != null) {
+    facts.add({
+      'trigger_type': 'subscription_price_hike',
+      'category': topHike.merchant,
+      'merchant': topHike.merchant,
+      'old_amount': topHike.previousAmount!.round(),
+      'new_amount': topHike.amount.round(),
+      'percent': topHike.priceHikePercent.round(),
     });
   }
 

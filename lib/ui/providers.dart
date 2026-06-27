@@ -9,6 +9,7 @@ import '../data/repositories/account_repository_impl.dart';
 import '../data/repositories/transfer_repository_impl.dart';
 import '../data/repositories/recurring_rule_repository_impl.dart';
 import '../data/services/recurring_transaction_service.dart';
+import '../data/services/subscription_detection_service.dart';
 import '../data/services/database.dart' hide ProactiveInsight;
 import '../data/services/insights_service.dart';
 import '../data/services/proactive_insight_service.dart';
@@ -154,6 +155,16 @@ final allTransfersProvider = StreamProvider<List<domain.Transfer>>((ref) {
 final allRecurringRulesProvider = StreamProvider<List<domain.RecurringRule>>((ref) {
   final repo = ref.watch(recurringRuleRepositoryProvider);
   return repo.watchAllRules();
+});
+
+/// Subscriptions auto-detected from expense history (recurring merchants).
+final detectedSubscriptionsProvider = Provider<List<Subscription>>((ref) {
+  final expenses = ref.watch(allExpensesProvider).value ?? const [];
+  final categories = ref.watch(allCategoriesProvider).value ?? const [];
+  return SubscriptionDetectionService.detect(
+    expenses: expenses,
+    categories: categories,
+  );
 });
 
 /// Runs the recurring-transaction catch-up once and returns how many entries

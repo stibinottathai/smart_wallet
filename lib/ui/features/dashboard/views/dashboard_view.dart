@@ -5,7 +5,6 @@ import 'package:smart_wallet/ui/core/theme.dart';
 import 'package:smart_wallet/ui/providers.dart';
 import 'package:smart_wallet/ui/core/currency_utils.dart';
 import 'package:smart_wallet/ui/features/entries/views/entry_form_view.dart';
-import 'package:smart_wallet/ui/features/entries/views/scan_receipt_view.dart';
 import 'package:smart_wallet/ui/features/dashboard/widgets/ai_assistant_card.dart';
 import 'package:smart_wallet/ui/features/dashboard/widgets/accounts_section.dart';
 import 'package:smart_wallet/ui/features/dashboard/widgets/balance_header_card.dart';
@@ -100,32 +99,14 @@ class DashboardView extends ConsumerWidget {
                       },
                     ),
                   ),
-                  floatingActionButton: Column(
-                    mainAxisAlignment: MainAxisAlignment.end,
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      FloatingActionButton.small(
-                        heroTag: 'dashboard_scan_receipt_fab',
-                        backgroundColor: AppColors.surface,
-                        foregroundColor: AppColors.primary,
-                        onPressed: () {
-                          Navigator.of(context).push(
-                            MaterialPageRoute(builder: (context) => const ScanReceiptView()),
-                          );
-                        },
-                        child: const Icon(Icons.document_scanner_rounded),
-                      ),
-                      const SizedBox(height: 16),
-                      FloatingActionButton(
-                        heroTag: 'dashboard_transactions_fab',
-                        onPressed: () {
-                          Navigator.of(context).push(
-                            MaterialPageRoute(builder: (context) => const EntryFormView()),
-                          );
-                        },
-                        child: const Icon(Icons.add, size: 26),
-                      ),
-                    ],
+                  floatingActionButton: FloatingActionButton(
+                    heroTag: 'dashboard_transactions_fab',
+                    onPressed: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(builder: (context) => const EntryFormView()),
+                      );
+                    },
+                    child: const Icon(Icons.add, size: 26),
                   ),
                 );
               },
