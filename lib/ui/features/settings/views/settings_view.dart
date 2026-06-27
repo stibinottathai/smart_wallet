@@ -1226,7 +1226,7 @@ class _AiSettingsDialogState extends ConsumerState<_AiSettingsDialog> {
             const SizedBox(height: 16),
             DropdownButtonFormField<domain.AiProvider>(
               isExpanded: true,
-              value: _selectedProvider,
+              initialValue: _selectedProvider,
               decoration: const InputDecoration(
                 labelText: 'Provider',
                 border: OutlineInputBorder(),
@@ -1250,7 +1250,7 @@ class _AiSettingsDialogState extends ConsumerState<_AiSettingsDialog> {
             const SizedBox(height: 16),
             DropdownButtonFormField<String>(
               isExpanded: true,
-              value: availableModels.contains(_selectedModel) ? _selectedModel : availableModels.first,
+              initialValue: availableModels.contains(_selectedModel) ? _selectedModel : availableModels.first,
               decoration: const InputDecoration(
                 labelText: 'Model',
                 border: OutlineInputBorder(),

@@ -31,15 +31,16 @@ android {
             // TODO: Add your own signing config for the release build.
             // Signing with the debug keys for now, so `flutter run --release` works.
             signingConfig = signingConfigs.getByName("debug")
-            // Disable R8/ProGuard code shrinking & obfuscation. It was stripping
-            // the Gson generic type info that flutter_local_notifications relies
-            // on, which crashed the app whenever a scheduled notification fired
-            // or on boot ("TypeToken must be created with a type argument").
-            // The size saving is negligible here (the APK is dominated by ML Kit
-            // native libraries and the Dart AOT library, neither touched by R8),
-            // so correctness wins. Keep-rules below still apply if re-enabled.
-            isMinifyEnabled = false
-            isShrinkResources = false
+            // R8/ProGuard code + resource shrinking. This previously crashed the
+            // app ("TypeToken must be created with a type argument") because R8
+            // stripped the Gson generic type info that flutter_local_notifications
+            // relies on. The keep-rules in proguard-rules.pro (-keepattributes
+            // Signature + the Gson TypeToken keeps) address that, so shrinking is
+            // re-enabled to trim unused Java/Kotlin bytecode and resources.
+            // NOTE: ML Kit native libs and the Dart AOT library are not touched by
+            // R8, so the bulk of the APK is unaffected — the win is on the dex.
+            isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro")
         }
     }

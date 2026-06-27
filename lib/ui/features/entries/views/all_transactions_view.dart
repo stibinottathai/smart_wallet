@@ -9,7 +9,7 @@ import 'package:smart_wallet/ui/core/dialogs.dart';
 import 'package:smart_wallet/ui/providers.dart';
 import 'package:smart_wallet/ui/features/entries/views/entry_form_view.dart';
 import 'package:smart_wallet/ui/features/entries/views/scan_receipt_view.dart';
-import 'package:smart_wallet/ui/features/dashboard/views/dashboard_view.dart';
+import 'package:smart_wallet/ui/core/category_icons.dart';
 
 class AllTransactionsView extends ConsumerStatefulWidget {
   final bool initialShowExpenses;

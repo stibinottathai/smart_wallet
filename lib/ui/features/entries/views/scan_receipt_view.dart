@@ -206,7 +206,7 @@ class _ScanReceiptViewState extends ConsumerState<ScanReceiptView> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.document_scanner_rounded, size: 80, color: AppColors.primary.withOpacity(0.5)),
+            Icon(Icons.document_scanner_rounded, size: 80, color: AppColors.primary.withValues(alpha: 0.5)),
             const SizedBox(height: 24),
             ElevatedButton.icon(
               onPressed: () => ref.read(scanReceiptProvider.notifier).pickImage(ImageSource.camera),
@@ -300,10 +300,10 @@ class _ScanReceiptViewState extends ConsumerState<ScanReceiptView> {
               height: 200,
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: AppColors.divider.withOpacity(0.5)),
+                border: Border.all(color: AppColors.divider.withValues(alpha: 0.5)),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.05),
+                    color: Colors.black.withValues(alpha: 0.05),
                     blurRadius: 10,
                     offset: const Offset(0, 4),
                   ),
@@ -338,18 +338,18 @@ class _ScanReceiptViewState extends ConsumerState<ScanReceiptView> {
           ),
           const SizedBox(height: 16),
           DropdownButtonFormField<String>(
-            value: _selectedCategoryId,
+            initialValue: _selectedCategoryId,
             decoration: InputDecoration(
               labelText: 'Category',
               labelStyle: const TextStyle(color: AppColors.textSecondary),
               prefixIcon: const Icon(Icons.category_rounded, color: AppColors.textSecondary),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(color: AppColors.divider.withOpacity(0.5)),
+                borderSide: BorderSide(color: AppColors.divider.withValues(alpha: 0.5)),
               ),
               enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(color: AppColors.divider.withOpacity(0.5)),
+                borderSide: BorderSide(color: AppColors.divider.withValues(alpha: 0.5)),
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
@@ -378,13 +378,13 @@ class _ScanReceiptViewState extends ConsumerState<ScanReceiptView> {
               decoration: BoxDecoration(
                 color: AppColors.card,
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: AppColors.divider.withOpacity(0.5)),
+                border: Border.all(color: AppColors.divider.withValues(alpha: 0.5)),
               ),
               child: ListView.separated(
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
                 itemCount: state.result!.items.length,
-                separatorBuilder: (c, i) => Divider(height: 1, color: AppColors.divider.withOpacity(0.5)),
+                separatorBuilder: (c, i) => Divider(height: 1, color: AppColors.divider.withValues(alpha: 0.5)),
                 itemBuilder: (c, i) {
                   final item = state.result!.items[i];
                   return ListTile(
@@ -410,7 +410,7 @@ class _ScanReceiptViewState extends ConsumerState<ScanReceiptView> {
                   date: DateTime.tryParse(_dateController.text) ?? DateTime.now(),
                   categoryId: _selectedCategoryId!,
                 );
-                if (context.mounted) {
+                if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
                       content: Text('Expense saved successfully!'),
@@ -420,7 +420,7 @@ class _ScanReceiptViewState extends ConsumerState<ScanReceiptView> {
                   Navigator.of(context).pop();
                 }
               } catch (e) {
-                if (context.mounted) {
+                if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e'), backgroundColor: AppColors.error));
                 }
               }
@@ -456,11 +456,11 @@ class _ScanReceiptViewState extends ConsumerState<ScanReceiptView> {
         prefixIcon: Icon(icon, color: AppColors.textSecondary),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: AppColors.divider.withOpacity(0.5)),
+          borderSide: BorderSide(color: AppColors.divider.withValues(alpha: 0.5)),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: AppColors.divider.withOpacity(0.5)),
+          borderSide: BorderSide(color: AppColors.divider.withValues(alpha: 0.5)),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),

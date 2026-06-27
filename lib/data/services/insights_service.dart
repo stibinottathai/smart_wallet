@@ -26,6 +26,42 @@ bool _isNetworkError(Object e) {
 const _offlineMessage =
     'No internet connection. Please check your network and try again.';
 
+/// The structured result of parsing a user's chat message for an actionable
+/// command (logging a new expense or income). When [intent] is `none`, the
+/// message is a normal question/analysis request and should be answered by the
+/// streaming assistant instead.
+class AssistantAction {
+  /// One of: `add_expense`, `add_income`, `none`.
+  final String intent;
+  final double? amount;
+
+  /// Resolved category id for an expense (already validated against the user's
+  /// categories, or null if nothing matched).
+  final String? categoryId;
+
+  /// Short description / merchant for an expense.
+  final String? note;
+
+  /// Source label for an income (e.g. "Salary", "Freelance").
+  final String? incomeSource;
+  final DateTime? date;
+
+  AssistantAction({
+    required this.intent,
+    this.amount,
+    this.categoryId,
+    this.note,
+    this.incomeSource,
+    this.date,
+  });
+
+  bool get isExpense => intent == 'add_expense';
+  bool get isIncome => intent == 'add_income';
+  bool get isAction => isExpense || isIncome;
+
+  static AssistantAction none() => AssistantAction(intent: 'none');
+}
+
 class SpendingInsight {
   final String title;
   final String observation;

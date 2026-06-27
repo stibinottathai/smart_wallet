@@ -1,3 +1,6 @@
+// This is a standalone developer CLI script (not shipped app code), so
+// printing progress to stdout is intentional.
+// ignore_for_file: avoid_print
 import 'dart:collection';
 import 'dart:io';
 import 'package:image/image.dart' as img;

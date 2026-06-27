@@ -5,7 +5,7 @@ import '../../../../domain/models/models.dart' as domain;
 import '../../../core/theme.dart';
 import '../../../core/currency_utils.dart';
 import '../../../providers.dart';
-import 'dashboard_view.dart' show getCategoryIcon;
+import '../../../core/category_icons.dart';
 
 class BudgetFormDialog extends ConsumerStatefulWidget {
   final List<domain.Category> categories;
