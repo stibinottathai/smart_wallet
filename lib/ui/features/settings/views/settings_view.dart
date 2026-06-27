@@ -30,23 +30,6 @@ class SettingsView extends ConsumerStatefulWidget {
 }
 
 class _SettingsViewState extends ConsumerState<SettingsView> {
-  @override
-  void initState() {
-    super.initState();
-    _loadReminderPref();
-  }
-
-  Future<void> _loadReminderPref() async {
-    final prefs = await SharedPreferences.getInstance();
-    ref.read(remindersEnabledProvider.notifier).state =
-        prefs.getBool(NotificationCoordinator.remindersPrefKey) ?? true;
-    ref.read(budgetAlertsEnabledProvider.notifier).state =
-        prefs.getBool(NotificationCoordinator.budgetAlertsPrefKey) ?? true;
-    ref.read(dailyTipEnabledProvider.notifier).state =
-        prefs.getBool(NotificationCoordinator.dailyTipPrefKey) ?? true;
-    await _syncNotifications();
-  }
-
   /// Re-shows the one-time onboarding flow on demand. Pops back to Settings
   /// once finished or skipped.
   void _replayOnboarding() {
@@ -59,57 +42,12 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
     );
   }
 
-  /// Re-evaluates and re-schedules all notifications from the current data and
-  /// preferences.
-  Future<void> _syncNotifications() async {
-    final expenses = ref.read(allExpensesProvider).value ?? [];
-    final categories = ref.read(allCategoriesProvider).value ?? [];
-    await NotificationCoordinator.sync(
-      expenses: expenses,
-      categories: categories,
-      incomes: ref.read(allIncomesProvider).value ?? [],
-      currencySymbol: currencySymbol(ref.read(currencyCodeProvider)),
-    );
-  }
-
-  /// When the user turns a notification feature on, make sure the OS will
-  /// actually deliver it in the background (exact alarms + battery exemption).
-  Future<void> _ensureBackgroundDelivery() async {
-    await NotificationService().requestBackgroundDeliveryPermissions();
-  }
-
-  Future<void> _toggleReminders(bool value) async {
-    ref.read(remindersEnabledProvider.notifier).state = value;
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(NotificationCoordinator.remindersPrefKey, value);
-    if (value) await _ensureBackgroundDelivery();
-    await _syncNotifications();
-  }
-
-  Future<void> _toggleBudgetAlerts(bool value) async {
-    ref.read(budgetAlertsEnabledProvider.notifier).state = value;
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(NotificationCoordinator.budgetAlertsPrefKey, value);
-    if (value) await _ensureBackgroundDelivery();
-    await _syncNotifications();
-  }
-
-  Future<void> _toggleDailyTip(bool value) async {
-    ref.read(dailyTipEnabledProvider.notifier).state = value;
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(NotificationCoordinator.dailyTipPrefKey, value);
-    if (value) await _ensureBackgroundDelivery();
-    await _syncNotifications();
-  }
 
   @override
   Widget build(BuildContext context) {
     final apiKey = ref.watch(aiApiKeyProvider);
     final provider = ref.watch(aiProviderProvider);
     final isConfigured = apiKey.isNotEmpty;
-    final remindersOn = ref.watch(remindersEnabledProvider);
-    final budgetAlertsOn = ref.watch(budgetAlertsEnabledProvider);
-    final dailyTipOn = ref.watch(dailyTipEnabledProvider);
 
     return Scaffold(
       appBar: AppBar(title: const Text('Settings')),
@@ -438,10 +376,135 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
                 ],
               ),
             ),
-            const SizedBox(height: 20),
-            const _GroupHeader(
+            const SizedBox(height: 12),
+            _SectionCard(
               icon: Icons.notifications_active_rounded,
               title: 'Notifications & Battery',
+              child: InkWell(
+                borderRadius: BorderRadius.circular(12),
+                onTap: () => Navigator.of(
+                  context,
+                ).push(MaterialPageRoute(builder: (_) => const NotificationSettingsView())),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 4),
+                  child: Row(
+                    children: [
+                      const Expanded(
+                        child: Text(
+                          'Reminders, budget alerts, daily insight & background delivery',
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: AppColors.textSecondary,
+                            height: 1.4,
+                          ),
+                        ),
+                      ),
+                      const Icon(
+                        Icons.chevron_right_rounded,
+                        size: 20,
+                        color: AppColors.textSecondary,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Dedicated page for notification preferences (reminders, budget alerts, daily
+/// insight) and Android background-delivery / battery-optimization controls.
+/// Opened from the "Notifications & Battery" tile in Settings.
+class NotificationSettingsView extends ConsumerStatefulWidget {
+  const NotificationSettingsView({super.key});
+
+  @override
+  ConsumerState<NotificationSettingsView> createState() =>
+      _NotificationSettingsViewState();
+}
+
+class _NotificationSettingsViewState
+    extends ConsumerState<NotificationSettingsView> {
+  @override
+  void initState() {
+    super.initState();
+    _loadReminderPref();
+  }
+
+  Future<void> _loadReminderPref() async {
+    final prefs = await SharedPreferences.getInstance();
+    ref.read(remindersEnabledProvider.notifier).state =
+        prefs.getBool(NotificationCoordinator.remindersPrefKey) ?? true;
+    ref.read(budgetAlertsEnabledProvider.notifier).state =
+        prefs.getBool(NotificationCoordinator.budgetAlertsPrefKey) ?? true;
+    ref.read(dailyTipEnabledProvider.notifier).state =
+        prefs.getBool(NotificationCoordinator.dailyTipPrefKey) ?? true;
+    await _syncNotifications();
+  }
+
+  /// Re-evaluates and re-schedules all notifications from the current data and
+  /// preferences.
+  Future<void> _syncNotifications() async {
+    final expenses = ref.read(allExpensesProvider).value ?? [];
+    final categories = ref.read(allCategoriesProvider).value ?? [];
+    await NotificationCoordinator.sync(
+      expenses: expenses,
+      categories: categories,
+      incomes: ref.read(allIncomesProvider).value ?? [],
+      currencySymbol: currencySymbol(ref.read(currencyCodeProvider)),
+    );
+  }
+
+  /// When the user turns a notification feature on, make sure the OS will
+  /// actually deliver it in the background (exact alarms + battery exemption).
+  Future<void> _ensureBackgroundDelivery() async {
+    await NotificationService().requestBackgroundDeliveryPermissions();
+  }
+
+  Future<void> _toggleReminders(bool value) async {
+    ref.read(remindersEnabledProvider.notifier).state = value;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(NotificationCoordinator.remindersPrefKey, value);
+    if (value) await _ensureBackgroundDelivery();
+    await _syncNotifications();
+  }
+
+  Future<void> _toggleBudgetAlerts(bool value) async {
+    ref.read(budgetAlertsEnabledProvider.notifier).state = value;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(NotificationCoordinator.budgetAlertsPrefKey, value);
+    if (value) await _ensureBackgroundDelivery();
+    await _syncNotifications();
+  }
+
+  Future<void> _toggleDailyTip(bool value) async {
+    ref.read(dailyTipEnabledProvider.notifier).state = value;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(NotificationCoordinator.dailyTipPrefKey, value);
+    if (value) await _ensureBackgroundDelivery();
+    await _syncNotifications();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final remindersOn = ref.watch(remindersEnabledProvider);
+    final budgetAlertsOn = ref.watch(budgetAlertsEnabledProvider);
+    final dailyTipOn = ref.watch(dailyTipEnabledProvider);
+
+    return Scaffold(
+      appBar: AppBar(title: const Text('Notifications & Battery')),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const _GroupHeader(
+              icon: Icons.notifications_active_rounded,
+              title: 'Reminders',
             ),
             const SizedBox(height: 8),
             _SectionCard(
@@ -543,7 +606,12 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
                 ],
               ),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 20),
+            const _GroupHeader(
+              icon: Icons.battery_saver_rounded,
+              title: 'Background Delivery',
+            ),
+            const SizedBox(height: 8),
             const _BackgroundDeliverySection(),
           ],
         ),
