@@ -7,6 +7,7 @@ import 'package:smart_wallet/ui/core/currency_utils.dart';
 import 'package:smart_wallet/ui/features/entries/views/entry_form_view.dart';
 import 'package:smart_wallet/ui/features/entries/views/scan_receipt_view.dart';
 import 'package:smart_wallet/ui/features/dashboard/widgets/ai_assistant_card.dart';
+import 'package:smart_wallet/ui/features/dashboard/widgets/accounts_section.dart';
 import 'package:smart_wallet/ui/features/dashboard/widgets/balance_header_card.dart';
 import 'package:smart_wallet/ui/features/dashboard/widgets/budget_limits_section.dart';
 import 'package:smart_wallet/ui/features/dashboard/widgets/greeting_header.dart';
@@ -198,6 +199,7 @@ class _DashboardContent extends StatelessWidget {
           const SizedBox(height: 4),
           RepaintBoundary(child: SummaryRow(income: totalIncome, expense: totalExpense, symbol: symbol)),
           const SizedBox(height: 4),
+          const RepaintBoundary(child: AccountsSection()),
           const RepaintBoundary(child: AiAssistantCard()),
           const RepaintBoundary(child: ProactiveInsightsSection()),
           RepaintBoundary(child: WeeklyTrendSection(expenses: expenses, symbol: symbol)),

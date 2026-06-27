@@ -84,6 +84,7 @@ class Income {
   final DateTime date;
   final bool isRecurring;
   final IncomeFrequency frequency;
+  final String? accountId;
   final bool isSynced;
   final String? remoteId;
 
@@ -94,6 +95,7 @@ class Income {
     required this.date,
     required this.isRecurring,
     required this.frequency,
+    this.accountId,
     this.isSynced = false,
     this.remoteId,
   });
@@ -105,6 +107,7 @@ class Income {
     DateTime? date,
     bool? isRecurring,
     IncomeFrequency? frequency,
+    String? accountId,
     bool? isSynced,
     String? remoteId,
   }) {
@@ -115,6 +118,7 @@ class Income {
       date: date ?? this.date,
       isRecurring: isRecurring ?? this.isRecurring,
       frequency: frequency ?? this.frequency,
+      accountId: accountId ?? this.accountId,
       isSynced: isSynced ?? this.isSynced,
       remoteId: remoteId ?? this.remoteId,
     );
@@ -130,6 +134,7 @@ class Expense {
   final String? receiptImagePath;
   final ExpenseSource source;
   final double? aiConfidence;
+  final String? accountId;
   final bool isSynced;
   final String? remoteId;
 
@@ -142,6 +147,7 @@ class Expense {
     this.receiptImagePath,
     this.source = ExpenseSource.manual,
     this.aiConfidence,
+    this.accountId,
     this.isSynced = false,
     this.remoteId,
   });
@@ -155,6 +161,7 @@ class Expense {
     String? receiptImagePath,
     ExpenseSource? source,
     double? aiConfidence,
+    String? accountId,
     bool? isSynced,
     String? remoteId,
   }) {
@@ -167,8 +174,120 @@ class Expense {
       receiptImagePath: receiptImagePath ?? this.receiptImagePath,
       source: source ?? this.source,
       aiConfidence: aiConfidence ?? this.aiConfidence,
+      accountId: accountId ?? this.accountId,
       isSynced: isSynced ?? this.isSynced,
       remoteId: remoteId ?? this.remoteId,
+    );
+  }
+}
+
+enum AccountType {
+  cash,
+  bank,
+  card,
+  upi,
+  wallet,
+  other;
+
+  String toJson() => name;
+
+  static AccountType fromJson(String value) {
+    return AccountType.values.firstWhere(
+      (e) => e.name == value,
+      orElse: () => AccountType.other,
+    );
+  }
+
+  String get displayName {
+    switch (this) {
+      case AccountType.cash:
+        return 'Cash';
+      case AccountType.bank:
+        return 'Bank Account';
+      case AccountType.card:
+        return 'Credit / Debit Card';
+      case AccountType.upi:
+        return 'UPI Wallet';
+      case AccountType.wallet:
+        return 'Wallet';
+      case AccountType.other:
+        return 'Other';
+    }
+  }
+}
+
+class Account {
+  final String id;
+  final String name;
+  final AccountType type;
+  final String color; // Hex string (e.g. '#2F6F5E')
+  final double openingBalance;
+  final bool archived;
+  final int sortOrder;
+
+  const Account({
+    required this.id,
+    required this.name,
+    required this.type,
+    required this.color,
+    this.openingBalance = 0,
+    this.archived = false,
+    this.sortOrder = 0,
+  });
+
+  Account copyWith({
+    String? id,
+    String? name,
+    AccountType? type,
+    String? color,
+    double? openingBalance,
+    bool? archived,
+    int? sortOrder,
+  }) {
+    return Account(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      type: type ?? this.type,
+      color: color ?? this.color,
+      openingBalance: openingBalance ?? this.openingBalance,
+      archived: archived ?? this.archived,
+      sortOrder: sortOrder ?? this.sortOrder,
+    );
+  }
+}
+
+class Transfer {
+  final String id;
+  final String fromAccountId;
+  final String toAccountId;
+  final double amount;
+  final DateTime date;
+  final String? note;
+
+  const Transfer({
+    required this.id,
+    required this.fromAccountId,
+    required this.toAccountId,
+    required this.amount,
+    required this.date,
+    this.note,
+  });
+
+  Transfer copyWith({
+    String? id,
+    String? fromAccountId,
+    String? toAccountId,
+    double? amount,
+    DateTime? date,
+    String? note,
+  }) {
+    return Transfer(
+      id: id ?? this.id,
+      fromAccountId: fromAccountId ?? this.fromAccountId,
+      toAccountId: toAccountId ?? this.toAccountId,
+      amount: amount ?? this.amount,
+      date: date ?? this.date,
+      note: note ?? this.note,
     );
   }
 }

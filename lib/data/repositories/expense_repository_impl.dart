@@ -37,6 +37,7 @@ class ExpenseRepositoryImpl implements ExpenseRepository {
       receiptImagePath: dbExpense.receiptImagePath,
       source: domain.ExpenseSource.fromJson(dbExpense.source),
       aiConfidence: dbExpense.aiConfidence,
+      accountId: dbExpense.accountId,
       isSynced: dbExpense.isSynced,
       remoteId: dbExpense.remoteId,
     );
@@ -52,6 +53,7 @@ class ExpenseRepositoryImpl implements ExpenseRepository {
       receiptImagePath: Value(expense.receiptImagePath),
       source: Value(expense.source.toJson()),
       aiConfidence: Value(expense.aiConfidence),
+      accountId: Value(expense.accountId),
       isSynced: Value(expense.isSynced),
       remoteId: Value(expense.remoteId),
     );

@@ -10,6 +10,7 @@ import 'package:smart_wallet/ui/providers.dart';
 import 'package:smart_wallet/ui/features/entries/views/entry_form_view.dart';
 import 'package:smart_wallet/ui/features/entries/views/scan_receipt_view.dart';
 import 'package:smart_wallet/ui/core/category_icons.dart';
+import 'package:smart_wallet/ui/core/account_icons.dart';
 
 class AllTransactionsView extends ConsumerStatefulWidget {
   final bool initialShowExpenses;
@@ -846,6 +847,44 @@ class _DateFilterButton extends StatelessWidget {
   }
 }
 
+/// Resolves the account a transaction belongs to. A null [accountId] (legacy
+/// data) falls back to the default account so something sensible still shows.
+domain.Account? _accountFor(WidgetRef ref, String? accountId) {
+  final accounts = ref.watch(allAccountsProvider).value ?? const [];
+  if (accounts.isEmpty) return null;
+  final id = accountId ?? defaultAccountId;
+  for (final a in accounts) {
+    if (a.id == id) return a;
+  }
+  return null;
+}
+
+/// Small pill showing an account's icon + name, used in transaction rows.
+class _AccountChip extends StatelessWidget {
+  final domain.Account account;
+  const _AccountChip({required this.account});
+
+  @override
+  Widget build(BuildContext context) {
+    final color = Color(int.parse(account.color.replaceAll('#', '0xFF')));
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(getAccountIcon(account.type), size: 11, color: color),
+        const SizedBox(width: 3),
+        Flexible(
+          child: Text(
+            account.name,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(fontSize: 11, color: color, fontWeight: FontWeight.w500),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 class _ExpenseListTile extends ConsumerWidget {
   final domain.Expense expense;
   final domain.Category? category;
@@ -863,6 +902,7 @@ class _ExpenseListTile extends ConsumerWidget {
     final catColor = Color(int.parse(catColorStr.replaceAll('#', '0xFF')));
     final iconData = getCategoryIcon(category?.icon);
     final symbol = currencySymbol(ref.watch(currencyCodeProvider));
+    final account = _accountFor(ref, expense.accountId);
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 3),
@@ -902,6 +942,12 @@ class _ExpenseListTile extends ConsumerWidget {
                             DateFormat('MMM d, yyyy').format(expense.date),
                             style: const TextStyle(fontSize: 11, color: AppColors.textSecondary),
                           ),
+                          if (account != null) ...[
+                            const SizedBox(width: 6),
+                            Text('•', style: TextStyle(fontSize: 11, color: AppColors.textSecondary.withValues(alpha: 0.5))),
+                            const SizedBox(width: 6),
+                            Flexible(child: _AccountChip(account: account)),
+                          ],
                           if (expense.note != null && expense.note!.isNotEmpty) ...[
                             const SizedBox(width: 6),
                             Flexible(
@@ -969,6 +1015,7 @@ class _IncomeListTile extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final symbol = currencySymbol(ref.watch(currencyCodeProvider));
+    final account = _accountFor(ref, income.accountId);
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 3),
@@ -1003,9 +1050,22 @@ class _IncomeListTile extends ConsumerWidget {
                         overflow: TextOverflow.ellipsis,
                       ),
                       const SizedBox(height: 2),
-                      Text(
-                        '${DateFormat('MMM d, yyyy').format(income.date)}${income.isRecurring ? " • ${income.frequency.displayName}" : ""}',
-                        style: const TextStyle(fontSize: 11, color: AppColors.textSecondary),
+                      Row(
+                        children: [
+                          Flexible(
+                            child: Text(
+                              '${DateFormat('MMM d, yyyy').format(income.date)}${income.isRecurring ? " • ${income.frequency.displayName}" : ""}',
+                              style: const TextStyle(fontSize: 11, color: AppColors.textSecondary),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          if (account != null) ...[
+                            const SizedBox(width: 6),
+                            Text('•', style: TextStyle(fontSize: 11, color: AppColors.textSecondary.withValues(alpha: 0.5))),
+                            const SizedBox(width: 6),
+                            Flexible(child: _AccountChip(account: account)),
+                          ],
+                        ],
                       ),
                     ],
                   ),

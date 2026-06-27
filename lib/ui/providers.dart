@@ -5,6 +5,8 @@ import '../data/repositories/savings_goal_repository_impl.dart';
 import '../data/repositories/bill_repository_impl.dart';
 import '../data/repositories/proactive_insight_repository_impl.dart';
 import '../data/repositories/health_score_repository_impl.dart';
+import '../data/repositories/account_repository_impl.dart';
+import '../data/repositories/transfer_repository_impl.dart';
 import '../data/services/database.dart' hide ProactiveInsight;
 import '../data/services/insights_service.dart';
 import '../data/services/proactive_insight_service.dart';
@@ -20,6 +22,8 @@ import '../domain/repositories/income_repository.dart';
 import '../domain/repositories/savings_goal_repository.dart';
 import '../domain/repositories/bill_repository.dart';
 import '../domain/repositories/health_score_repository.dart';
+import '../domain/repositories/account_repository.dart';
+import '../domain/repositories/transfer_repository.dart';
 import '../data/services/financial_health_service.dart';
 
 // Database Provider
@@ -48,6 +52,16 @@ final savingsGoalRepositoryProvider = Provider<SavingsGoalRepository>((ref) {
 final billRepositoryProvider = Provider<BillRepository>((ref) {
   final db = ref.watch(databaseProvider);
   return BillRepositoryImpl(db);
+});
+
+final accountRepositoryProvider = Provider<AccountRepository>((ref) {
+  final db = ref.watch(databaseProvider);
+  return AccountRepositoryImpl(db);
+});
+
+final transferRepositoryProvider = Provider<TransferRepository>((ref) {
+  final db = ref.watch(databaseProvider);
+  return TransferRepositoryImpl(db);
 });
 
 // Services
@@ -113,6 +127,56 @@ final allSavingsGoalsProvider = StreamProvider<List<domain.SavingsGoal>>((ref) {
 final allBillsProvider = StreamProvider<List<domain.Bill>>((ref) {
   final repo = ref.watch(billRepositoryProvider);
   return repo.watchAllBills();
+});
+
+final allAccountsProvider = StreamProvider<List<domain.Account>>((ref) {
+  final repo = ref.watch(accountRepositoryProvider);
+  return repo.watchAllAccounts();
+});
+
+final allTransfersProvider = StreamProvider<List<domain.Transfer>>((ref) {
+  final repo = ref.watch(transferRepositoryProvider);
+  return repo.watchAllTransfers();
+});
+
+/// Fallback account that legacy (pre-multi-account) transactions are attributed
+/// to. Transactions with a null [accountId] count against this account's
+/// balance so totals stay consistent.
+const String defaultAccountId = 'acc_cash';
+
+/// Current balance per account id, derived from opening balance, incomes,
+/// expenses and transfers. Returns an empty map until the underlying data has
+/// loaded.
+final accountBalancesProvider = Provider<Map<String, double>>((ref) {
+  final accounts = ref.watch(allAccountsProvider).value ?? const [];
+  final expenses = ref.watch(allExpensesProvider).value ?? const [];
+  final incomes = ref.watch(allIncomesProvider).value ?? const [];
+  final transfers = ref.watch(allTransfersProvider).value ?? const [];
+
+  final balances = <String, double>{
+    for (final a in accounts) a.id: a.openingBalance,
+  };
+
+  void add(String? accountId, double delta) {
+    final id = (accountId == null || !balances.containsKey(accountId))
+        ? defaultAccountId
+        : accountId;
+    if (!balances.containsKey(id)) return; // no accounts loaded yet
+    balances[id] = (balances[id] ?? 0) + delta;
+  }
+
+  for (final inc in incomes) {
+    add(inc.accountId, inc.amount);
+  }
+  for (final exp in expenses) {
+    add(exp.accountId, -exp.amount);
+  }
+  for (final t in transfers) {
+    add(t.fromAccountId, -t.amount);
+    add(t.toAccountId, t.amount);
+  }
+
+  return balances;
 });
 
 // AI Settings

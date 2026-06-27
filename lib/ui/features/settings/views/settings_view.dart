@@ -10,6 +10,7 @@ import 'package:smart_wallet/ui/core/currency_utils.dart';
 import 'package:smart_wallet/ui/core/theme.dart';
 import 'package:smart_wallet/ui/features/onboarding/onboarding_view.dart';
 import 'package:smart_wallet/ui/features/reports/views/report_view.dart';
+import 'package:smart_wallet/ui/features/accounts/views/accounts_view.dart';
 import 'package:smart_wallet/ui/providers.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:smart_wallet/domain/models/models.dart' as domain;
@@ -146,6 +147,39 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
             _AiSettingsSection(),
             const SizedBox(height: 12),
             _CurrencySection(),
+            const SizedBox(height: 12),
+            _SectionCard(
+              icon: Icons.account_balance_wallet_rounded,
+              title: 'Accounts & Wallets',
+              child: InkWell(
+                borderRadius: BorderRadius.circular(12),
+                onTap: () => Navigator.of(
+                  context,
+                ).push(MaterialPageRoute(builder: (_) => const AccountsView())),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 4),
+                  child: Row(
+                    children: [
+                      const Expanded(
+                        child: Text(
+                          'Manage cash, bank, card & UPI accounts and transfers',
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: AppColors.textSecondary,
+                            height: 1.4,
+                          ),
+                        ),
+                      ),
+                      const Icon(
+                        Icons.chevron_right_rounded,
+                        size: 20,
+                        color: AppColors.textSecondary,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
             const SizedBox(height: 12),
             _SectionCard(
               icon: Icons.description_rounded,

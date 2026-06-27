@@ -8,7 +8,24 @@ import 'package:smart_wallet/ui/core/theme.dart';
 import 'package:smart_wallet/ui/core/dialogs.dart';
 import 'package:smart_wallet/ui/providers.dart';
 import 'package:smart_wallet/ui/core/currency_utils.dart';
+import 'package:smart_wallet/ui/core/account_icons.dart';
 import 'package:google_fonts/google_fonts.dart';
+
+/// Common income sources offered in the entry form dropdown. 'Other' reveals a
+/// free-text field so any source not in this list can still be entered.
+const List<String> kIncomeSources = [
+  'Salary',
+  'Freelance',
+  'Business',
+  'Sale',
+  'Investment',
+  'Rental Income',
+  'Interest',
+  'Bonus',
+  'Gift',
+  'Refund',
+  'Other',
+];
 
 class EntryFormView extends ConsumerStatefulWidget {
   final domain.Income? initialIncome;
@@ -32,10 +49,12 @@ class _EntryFormViewState extends ConsumerState<EntryFormView> {
   DateTime _selectedDate = DateTime.now();
 
   final _sourceController = TextEditingController();
+  String _selectedSource = kIncomeSources.first;
   bool _isRecurring = false;
   domain.IncomeFrequency _frequency = domain.IncomeFrequency.oneOff;
 
   String? _selectedCategoryId;
+  String? _selectedAccountId;
   final _noteController = TextEditingController();
   String? _receiptImagePath;
   domain.ExpenseSource _expenseSource = domain.ExpenseSource.manual;
@@ -48,9 +67,18 @@ class _EntryFormViewState extends ConsumerState<EntryFormView> {
       _isExpense = false;
       _amountController.text = widget.initialIncome!.amount.toString();
       _selectedDate = widget.initialIncome!.date;
-      _sourceController.text = widget.initialIncome!.source;
+      final existingSource = widget.initialIncome!.source;
+      // Match the stored source to a preset (case-insensitive); anything else
+      // becomes a custom 'Other' entry so the original text is preserved.
+      final preset = kIncomeSources.firstWhere(
+        (s) => s != 'Other' && s.toLowerCase() == existingSource.toLowerCase(),
+        orElse: () => 'Other',
+      );
+      _selectedSource = preset;
+      _sourceController.text = preset == 'Other' ? existingSource : '';
       _isRecurring = widget.initialIncome!.isRecurring;
       _frequency = widget.initialIncome!.frequency;
+      _selectedAccountId = widget.initialIncome!.accountId;
     } else if (widget.initialExpense != null) {
       _isExpense = true;
       _amountController.text = widget.initialExpense!.amount.toString();
@@ -60,6 +88,7 @@ class _EntryFormViewState extends ConsumerState<EntryFormView> {
       _receiptImagePath = widget.initialExpense!.receiptImagePath;
       _expenseSource = widget.initialExpense!.source;
       _aiConfidence = widget.initialExpense!.aiConfidence;
+      _selectedAccountId = widget.initialExpense!.accountId;
     }
   }
 
@@ -123,6 +152,7 @@ class _EntryFormViewState extends ConsumerState<EntryFormView> {
         receiptImagePath: _receiptImagePath,
         source: _expenseSource,
         aiConfidence: _aiConfidence,
+        accountId: _selectedAccountId,
       );
 
       final repo = ref.read(expenseRepositoryProvider);
@@ -132,13 +162,19 @@ class _EntryFormViewState extends ConsumerState<EntryFormView> {
         await repo.addExpense(expense);
       }
     } else {
+      final customSource = _sourceController.text.trim();
+      final source = _selectedSource == 'Other'
+          ? (customSource.isEmpty ? 'Other' : customSource)
+          : _selectedSource;
+
       final income = domain.Income(
         id: widget.initialIncome?.id ?? uuid,
         amount: amount,
-        source: _sourceController.text.trim().isEmpty ? 'General' : _sourceController.text.trim(),
+        source: source,
         date: _selectedDate,
         isRecurring: _isRecurring,
         frequency: _frequency,
+        accountId: _selectedAccountId,
       );
 
       final repo = ref.read(incomeRepositoryProvider);
@@ -223,6 +259,8 @@ class _EntryFormViewState extends ConsumerState<EntryFormView> {
                     _buildSectionCard([
                       _buildSourceField(),
                       const SizedBox(height: 14),
+                      _buildAccountField(),
+                      const SizedBox(height: 14),
                       _buildRecurringSection(),
                     ])
                   else
@@ -232,6 +270,8 @@ class _EntryFormViewState extends ConsumerState<EntryFormView> {
                         error: (err, _) => Text('$err', style: const TextStyle(color: AppColors.error)),
                         data: (categories) => _buildCategoryDropdown(categories),
                       ),
+                      const SizedBox(height: 14),
+                      _buildAccountField(),
                       const SizedBox(height: 14),
                       _buildNoteField(),
                       if (_receiptImagePath != null) ...[
@@ -353,13 +393,41 @@ class _EntryFormViewState extends ConsumerState<EntryFormView> {
   }
 
   Widget _buildSourceField() {
-    return TextFormField(
-      controller: _sourceController,
-      decoration: const InputDecoration(
-        labelText: 'Source',
-        hintText: 'e.g. Salary, Freelance, Sale',
-        prefixIcon: Icon(Icons.business_rounded, size: 20, color: AppColors.primary),
-      ),
+    return Column(
+      children: [
+        DropdownButtonFormField<String>(
+          initialValue: _selectedSource,
+          isExpanded: true,
+          decoration: const InputDecoration(
+            labelText: 'Source',
+            prefixIcon: Icon(Icons.business_rounded, size: 20, color: AppColors.primary),
+          ),
+          items: kIncomeSources.map((s) {
+            return DropdownMenuItem(
+              value: s,
+              child: Text(s == 'Other' ? 'Other (Custom)' : s),
+            );
+          }).toList(),
+          onChanged: (v) => setState(() => _selectedSource = v ?? _selectedSource),
+        ),
+        if (_selectedSource == 'Other') ...[
+          const SizedBox(height: 14),
+          TextFormField(
+            controller: _sourceController,
+            decoration: const InputDecoration(
+              labelText: 'Custom Source',
+              hintText: 'e.g. Side gig, Cashback',
+              prefixIcon: Icon(Icons.edit_rounded, size: 20, color: AppColors.primary),
+            ),
+            validator: (v) {
+              if (_selectedSource == 'Other' && (v == null || v.trim().isEmpty)) {
+                return 'Enter a source name';
+              }
+              return null;
+            },
+          ),
+        ],
+      ],
     );
   }
 
@@ -432,6 +500,52 @@ class _EntryFormViewState extends ConsumerState<EntryFormView> {
         );
       }).toList(),
       onChanged: (v) => setState(() => _selectedCategoryId = v),
+    );
+  }
+
+  Widget _buildAccountField() {
+    final accountsAsync = ref.watch(allAccountsProvider);
+    return accountsAsync.when(
+      loading: () => const SizedBox(
+        height: 56,
+        child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+      ),
+      error: (err, _) => Text('$err', style: const TextStyle(color: AppColors.error)),
+      data: (allAccounts) {
+        final accounts = allAccounts.where((a) => !a.archived).toList();
+        if (accounts.isEmpty) {
+          return const SizedBox.shrink();
+        }
+        // Default to the first account; keep an editing transaction's account
+        // even if it no longer matches an active one isn't possible here, so
+        // fall back to the first available account.
+        if (_selectedAccountId == null ||
+            !accounts.any((a) => a.id == _selectedAccountId)) {
+          _selectedAccountId = accounts.first.id;
+        }
+        return DropdownButtonFormField<String>(
+          initialValue: _selectedAccountId,
+          isExpanded: true,
+          decoration: const InputDecoration(
+            labelText: 'Account',
+            prefixIcon: Icon(Icons.account_balance_wallet_rounded, size: 20, color: AppColors.primary),
+          ),
+          items: accounts.map((acc) {
+            final accColor = Color(int.parse(acc.color.replaceAll('#', '0xFF')));
+            return DropdownMenuItem(
+              value: acc.id,
+              child: Row(
+                children: [
+                  Icon(getAccountIcon(acc.type), size: 18, color: accColor),
+                  const SizedBox(width: 10),
+                  Flexible(child: Text(acc.name, overflow: TextOverflow.ellipsis)),
+                ],
+              ),
+            );
+          }).toList(),
+          onChanged: (v) => setState(() => _selectedAccountId = v),
+        );
+      },
     );
   }
 

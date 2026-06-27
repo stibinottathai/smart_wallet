@@ -22,6 +22,7 @@ class Incomes extends Table {
   DateTimeColumn get date => dateTime()();
   BoolColumn get isRecurring => boolean().withDefault(const Constant(false))();
   TextColumn get frequency => text()(); // Stored as Enum string (monthly, weekly, oneOff)
+  TextColumn get accountId => text().nullable()(); // Wallet/account the income was paid into
   BoolColumn get isSynced => boolean().withDefault(const Constant(false))();
   TextColumn get remoteId => text().nullable()();
 
@@ -38,8 +39,40 @@ class Expenses extends Table {
   TextColumn get receiptImagePath => text().nullable()();
   TextColumn get source => text()(); // Stored as Enum string (manual, aiScan)
   RealColumn get aiConfidence => real().nullable()();
+  TextColumn get accountId => text().nullable()(); // Wallet/account the expense was paid from
   BoolColumn get isSynced => boolean().withDefault(const Constant(false))();
   TextColumn get remoteId => text().nullable()();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
+/// A money source — Cash, a bank account, a credit card, a UPI wallet, etc.
+/// Each expense/income is attributed to one account so balances can be tracked
+/// per source, and money can be moved between them via [Transfers].
+class Accounts extends Table {
+  TextColumn get id => text()();
+  TextColumn get name => text()();
+  TextColumn get type => text()(); // AccountType enum string (cash, bank, card, upi, wallet, other)
+  TextColumn get color => text()(); // Hex color string
+  RealColumn get openingBalance => real().withDefault(const Constant(0))();
+  BoolColumn get archived => boolean().withDefault(const Constant(false))();
+  IntColumn get sortOrder => integer().withDefault(const Constant(0))();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
+/// A movement of money from one account to another. Transfers don't change
+/// net worth — they only shift balance between accounts — so they're kept
+/// separate from incomes and expenses.
+class Transfers extends Table {
+  TextColumn get id => text()();
+  TextColumn get fromAccountId => text()();
+  TextColumn get toAccountId => text()();
+  RealColumn get amount => real()();
+  DateTimeColumn get date => dateTime()();
+  TextColumn get note => text().nullable()();
 
   @override
   Set<Column> get primaryKey => {id};
@@ -96,12 +129,46 @@ class HealthScores extends Table {
   Set<Column> get primaryKey => {id};
 }
 
-@DriftDatabase(tables: [Categories, Incomes, Expenses, SavingsGoals, Bills, ProactiveInsights, HealthScores])
+/// Default accounts seeded on first install and back-filled during the v7
+/// migration. The 'acc_cash' account is the fallback every legacy transaction
+/// is attributed to, so it must always exist.
+const List<AccountsCompanion> _defaultAccounts = [
+  AccountsCompanion(
+    id: Value('acc_cash'),
+    name: Value('Cash'),
+    type: Value('cash'),
+    color: Value('#4F5B56'),
+    sortOrder: Value(0),
+  ),
+  AccountsCompanion(
+    id: Value('acc_bank'),
+    name: Value('Bank Account'),
+    type: Value('bank'),
+    color: Value('#2F6F5E'),
+    sortOrder: Value(1),
+  ),
+  AccountsCompanion(
+    id: Value('acc_card'),
+    name: Value('Credit Card'),
+    type: Value('card'),
+    color: Value('#B5634A'),
+    sortOrder: Value(2),
+  ),
+  AccountsCompanion(
+    id: Value('acc_upi'),
+    name: Value('UPI Wallet'),
+    type: Value('upi'),
+    color: Value('#617C8F'),
+    sortOrder: Value(3),
+  ),
+];
+
+@DriftDatabase(tables: [Categories, Incomes, Expenses, SavingsGoals, Bills, ProactiveInsights, HealthScores, Accounts, Transfers])
 class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(driftDatabase(name: 'smart_wallet'));
 
   @override
-  int get schemaVersion => 6;
+  int get schemaVersion => 7;
 
   @override
   MigrationStrategy get migration {
@@ -150,6 +217,24 @@ class AppDatabase extends _$AppDatabase {
           for (final cat in newCats) {
             await into(categories).insert(cat, mode: InsertMode.insertOrIgnore);
           }
+        }
+        if (from < 7) {
+          // Multi-account support: create the accounts + transfers tables,
+          // seed the default accounts, attach an accountId to each transaction
+          // and back-fill every existing transaction onto the Cash account.
+          await m.createTable(accounts);
+          await m.createTable(transfers);
+          for (final acc in _defaultAccounts) {
+            await into(accounts).insert(acc, mode: InsertMode.insertOrIgnore);
+          }
+          await m.addColumn(expenses, expenses.accountId);
+          await m.addColumn(incomes, incomes.accountId);
+          await customStatement(
+            "UPDATE expenses SET account_id = 'acc_cash' WHERE account_id IS NULL",
+          );
+          await customStatement(
+            "UPDATE incomes SET account_id = 'acc_cash' WHERE account_id IS NULL",
+          );
         }
       },
       beforeOpen: (details) async {
@@ -229,6 +314,10 @@ class AppDatabase extends _$AppDatabase {
           ];
           for (final cat in defaultCategories) {
             await into(categories).insert(cat);
+          }
+          // Seed default accounts on a fresh install.
+          for (final acc in _defaultAccounts) {
+            await into(accounts).insert(acc);
           }
         }
       },
