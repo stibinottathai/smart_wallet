@@ -8,6 +8,7 @@ import '../data/repositories/health_score_repository_impl.dart';
 import '../data/repositories/account_repository_impl.dart';
 import '../data/repositories/transfer_repository_impl.dart';
 import '../data/repositories/recurring_rule_repository_impl.dart';
+import '../data/repositories/debt_repository_impl.dart';
 import '../data/services/recurring_transaction_service.dart';
 import '../data/services/subscription_detection_service.dart';
 import '../data/services/database.dart' hide ProactiveInsight;
@@ -28,6 +29,7 @@ import '../domain/repositories/health_score_repository.dart';
 import '../domain/repositories/account_repository.dart';
 import '../domain/repositories/transfer_repository.dart';
 import '../domain/repositories/recurring_rule_repository.dart';
+import '../domain/repositories/debt_repository.dart';
 import '../data/services/financial_health_service.dart';
 
 // Database Provider
@@ -75,6 +77,11 @@ final recurringRuleRepositoryProvider = Provider<RecurringRuleRepository>((ref) 
 
 final recurringTransactionServiceProvider = Provider<RecurringTransactionService>((ref) {
   return RecurringTransactionService();
+});
+
+final debtRepositoryProvider = Provider<DebtRepository>((ref) {
+  final db = ref.watch(databaseProvider);
+  return DebtRepositoryImpl(db);
 });
 
 // Services
@@ -155,6 +162,11 @@ final allTransfersProvider = StreamProvider<List<domain.Transfer>>((ref) {
 final allRecurringRulesProvider = StreamProvider<List<domain.RecurringRule>>((ref) {
   final repo = ref.watch(recurringRuleRepositoryProvider);
   return repo.watchAllRules();
+});
+
+final allDebtsProvider = StreamProvider<List<domain.Debt>>((ref) {
+  final repo = ref.watch(debtRepositoryProvider);
+  return repo.watchAllDebts();
 });
 
 /// Subscriptions auto-detected from expense history (recurring merchants).

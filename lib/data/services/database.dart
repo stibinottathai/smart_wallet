@@ -80,6 +80,27 @@ class Transfers extends Table {
   Set<Column> get primaryKey => {id};
 }
 
+/// Money borrowed (you owe) or lent (owed to you). Mirrors savings goals:
+/// [principalAmount] is the target and [paidAmount] the running progress.
+class Debts extends Table {
+  TextColumn get id => text()();
+  TextColumn get name => text()();
+  TextColumn get type => text()(); // 'borrowed' | 'lent'
+  TextColumn get counterparty => text().nullable()();
+  RealColumn get principalAmount => real()();
+  RealColumn get paidAmount => real().withDefault(const Constant(0))();
+  RealColumn get interestRate => real().nullable()(); // annual %
+  RealColumn get emiAmount => real().nullable()(); // periodic payment
+  DateTimeColumn get startDate => dateTime()();
+  DateTimeColumn get dueDate => dateTime().nullable()();
+  TextColumn get color => text()();
+  BoolColumn get isClosed => boolean().withDefault(const Constant(false))();
+  TextColumn get note => text().nullable()();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
 /// A template that auto-creates an expense or income on a schedule (rent,
 /// salary, subscriptions…). On each app launch the app posts any occurrences
 /// that have come due and advances [nextDueDate].
@@ -188,12 +209,12 @@ const List<AccountsCompanion> _defaultAccounts = [
   ),
 ];
 
-@DriftDatabase(tables: [Categories, Incomes, Expenses, SavingsGoals, Bills, ProactiveInsights, HealthScores, Accounts, Transfers, RecurringRules])
+@DriftDatabase(tables: [Categories, Incomes, Expenses, SavingsGoals, Bills, ProactiveInsights, HealthScores, Accounts, Transfers, RecurringRules, Debts])
 class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(driftDatabase(name: 'smart_wallet'));
 
   @override
-  int get schemaVersion => 9;
+  int get schemaVersion => 10;
 
   @override
   MigrationStrategy get migration {
@@ -272,6 +293,10 @@ class AppDatabase extends _$AppDatabase {
         if (from < 9) {
           // Recurring transactions: rule templates auto-posted on a schedule.
           await m.createTable(recurringRules);
+        }
+        if (from < 10) {
+          // Debt / loan tracking.
+          await m.createTable(debts);
         }
       },
       beforeOpen: (details) async {

@@ -260,6 +260,105 @@ class Account {
   }
 }
 
+enum DebtType {
+  borrowed, // you owe someone (loan, EMI)
+  lent; // someone owes you
+
+  String toJson() => name;
+
+  static DebtType fromJson(String value) {
+    return DebtType.values.firstWhere(
+      (e) => e.name == value,
+      orElse: () => DebtType.borrowed,
+    );
+  }
+
+  String get displayName => this == DebtType.borrowed ? 'I owe' : 'Owed to me';
+}
+
+/// Money borrowed or lent. [paidAmount] tracks repayment progress toward
+/// [principalAmount], mirroring how [SavingsGoal] tracks saved-vs-target.
+class Debt {
+  final String id;
+  final String name;
+  final DebtType type;
+  final String? counterparty;
+  final double principalAmount;
+  final double paidAmount;
+  final double? interestRate;
+  final double? emiAmount;
+  final DateTime startDate;
+  final DateTime? dueDate;
+  final String color;
+  final bool isClosed;
+  final String? note;
+
+  const Debt({
+    required this.id,
+    required this.name,
+    required this.type,
+    this.counterparty,
+    required this.principalAmount,
+    this.paidAmount = 0,
+    this.interestRate,
+    this.emiAmount,
+    required this.startDate,
+    this.dueDate,
+    required this.color,
+    this.isClosed = false,
+    this.note,
+  });
+
+  /// Outstanding amount still owed / to be collected (never negative).
+  double get remaining {
+    final r = principalAmount - paidAmount;
+    return r < 0 ? 0 : r;
+  }
+
+  /// Repayment progress 0..1.
+  double get progress =>
+      principalAmount > 0 ? (paidAmount / principalAmount).clamp(0.0, 1.0) : 0.0;
+
+  bool get isSettled => isClosed || paidAmount >= principalAmount;
+
+  Debt copyWith({
+    String? id,
+    String? name,
+    DebtType? type,
+    String? counterparty,
+    bool clearCounterparty = false,
+    double? principalAmount,
+    double? paidAmount,
+    double? interestRate,
+    bool clearInterestRate = false,
+    double? emiAmount,
+    bool clearEmiAmount = false,
+    DateTime? startDate,
+    DateTime? dueDate,
+    bool clearDueDate = false,
+    String? color,
+    bool? isClosed,
+    String? note,
+    bool clearNote = false,
+  }) {
+    return Debt(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      type: type ?? this.type,
+      counterparty: clearCounterparty ? null : (counterparty ?? this.counterparty),
+      principalAmount: principalAmount ?? this.principalAmount,
+      paidAmount: paidAmount ?? this.paidAmount,
+      interestRate: clearInterestRate ? null : (interestRate ?? this.interestRate),
+      emiAmount: clearEmiAmount ? null : (emiAmount ?? this.emiAmount),
+      startDate: startDate ?? this.startDate,
+      dueDate: clearDueDate ? null : (dueDate ?? this.dueDate),
+      color: color ?? this.color,
+      isClosed: isClosed ?? this.isClosed,
+      note: clearNote ? null : (note ?? this.note),
+    );
+  }
+}
+
 enum RecurringType {
   expense,
   income;
