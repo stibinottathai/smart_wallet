@@ -30,11 +30,34 @@ class _MainNavigationWrapperState extends ConsumerState<MainNavigationWrapper> w
       duration: const Duration(seconds: 4),
     )..repeat();
     // Schedule reminders / budget alerts on launch, once initial data is ready,
-    // and prompt for a Play Store update if a newer version is available.
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+    // post any due recurring transactions, and prompt for a Play Store update
+    // if a newer version is available.
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      await _processRecurring();
       _syncNotifications();
       if (mounted) AppUpdateService.checkAndPrompt(context);
     });
+  }
+
+  /// Auto-creates any recurring expenses/incomes that have come due since the
+  /// app was last opened, then nudges the user if anything was added.
+  Future<void> _processRecurring() async {
+    try {
+      final result = await ref.read(processRecurringProvider.future);
+      if (!mounted || result.isEmpty) return;
+      final parts = <String>[];
+      if (result.expenseCount > 0) {
+        parts.add('${result.expenseCount} expense${result.expenseCount == 1 ? '' : 's'}');
+      }
+      if (result.incomeCount > 0) {
+        parts.add('${result.incomeCount} income${result.incomeCount == 1 ? '' : 's'}');
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Added ${parts.join(' & ')} from your recurring schedule.')),
+      );
+    } catch (_) {
+      // Never let recurring processing block app start.
+    }
   }
 
   void _syncNotifications() {

@@ -4381,6 +4381,819 @@ class TransfersCompanion extends UpdateCompanion<Transfer> {
   }
 }
 
+class $RecurringRulesTable extends RecurringRules
+    with TableInfo<$RecurringRulesTable, RecurringRule> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $RecurringRulesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _typeMeta = const VerificationMeta('type');
+  @override
+  late final GeneratedColumn<String> type = GeneratedColumn<String>(
+    'type',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _titleMeta = const VerificationMeta('title');
+  @override
+  late final GeneratedColumn<String> title = GeneratedColumn<String>(
+    'title',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _amountMeta = const VerificationMeta('amount');
+  @override
+  late final GeneratedColumn<double> amount = GeneratedColumn<double>(
+    'amount',
+    aliasedName,
+    false,
+    type: DriftSqlType.double,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _categoryIdMeta = const VerificationMeta(
+    'categoryId',
+  );
+  @override
+  late final GeneratedColumn<String> categoryId = GeneratedColumn<String>(
+    'category_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _sourceMeta = const VerificationMeta('source');
+  @override
+  late final GeneratedColumn<String> source = GeneratedColumn<String>(
+    'source',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _accountIdMeta = const VerificationMeta(
+    'accountId',
+  );
+  @override
+  late final GeneratedColumn<String> accountId = GeneratedColumn<String>(
+    'account_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _noteMeta = const VerificationMeta('note');
+  @override
+  late final GeneratedColumn<String> note = GeneratedColumn<String>(
+    'note',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _frequencyMeta = const VerificationMeta(
+    'frequency',
+  );
+  @override
+  late final GeneratedColumn<String> frequency = GeneratedColumn<String>(
+    'frequency',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _intervalCountMeta = const VerificationMeta(
+    'intervalCount',
+  );
+  @override
+  late final GeneratedColumn<int> intervalCount = GeneratedColumn<int>(
+    'interval_count',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(1),
+  );
+  static const VerificationMeta _nextDueDateMeta = const VerificationMeta(
+    'nextDueDate',
+  );
+  @override
+  late final GeneratedColumn<DateTime> nextDueDate = GeneratedColumn<DateTime>(
+    'next_due_date',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _endDateMeta = const VerificationMeta(
+    'endDate',
+  );
+  @override
+  late final GeneratedColumn<DateTime> endDate = GeneratedColumn<DateTime>(
+    'end_date',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _lastPostedDateMeta = const VerificationMeta(
+    'lastPostedDate',
+  );
+  @override
+  late final GeneratedColumn<DateTime> lastPostedDate =
+      GeneratedColumn<DateTime>(
+        'last_posted_date',
+        aliasedName,
+        true,
+        type: DriftSqlType.dateTime,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _isActiveMeta = const VerificationMeta(
+    'isActive',
+  );
+  @override
+  late final GeneratedColumn<bool> isActive = GeneratedColumn<bool>(
+    'is_active',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("is_active" IN (0, 1))',
+    ),
+    defaultValue: const Constant(true),
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    type,
+    title,
+    amount,
+    categoryId,
+    source,
+    accountId,
+    note,
+    frequency,
+    intervalCount,
+    nextDueDate,
+    endDate,
+    lastPostedDate,
+    isActive,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'recurring_rules';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<RecurringRule> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('type')) {
+      context.handle(
+        _typeMeta,
+        type.isAcceptableOrUnknown(data['type']!, _typeMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_typeMeta);
+    }
+    if (data.containsKey('title')) {
+      context.handle(
+        _titleMeta,
+        title.isAcceptableOrUnknown(data['title']!, _titleMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_titleMeta);
+    }
+    if (data.containsKey('amount')) {
+      context.handle(
+        _amountMeta,
+        amount.isAcceptableOrUnknown(data['amount']!, _amountMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_amountMeta);
+    }
+    if (data.containsKey('category_id')) {
+      context.handle(
+        _categoryIdMeta,
+        categoryId.isAcceptableOrUnknown(data['category_id']!, _categoryIdMeta),
+      );
+    }
+    if (data.containsKey('source')) {
+      context.handle(
+        _sourceMeta,
+        source.isAcceptableOrUnknown(data['source']!, _sourceMeta),
+      );
+    }
+    if (data.containsKey('account_id')) {
+      context.handle(
+        _accountIdMeta,
+        accountId.isAcceptableOrUnknown(data['account_id']!, _accountIdMeta),
+      );
+    }
+    if (data.containsKey('note')) {
+      context.handle(
+        _noteMeta,
+        note.isAcceptableOrUnknown(data['note']!, _noteMeta),
+      );
+    }
+    if (data.containsKey('frequency')) {
+      context.handle(
+        _frequencyMeta,
+        frequency.isAcceptableOrUnknown(data['frequency']!, _frequencyMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_frequencyMeta);
+    }
+    if (data.containsKey('interval_count')) {
+      context.handle(
+        _intervalCountMeta,
+        intervalCount.isAcceptableOrUnknown(
+          data['interval_count']!,
+          _intervalCountMeta,
+        ),
+      );
+    }
+    if (data.containsKey('next_due_date')) {
+      context.handle(
+        _nextDueDateMeta,
+        nextDueDate.isAcceptableOrUnknown(
+          data['next_due_date']!,
+          _nextDueDateMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_nextDueDateMeta);
+    }
+    if (data.containsKey('end_date')) {
+      context.handle(
+        _endDateMeta,
+        endDate.isAcceptableOrUnknown(data['end_date']!, _endDateMeta),
+      );
+    }
+    if (data.containsKey('last_posted_date')) {
+      context.handle(
+        _lastPostedDateMeta,
+        lastPostedDate.isAcceptableOrUnknown(
+          data['last_posted_date']!,
+          _lastPostedDateMeta,
+        ),
+      );
+    }
+    if (data.containsKey('is_active')) {
+      context.handle(
+        _isActiveMeta,
+        isActive.isAcceptableOrUnknown(data['is_active']!, _isActiveMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  RecurringRule map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return RecurringRule(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      type: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}type'],
+      )!,
+      title: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}title'],
+      )!,
+      amount: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}amount'],
+      )!,
+      categoryId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}category_id'],
+      ),
+      source: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}source'],
+      ),
+      accountId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}account_id'],
+      ),
+      note: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}note'],
+      ),
+      frequency: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}frequency'],
+      )!,
+      intervalCount: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}interval_count'],
+      )!,
+      nextDueDate: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}next_due_date'],
+      )!,
+      endDate: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}end_date'],
+      ),
+      lastPostedDate: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}last_posted_date'],
+      ),
+      isActive: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}is_active'],
+      )!,
+    );
+  }
+
+  @override
+  $RecurringRulesTable createAlias(String alias) {
+    return $RecurringRulesTable(attachedDatabase, alias);
+  }
+}
+
+class RecurringRule extends DataClass implements Insertable<RecurringRule> {
+  final String id;
+  final String type;
+  final String title;
+  final double amount;
+  final String? categoryId;
+  final String? source;
+  final String? accountId;
+  final String? note;
+  final String frequency;
+  final int intervalCount;
+  final DateTime nextDueDate;
+  final DateTime? endDate;
+  final DateTime? lastPostedDate;
+  final bool isActive;
+  const RecurringRule({
+    required this.id,
+    required this.type,
+    required this.title,
+    required this.amount,
+    this.categoryId,
+    this.source,
+    this.accountId,
+    this.note,
+    required this.frequency,
+    required this.intervalCount,
+    required this.nextDueDate,
+    this.endDate,
+    this.lastPostedDate,
+    required this.isActive,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['type'] = Variable<String>(type);
+    map['title'] = Variable<String>(title);
+    map['amount'] = Variable<double>(amount);
+    if (!nullToAbsent || categoryId != null) {
+      map['category_id'] = Variable<String>(categoryId);
+    }
+    if (!nullToAbsent || source != null) {
+      map['source'] = Variable<String>(source);
+    }
+    if (!nullToAbsent || accountId != null) {
+      map['account_id'] = Variable<String>(accountId);
+    }
+    if (!nullToAbsent || note != null) {
+      map['note'] = Variable<String>(note);
+    }
+    map['frequency'] = Variable<String>(frequency);
+    map['interval_count'] = Variable<int>(intervalCount);
+    map['next_due_date'] = Variable<DateTime>(nextDueDate);
+    if (!nullToAbsent || endDate != null) {
+      map['end_date'] = Variable<DateTime>(endDate);
+    }
+    if (!nullToAbsent || lastPostedDate != null) {
+      map['last_posted_date'] = Variable<DateTime>(lastPostedDate);
+    }
+    map['is_active'] = Variable<bool>(isActive);
+    return map;
+  }
+
+  RecurringRulesCompanion toCompanion(bool nullToAbsent) {
+    return RecurringRulesCompanion(
+      id: Value(id),
+      type: Value(type),
+      title: Value(title),
+      amount: Value(amount),
+      categoryId: categoryId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(categoryId),
+      source: source == null && nullToAbsent
+          ? const Value.absent()
+          : Value(source),
+      accountId: accountId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(accountId),
+      note: note == null && nullToAbsent ? const Value.absent() : Value(note),
+      frequency: Value(frequency),
+      intervalCount: Value(intervalCount),
+      nextDueDate: Value(nextDueDate),
+      endDate: endDate == null && nullToAbsent
+          ? const Value.absent()
+          : Value(endDate),
+      lastPostedDate: lastPostedDate == null && nullToAbsent
+          ? const Value.absent()
+          : Value(lastPostedDate),
+      isActive: Value(isActive),
+    );
+  }
+
+  factory RecurringRule.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return RecurringRule(
+      id: serializer.fromJson<String>(json['id']),
+      type: serializer.fromJson<String>(json['type']),
+      title: serializer.fromJson<String>(json['title']),
+      amount: serializer.fromJson<double>(json['amount']),
+      categoryId: serializer.fromJson<String?>(json['categoryId']),
+      source: serializer.fromJson<String?>(json['source']),
+      accountId: serializer.fromJson<String?>(json['accountId']),
+      note: serializer.fromJson<String?>(json['note']),
+      frequency: serializer.fromJson<String>(json['frequency']),
+      intervalCount: serializer.fromJson<int>(json['intervalCount']),
+      nextDueDate: serializer.fromJson<DateTime>(json['nextDueDate']),
+      endDate: serializer.fromJson<DateTime?>(json['endDate']),
+      lastPostedDate: serializer.fromJson<DateTime?>(json['lastPostedDate']),
+      isActive: serializer.fromJson<bool>(json['isActive']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'type': serializer.toJson<String>(type),
+      'title': serializer.toJson<String>(title),
+      'amount': serializer.toJson<double>(amount),
+      'categoryId': serializer.toJson<String?>(categoryId),
+      'source': serializer.toJson<String?>(source),
+      'accountId': serializer.toJson<String?>(accountId),
+      'note': serializer.toJson<String?>(note),
+      'frequency': serializer.toJson<String>(frequency),
+      'intervalCount': serializer.toJson<int>(intervalCount),
+      'nextDueDate': serializer.toJson<DateTime>(nextDueDate),
+      'endDate': serializer.toJson<DateTime?>(endDate),
+      'lastPostedDate': serializer.toJson<DateTime?>(lastPostedDate),
+      'isActive': serializer.toJson<bool>(isActive),
+    };
+  }
+
+  RecurringRule copyWith({
+    String? id,
+    String? type,
+    String? title,
+    double? amount,
+    Value<String?> categoryId = const Value.absent(),
+    Value<String?> source = const Value.absent(),
+    Value<String?> accountId = const Value.absent(),
+    Value<String?> note = const Value.absent(),
+    String? frequency,
+    int? intervalCount,
+    DateTime? nextDueDate,
+    Value<DateTime?> endDate = const Value.absent(),
+    Value<DateTime?> lastPostedDate = const Value.absent(),
+    bool? isActive,
+  }) => RecurringRule(
+    id: id ?? this.id,
+    type: type ?? this.type,
+    title: title ?? this.title,
+    amount: amount ?? this.amount,
+    categoryId: categoryId.present ? categoryId.value : this.categoryId,
+    source: source.present ? source.value : this.source,
+    accountId: accountId.present ? accountId.value : this.accountId,
+    note: note.present ? note.value : this.note,
+    frequency: frequency ?? this.frequency,
+    intervalCount: intervalCount ?? this.intervalCount,
+    nextDueDate: nextDueDate ?? this.nextDueDate,
+    endDate: endDate.present ? endDate.value : this.endDate,
+    lastPostedDate: lastPostedDate.present
+        ? lastPostedDate.value
+        : this.lastPostedDate,
+    isActive: isActive ?? this.isActive,
+  );
+  RecurringRule copyWithCompanion(RecurringRulesCompanion data) {
+    return RecurringRule(
+      id: data.id.present ? data.id.value : this.id,
+      type: data.type.present ? data.type.value : this.type,
+      title: data.title.present ? data.title.value : this.title,
+      amount: data.amount.present ? data.amount.value : this.amount,
+      categoryId: data.categoryId.present
+          ? data.categoryId.value
+          : this.categoryId,
+      source: data.source.present ? data.source.value : this.source,
+      accountId: data.accountId.present ? data.accountId.value : this.accountId,
+      note: data.note.present ? data.note.value : this.note,
+      frequency: data.frequency.present ? data.frequency.value : this.frequency,
+      intervalCount: data.intervalCount.present
+          ? data.intervalCount.value
+          : this.intervalCount,
+      nextDueDate: data.nextDueDate.present
+          ? data.nextDueDate.value
+          : this.nextDueDate,
+      endDate: data.endDate.present ? data.endDate.value : this.endDate,
+      lastPostedDate: data.lastPostedDate.present
+          ? data.lastPostedDate.value
+          : this.lastPostedDate,
+      isActive: data.isActive.present ? data.isActive.value : this.isActive,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('RecurringRule(')
+          ..write('id: $id, ')
+          ..write('type: $type, ')
+          ..write('title: $title, ')
+          ..write('amount: $amount, ')
+          ..write('categoryId: $categoryId, ')
+          ..write('source: $source, ')
+          ..write('accountId: $accountId, ')
+          ..write('note: $note, ')
+          ..write('frequency: $frequency, ')
+          ..write('intervalCount: $intervalCount, ')
+          ..write('nextDueDate: $nextDueDate, ')
+          ..write('endDate: $endDate, ')
+          ..write('lastPostedDate: $lastPostedDate, ')
+          ..write('isActive: $isActive')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    type,
+    title,
+    amount,
+    categoryId,
+    source,
+    accountId,
+    note,
+    frequency,
+    intervalCount,
+    nextDueDate,
+    endDate,
+    lastPostedDate,
+    isActive,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is RecurringRule &&
+          other.id == this.id &&
+          other.type == this.type &&
+          other.title == this.title &&
+          other.amount == this.amount &&
+          other.categoryId == this.categoryId &&
+          other.source == this.source &&
+          other.accountId == this.accountId &&
+          other.note == this.note &&
+          other.frequency == this.frequency &&
+          other.intervalCount == this.intervalCount &&
+          other.nextDueDate == this.nextDueDate &&
+          other.endDate == this.endDate &&
+          other.lastPostedDate == this.lastPostedDate &&
+          other.isActive == this.isActive);
+}
+
+class RecurringRulesCompanion extends UpdateCompanion<RecurringRule> {
+  final Value<String> id;
+  final Value<String> type;
+  final Value<String> title;
+  final Value<double> amount;
+  final Value<String?> categoryId;
+  final Value<String?> source;
+  final Value<String?> accountId;
+  final Value<String?> note;
+  final Value<String> frequency;
+  final Value<int> intervalCount;
+  final Value<DateTime> nextDueDate;
+  final Value<DateTime?> endDate;
+  final Value<DateTime?> lastPostedDate;
+  final Value<bool> isActive;
+  final Value<int> rowid;
+  const RecurringRulesCompanion({
+    this.id = const Value.absent(),
+    this.type = const Value.absent(),
+    this.title = const Value.absent(),
+    this.amount = const Value.absent(),
+    this.categoryId = const Value.absent(),
+    this.source = const Value.absent(),
+    this.accountId = const Value.absent(),
+    this.note = const Value.absent(),
+    this.frequency = const Value.absent(),
+    this.intervalCount = const Value.absent(),
+    this.nextDueDate = const Value.absent(),
+    this.endDate = const Value.absent(),
+    this.lastPostedDate = const Value.absent(),
+    this.isActive = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  RecurringRulesCompanion.insert({
+    required String id,
+    required String type,
+    required String title,
+    required double amount,
+    this.categoryId = const Value.absent(),
+    this.source = const Value.absent(),
+    this.accountId = const Value.absent(),
+    this.note = const Value.absent(),
+    required String frequency,
+    this.intervalCount = const Value.absent(),
+    required DateTime nextDueDate,
+    this.endDate = const Value.absent(),
+    this.lastPostedDate = const Value.absent(),
+    this.isActive = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       type = Value(type),
+       title = Value(title),
+       amount = Value(amount),
+       frequency = Value(frequency),
+       nextDueDate = Value(nextDueDate);
+  static Insertable<RecurringRule> custom({
+    Expression<String>? id,
+    Expression<String>? type,
+    Expression<String>? title,
+    Expression<double>? amount,
+    Expression<String>? categoryId,
+    Expression<String>? source,
+    Expression<String>? accountId,
+    Expression<String>? note,
+    Expression<String>? frequency,
+    Expression<int>? intervalCount,
+    Expression<DateTime>? nextDueDate,
+    Expression<DateTime>? endDate,
+    Expression<DateTime>? lastPostedDate,
+    Expression<bool>? isActive,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (type != null) 'type': type,
+      if (title != null) 'title': title,
+      if (amount != null) 'amount': amount,
+      if (categoryId != null) 'category_id': categoryId,
+      if (source != null) 'source': source,
+      if (accountId != null) 'account_id': accountId,
+      if (note != null) 'note': note,
+      if (frequency != null) 'frequency': frequency,
+      if (intervalCount != null) 'interval_count': intervalCount,
+      if (nextDueDate != null) 'next_due_date': nextDueDate,
+      if (endDate != null) 'end_date': endDate,
+      if (lastPostedDate != null) 'last_posted_date': lastPostedDate,
+      if (isActive != null) 'is_active': isActive,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  RecurringRulesCompanion copyWith({
+    Value<String>? id,
+    Value<String>? type,
+    Value<String>? title,
+    Value<double>? amount,
+    Value<String?>? categoryId,
+    Value<String?>? source,
+    Value<String?>? accountId,
+    Value<String?>? note,
+    Value<String>? frequency,
+    Value<int>? intervalCount,
+    Value<DateTime>? nextDueDate,
+    Value<DateTime?>? endDate,
+    Value<DateTime?>? lastPostedDate,
+    Value<bool>? isActive,
+    Value<int>? rowid,
+  }) {
+    return RecurringRulesCompanion(
+      id: id ?? this.id,
+      type: type ?? this.type,
+      title: title ?? this.title,
+      amount: amount ?? this.amount,
+      categoryId: categoryId ?? this.categoryId,
+      source: source ?? this.source,
+      accountId: accountId ?? this.accountId,
+      note: note ?? this.note,
+      frequency: frequency ?? this.frequency,
+      intervalCount: intervalCount ?? this.intervalCount,
+      nextDueDate: nextDueDate ?? this.nextDueDate,
+      endDate: endDate ?? this.endDate,
+      lastPostedDate: lastPostedDate ?? this.lastPostedDate,
+      isActive: isActive ?? this.isActive,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (type.present) {
+      map['type'] = Variable<String>(type.value);
+    }
+    if (title.present) {
+      map['title'] = Variable<String>(title.value);
+    }
+    if (amount.present) {
+      map['amount'] = Variable<double>(amount.value);
+    }
+    if (categoryId.present) {
+      map['category_id'] = Variable<String>(categoryId.value);
+    }
+    if (source.present) {
+      map['source'] = Variable<String>(source.value);
+    }
+    if (accountId.present) {
+      map['account_id'] = Variable<String>(accountId.value);
+    }
+    if (note.present) {
+      map['note'] = Variable<String>(note.value);
+    }
+    if (frequency.present) {
+      map['frequency'] = Variable<String>(frequency.value);
+    }
+    if (intervalCount.present) {
+      map['interval_count'] = Variable<int>(intervalCount.value);
+    }
+    if (nextDueDate.present) {
+      map['next_due_date'] = Variable<DateTime>(nextDueDate.value);
+    }
+    if (endDate.present) {
+      map['end_date'] = Variable<DateTime>(endDate.value);
+    }
+    if (lastPostedDate.present) {
+      map['last_posted_date'] = Variable<DateTime>(lastPostedDate.value);
+    }
+    if (isActive.present) {
+      map['is_active'] = Variable<bool>(isActive.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('RecurringRulesCompanion(')
+          ..write('id: $id, ')
+          ..write('type: $type, ')
+          ..write('title: $title, ')
+          ..write('amount: $amount, ')
+          ..write('categoryId: $categoryId, ')
+          ..write('source: $source, ')
+          ..write('accountId: $accountId, ')
+          ..write('note: $note, ')
+          ..write('frequency: $frequency, ')
+          ..write('intervalCount: $intervalCount, ')
+          ..write('nextDueDate: $nextDueDate, ')
+          ..write('endDate: $endDate, ')
+          ..write('lastPostedDate: $lastPostedDate, ')
+          ..write('isActive: $isActive, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -4394,6 +5207,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $HealthScoresTable healthScores = $HealthScoresTable(this);
   late final $AccountsTable accounts = $AccountsTable(this);
   late final $TransfersTable transfers = $TransfersTable(this);
+  late final $RecurringRulesTable recurringRules = $RecurringRulesTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -4408,6 +5222,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     healthScores,
     accounts,
     transfers,
+    recurringRules,
   ];
 }
 
@@ -6639,6 +7454,387 @@ typedef $$TransfersTableProcessedTableManager =
       Transfer,
       PrefetchHooks Function()
     >;
+typedef $$RecurringRulesTableCreateCompanionBuilder =
+    RecurringRulesCompanion Function({
+      required String id,
+      required String type,
+      required String title,
+      required double amount,
+      Value<String?> categoryId,
+      Value<String?> source,
+      Value<String?> accountId,
+      Value<String?> note,
+      required String frequency,
+      Value<int> intervalCount,
+      required DateTime nextDueDate,
+      Value<DateTime?> endDate,
+      Value<DateTime?> lastPostedDate,
+      Value<bool> isActive,
+      Value<int> rowid,
+    });
+typedef $$RecurringRulesTableUpdateCompanionBuilder =
+    RecurringRulesCompanion Function({
+      Value<String> id,
+      Value<String> type,
+      Value<String> title,
+      Value<double> amount,
+      Value<String?> categoryId,
+      Value<String?> source,
+      Value<String?> accountId,
+      Value<String?> note,
+      Value<String> frequency,
+      Value<int> intervalCount,
+      Value<DateTime> nextDueDate,
+      Value<DateTime?> endDate,
+      Value<DateTime?> lastPostedDate,
+      Value<bool> isActive,
+      Value<int> rowid,
+    });
+
+class $$RecurringRulesTableFilterComposer
+    extends Composer<_$AppDatabase, $RecurringRulesTable> {
+  $$RecurringRulesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get type => $composableBuilder(
+    column: $table.type,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get title => $composableBuilder(
+    column: $table.title,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get amount => $composableBuilder(
+    column: $table.amount,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get categoryId => $composableBuilder(
+    column: $table.categoryId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get source => $composableBuilder(
+    column: $table.source,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get accountId => $composableBuilder(
+    column: $table.accountId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get note => $composableBuilder(
+    column: $table.note,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get frequency => $composableBuilder(
+    column: $table.frequency,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get intervalCount => $composableBuilder(
+    column: $table.intervalCount,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get nextDueDate => $composableBuilder(
+    column: $table.nextDueDate,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get endDate => $composableBuilder(
+    column: $table.endDate,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get lastPostedDate => $composableBuilder(
+    column: $table.lastPostedDate,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get isActive => $composableBuilder(
+    column: $table.isActive,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$RecurringRulesTableOrderingComposer
+    extends Composer<_$AppDatabase, $RecurringRulesTable> {
+  $$RecurringRulesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get type => $composableBuilder(
+    column: $table.type,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get title => $composableBuilder(
+    column: $table.title,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get amount => $composableBuilder(
+    column: $table.amount,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get categoryId => $composableBuilder(
+    column: $table.categoryId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get source => $composableBuilder(
+    column: $table.source,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get accountId => $composableBuilder(
+    column: $table.accountId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get note => $composableBuilder(
+    column: $table.note,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get frequency => $composableBuilder(
+    column: $table.frequency,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get intervalCount => $composableBuilder(
+    column: $table.intervalCount,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get nextDueDate => $composableBuilder(
+    column: $table.nextDueDate,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get endDate => $composableBuilder(
+    column: $table.endDate,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get lastPostedDate => $composableBuilder(
+    column: $table.lastPostedDate,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get isActive => $composableBuilder(
+    column: $table.isActive,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$RecurringRulesTableAnnotationComposer
+    extends Composer<_$AppDatabase, $RecurringRulesTable> {
+  $$RecurringRulesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get type =>
+      $composableBuilder(column: $table.type, builder: (column) => column);
+
+  GeneratedColumn<String> get title =>
+      $composableBuilder(column: $table.title, builder: (column) => column);
+
+  GeneratedColumn<double> get amount =>
+      $composableBuilder(column: $table.amount, builder: (column) => column);
+
+  GeneratedColumn<String> get categoryId => $composableBuilder(
+    column: $table.categoryId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get source =>
+      $composableBuilder(column: $table.source, builder: (column) => column);
+
+  GeneratedColumn<String> get accountId =>
+      $composableBuilder(column: $table.accountId, builder: (column) => column);
+
+  GeneratedColumn<String> get note =>
+      $composableBuilder(column: $table.note, builder: (column) => column);
+
+  GeneratedColumn<String> get frequency =>
+      $composableBuilder(column: $table.frequency, builder: (column) => column);
+
+  GeneratedColumn<int> get intervalCount => $composableBuilder(
+    column: $table.intervalCount,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get nextDueDate => $composableBuilder(
+    column: $table.nextDueDate,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get endDate =>
+      $composableBuilder(column: $table.endDate, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get lastPostedDate => $composableBuilder(
+    column: $table.lastPostedDate,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<bool> get isActive =>
+      $composableBuilder(column: $table.isActive, builder: (column) => column);
+}
+
+class $$RecurringRulesTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $RecurringRulesTable,
+          RecurringRule,
+          $$RecurringRulesTableFilterComposer,
+          $$RecurringRulesTableOrderingComposer,
+          $$RecurringRulesTableAnnotationComposer,
+          $$RecurringRulesTableCreateCompanionBuilder,
+          $$RecurringRulesTableUpdateCompanionBuilder,
+          (
+            RecurringRule,
+            BaseReferences<_$AppDatabase, $RecurringRulesTable, RecurringRule>,
+          ),
+          RecurringRule,
+          PrefetchHooks Function()
+        > {
+  $$RecurringRulesTableTableManager(
+    _$AppDatabase db,
+    $RecurringRulesTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$RecurringRulesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$RecurringRulesTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$RecurringRulesTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> type = const Value.absent(),
+                Value<String> title = const Value.absent(),
+                Value<double> amount = const Value.absent(),
+                Value<String?> categoryId = const Value.absent(),
+                Value<String?> source = const Value.absent(),
+                Value<String?> accountId = const Value.absent(),
+                Value<String?> note = const Value.absent(),
+                Value<String> frequency = const Value.absent(),
+                Value<int> intervalCount = const Value.absent(),
+                Value<DateTime> nextDueDate = const Value.absent(),
+                Value<DateTime?> endDate = const Value.absent(),
+                Value<DateTime?> lastPostedDate = const Value.absent(),
+                Value<bool> isActive = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => RecurringRulesCompanion(
+                id: id,
+                type: type,
+                title: title,
+                amount: amount,
+                categoryId: categoryId,
+                source: source,
+                accountId: accountId,
+                note: note,
+                frequency: frequency,
+                intervalCount: intervalCount,
+                nextDueDate: nextDueDate,
+                endDate: endDate,
+                lastPostedDate: lastPostedDate,
+                isActive: isActive,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String type,
+                required String title,
+                required double amount,
+                Value<String?> categoryId = const Value.absent(),
+                Value<String?> source = const Value.absent(),
+                Value<String?> accountId = const Value.absent(),
+                Value<String?> note = const Value.absent(),
+                required String frequency,
+                Value<int> intervalCount = const Value.absent(),
+                required DateTime nextDueDate,
+                Value<DateTime?> endDate = const Value.absent(),
+                Value<DateTime?> lastPostedDate = const Value.absent(),
+                Value<bool> isActive = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => RecurringRulesCompanion.insert(
+                id: id,
+                type: type,
+                title: title,
+                amount: amount,
+                categoryId: categoryId,
+                source: source,
+                accountId: accountId,
+                note: note,
+                frequency: frequency,
+                intervalCount: intervalCount,
+                nextDueDate: nextDueDate,
+                endDate: endDate,
+                lastPostedDate: lastPostedDate,
+                isActive: isActive,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$RecurringRulesTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $RecurringRulesTable,
+      RecurringRule,
+      $$RecurringRulesTableFilterComposer,
+      $$RecurringRulesTableOrderingComposer,
+      $$RecurringRulesTableAnnotationComposer,
+      $$RecurringRulesTableCreateCompanionBuilder,
+      $$RecurringRulesTableUpdateCompanionBuilder,
+      (
+        RecurringRule,
+        BaseReferences<_$AppDatabase, $RecurringRulesTable, RecurringRule>,
+      ),
+      RecurringRule,
+      PrefetchHooks Function()
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -6661,4 +7857,6 @@ class $AppDatabaseManager {
       $$AccountsTableTableManager(_db, _db.accounts);
   $$TransfersTableTableManager get transfers =>
       $$TransfersTableTableManager(_db, _db.transfers);
+  $$RecurringRulesTableTableManager get recurringRules =>
+      $$RecurringRulesTableTableManager(_db, _db.recurringRules);
 }

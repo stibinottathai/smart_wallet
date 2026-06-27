@@ -7,6 +7,8 @@ import '../data/repositories/proactive_insight_repository_impl.dart';
 import '../data/repositories/health_score_repository_impl.dart';
 import '../data/repositories/account_repository_impl.dart';
 import '../data/repositories/transfer_repository_impl.dart';
+import '../data/repositories/recurring_rule_repository_impl.dart';
+import '../data/services/recurring_transaction_service.dart';
 import '../data/services/database.dart' hide ProactiveInsight;
 import '../data/services/insights_service.dart';
 import '../data/services/proactive_insight_service.dart';
@@ -24,6 +26,7 @@ import '../domain/repositories/bill_repository.dart';
 import '../domain/repositories/health_score_repository.dart';
 import '../domain/repositories/account_repository.dart';
 import '../domain/repositories/transfer_repository.dart';
+import '../domain/repositories/recurring_rule_repository.dart';
 import '../data/services/financial_health_service.dart';
 
 // Database Provider
@@ -62,6 +65,15 @@ final accountRepositoryProvider = Provider<AccountRepository>((ref) {
 final transferRepositoryProvider = Provider<TransferRepository>((ref) {
   final db = ref.watch(databaseProvider);
   return TransferRepositoryImpl(db);
+});
+
+final recurringRuleRepositoryProvider = Provider<RecurringRuleRepository>((ref) {
+  final db = ref.watch(databaseProvider);
+  return RecurringRuleRepositoryImpl(db);
+});
+
+final recurringTransactionServiceProvider = Provider<RecurringTransactionService>((ref) {
+  return RecurringTransactionService();
 });
 
 // Services
@@ -137,6 +149,23 @@ final allAccountsProvider = StreamProvider<List<domain.Account>>((ref) {
 final allTransfersProvider = StreamProvider<List<domain.Transfer>>((ref) {
   final repo = ref.watch(transferRepositoryProvider);
   return repo.watchAllTransfers();
+});
+
+final allRecurringRulesProvider = StreamProvider<List<domain.RecurringRule>>((ref) {
+  final repo = ref.watch(recurringRuleRepositoryProvider);
+  return repo.watchAllRules();
+});
+
+/// Runs the recurring-transaction catch-up once and returns how many entries
+/// were posted. Read this on app launch; the resulting expenses/incomes flow
+/// back into the watch streams automatically.
+final processRecurringProvider = FutureProvider.autoDispose<RecurringPostResult>((ref) async {
+  final service = ref.read(recurringTransactionServiceProvider);
+  return service.processDue(
+    ruleRepository: ref.read(recurringRuleRepositoryProvider),
+    expenseRepository: ref.read(expenseRepositoryProvider),
+    incomeRepository: ref.read(incomeRepositoryProvider),
+  );
 });
 
 /// Fallback account that legacy (pre-multi-account) transactions are attributed

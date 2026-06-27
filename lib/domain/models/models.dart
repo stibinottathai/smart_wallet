@@ -260,6 +260,121 @@ class Account {
   }
 }
 
+enum RecurringType {
+  expense,
+  income;
+
+  String toJson() => name;
+
+  static RecurringType fromJson(String value) {
+    return RecurringType.values.firstWhere(
+      (e) => e.name == value,
+      orElse: () => RecurringType.expense,
+    );
+  }
+}
+
+enum RecurrenceFrequency {
+  daily,
+  weekly,
+  monthly,
+  yearly;
+
+  String toJson() => name;
+
+  static RecurrenceFrequency fromJson(String value) {
+    return RecurrenceFrequency.values.firstWhere(
+      (e) => e.name == value,
+      orElse: () => RecurrenceFrequency.monthly,
+    );
+  }
+
+  String get displayName {
+    switch (this) {
+      case RecurrenceFrequency.daily:
+        return 'Daily';
+      case RecurrenceFrequency.weekly:
+        return 'Weekly';
+      case RecurrenceFrequency.monthly:
+        return 'Monthly';
+      case RecurrenceFrequency.yearly:
+        return 'Yearly';
+    }
+  }
+
+  /// Short adverb used in summaries, e.g. "Repeats monthly".
+  String get adverb => displayName.toLowerCase();
+}
+
+/// A template that auto-creates an [Expense] or [Income] on a schedule.
+class RecurringRule {
+  final String id;
+  final RecurringType type;
+  final String title;
+  final double amount;
+  final String? categoryId; // expenses
+  final String? source; // incomes
+  final String? accountId;
+  final String? note;
+  final RecurrenceFrequency frequency;
+  final int intervalCount;
+  final DateTime nextDueDate;
+  final DateTime? endDate;
+  final DateTime? lastPostedDate;
+  final bool isActive;
+
+  const RecurringRule({
+    required this.id,
+    required this.type,
+    required this.title,
+    required this.amount,
+    this.categoryId,
+    this.source,
+    this.accountId,
+    this.note,
+    required this.frequency,
+    this.intervalCount = 1,
+    required this.nextDueDate,
+    this.endDate,
+    this.lastPostedDate,
+    this.isActive = true,
+  });
+
+  RecurringRule copyWith({
+    String? id,
+    RecurringType? type,
+    String? title,
+    double? amount,
+    String? categoryId,
+    String? source,
+    String? accountId,
+    String? note,
+    RecurrenceFrequency? frequency,
+    int? intervalCount,
+    DateTime? nextDueDate,
+    DateTime? endDate,
+    DateTime? lastPostedDate,
+    bool? isActive,
+  }) {
+    return RecurringRule(
+      id: id ?? this.id,
+      type: type ?? this.type,
+      title: title ?? this.title,
+      amount: amount ?? this.amount,
+      categoryId: categoryId ?? this.categoryId,
+      source: source ?? this.source,
+      accountId: accountId ?? this.accountId,
+      note: note ?? this.note,
+      frequency: frequency ?? this.frequency,
+      intervalCount: intervalCount ?? this.intervalCount,
+      nextDueDate: nextDueDate ?? this.nextDueDate,
+      endDate: endDate ?? this.endDate,
+      lastPostedDate: lastPostedDate ?? this.lastPostedDate,
+      isActive: isActive ?? this.isActive,
+    );
+  }
+}
+
 class Transfer {
   final String id;
   final String fromAccountId;

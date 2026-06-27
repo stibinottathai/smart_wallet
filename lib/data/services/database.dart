@@ -80,6 +80,29 @@ class Transfers extends Table {
   Set<Column> get primaryKey => {id};
 }
 
+/// A template that auto-creates an expense or income on a schedule (rent,
+/// salary, subscriptions…). On each app launch the app posts any occurrences
+/// that have come due and advances [nextDueDate].
+class RecurringRules extends Table {
+  TextColumn get id => text()();
+  TextColumn get type => text()(); // 'expense' | 'income'
+  TextColumn get title => text()(); // label, e.g. "Rent", "Netflix"
+  RealColumn get amount => real()();
+  TextColumn get categoryId => text().nullable()(); // expenses
+  TextColumn get source => text().nullable()(); // incomes
+  TextColumn get accountId => text().nullable()();
+  TextColumn get note => text().nullable()();
+  TextColumn get frequency => text()(); // daily | weekly | monthly | yearly
+  IntColumn get intervalCount => integer().withDefault(const Constant(1))();
+  DateTimeColumn get nextDueDate => dateTime()();
+  DateTimeColumn get endDate => dateTime().nullable()();
+  DateTimeColumn get lastPostedDate => dateTime().nullable()();
+  BoolColumn get isActive => boolean().withDefault(const Constant(true))();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
 class SavingsGoals extends Table {
   TextColumn get id => text()();
   TextColumn get name => text()();
@@ -165,12 +188,12 @@ const List<AccountsCompanion> _defaultAccounts = [
   ),
 ];
 
-@DriftDatabase(tables: [Categories, Incomes, Expenses, SavingsGoals, Bills, ProactiveInsights, HealthScores, Accounts, Transfers])
+@DriftDatabase(tables: [Categories, Incomes, Expenses, SavingsGoals, Bills, ProactiveInsights, HealthScores, Accounts, Transfers, RecurringRules])
 class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(driftDatabase(name: 'smart_wallet'));
 
   @override
-  int get schemaVersion => 8;
+  int get schemaVersion => 9;
 
   @override
   MigrationStrategy get migration {
@@ -245,6 +268,10 @@ class AppDatabase extends _$AppDatabase {
           if (!hasColumn) {
             await m.addColumn(categories, categories.rolloverEnabled);
           }
+        }
+        if (from < 9) {
+          // Recurring transactions: rule templates auto-posted on a schedule.
+          await m.createTable(recurringRules);
         }
       },
       beforeOpen: (details) async {
