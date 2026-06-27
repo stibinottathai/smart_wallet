@@ -89,6 +89,8 @@ class Income {
   final bool isRecurring;
   final IncomeFrequency frequency;
   final String? accountId;
+  final String? originalCurrency;
+  final double? originalAmount;
   final bool isSynced;
   final String? remoteId;
 
@@ -100,9 +102,14 @@ class Income {
     required this.isRecurring,
     required this.frequency,
     this.accountId,
+    this.originalCurrency,
+    this.originalAmount,
     this.isSynced = false,
     this.remoteId,
   });
+
+  /// True when this entry was recorded in a currency other than the base.
+  bool get isForeign => originalCurrency != null && originalAmount != null;
 
   Income copyWith({
     String? id,
@@ -112,6 +119,9 @@ class Income {
     bool? isRecurring,
     IncomeFrequency? frequency,
     String? accountId,
+    String? originalCurrency,
+    double? originalAmount,
+    bool clearOriginalCurrency = false,
     bool? isSynced,
     String? remoteId,
   }) {
@@ -123,6 +133,8 @@ class Income {
       isRecurring: isRecurring ?? this.isRecurring,
       frequency: frequency ?? this.frequency,
       accountId: accountId ?? this.accountId,
+      originalCurrency: clearOriginalCurrency ? null : (originalCurrency ?? this.originalCurrency),
+      originalAmount: clearOriginalCurrency ? null : (originalAmount ?? this.originalAmount),
       isSynced: isSynced ?? this.isSynced,
       remoteId: remoteId ?? this.remoteId,
     );
@@ -139,6 +151,8 @@ class Expense {
   final ExpenseSource source;
   final double? aiConfidence;
   final String? accountId;
+  final String? originalCurrency;
+  final double? originalAmount;
   final bool isSynced;
   final String? remoteId;
 
@@ -152,9 +166,14 @@ class Expense {
     this.source = ExpenseSource.manual,
     this.aiConfidence,
     this.accountId,
+    this.originalCurrency,
+    this.originalAmount,
     this.isSynced = false,
     this.remoteId,
   });
+
+  /// True when this entry was recorded in a currency other than the base.
+  bool get isForeign => originalCurrency != null && originalAmount != null;
 
   Expense copyWith({
     String? id,
@@ -166,6 +185,9 @@ class Expense {
     ExpenseSource? source,
     double? aiConfidence,
     String? accountId,
+    String? originalCurrency,
+    double? originalAmount,
+    bool clearOriginalCurrency = false,
     bool? isSynced,
     String? remoteId,
   }) {
@@ -179,6 +201,8 @@ class Expense {
       source: source ?? this.source,
       aiConfidence: aiConfidence ?? this.aiConfidence,
       accountId: accountId ?? this.accountId,
+      originalCurrency: clearOriginalCurrency ? null : (originalCurrency ?? this.originalCurrency),
+      originalAmount: clearOriginalCurrency ? null : (originalAmount ?? this.originalAmount),
       isSynced: isSynced ?? this.isSynced,
       remoteId: remoteId ?? this.remoteId,
     );

@@ -25,6 +25,10 @@ class Incomes extends Table {
   BoolColumn get isRecurring => boolean().withDefault(const Constant(false))();
   TextColumn get frequency => text()(); // Stored as Enum string (monthly, weekly, oneOff)
   TextColumn get accountId => text().nullable()(); // Wallet/account the income was paid into
+  // Multi-currency: when the entry was made in a foreign currency, these hold
+  // the original currency + amount. [amount] above is always in base currency.
+  TextColumn get originalCurrency => text().nullable()();
+  RealColumn get originalAmount => real().nullable()();
   BoolColumn get isSynced => boolean().withDefault(const Constant(false))();
   TextColumn get remoteId => text().nullable()();
 
@@ -42,6 +46,10 @@ class Expenses extends Table {
   TextColumn get source => text()(); // Stored as Enum string (manual, aiScan)
   RealColumn get aiConfidence => real().nullable()();
   TextColumn get accountId => text().nullable()(); // Wallet/account the expense was paid from
+  // Multi-currency: original foreign currency + amount, if any. [amount] above
+  // is always stored in the app's base currency.
+  TextColumn get originalCurrency => text().nullable()();
+  RealColumn get originalAmount => real().nullable()();
   BoolColumn get isSynced => boolean().withDefault(const Constant(false))();
   TextColumn get remoteId => text().nullable()();
 
@@ -214,7 +222,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(driftDatabase(name: 'smart_wallet'));
 
   @override
-  int get schemaVersion => 10;
+  int get schemaVersion => 11;
 
   @override
   MigrationStrategy get migration {
@@ -297,6 +305,13 @@ class AppDatabase extends _$AppDatabase {
         if (from < 10) {
           // Debt / loan tracking.
           await m.createTable(debts);
+        }
+        if (from < 11) {
+          // Multi-currency: original currency + amount on expenses and incomes.
+          await m.addColumn(expenses, expenses.originalCurrency);
+          await m.addColumn(expenses, expenses.originalAmount);
+          await m.addColumn(incomes, incomes.originalCurrency);
+          await m.addColumn(incomes, incomes.originalAmount);
         }
       },
       beforeOpen: (details) async {

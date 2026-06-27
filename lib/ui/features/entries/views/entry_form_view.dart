@@ -48,6 +48,12 @@ class _EntryFormViewState extends ConsumerState<EntryFormView> {
   final _amountController = TextEditingController();
   DateTime _selectedDate = DateTime.now();
 
+  // Multi-currency: the currency the amount is entered in, plus the exchange
+  // rate (base units per 1 foreign unit) used to convert to the base currency.
+  late String _currencyCode;
+  final _rateController = TextEditingController();
+  bool _fetchingRate = false;
+
   final _sourceController = TextEditingController();
   String _selectedSource = kIncomeSources.first;
   bool _isRecurring = false;
@@ -60,12 +66,17 @@ class _EntryFormViewState extends ConsumerState<EntryFormView> {
   domain.ExpenseSource _expenseSource = domain.ExpenseSource.manual;
   double? _aiConfidence;
 
+  String get _baseCurrency => ref.read(currencyCodeProvider);
+  bool get _isForeign => _currencyCode != _baseCurrency;
+
   @override
   void initState() {
     super.initState();
+    _currencyCode = ref.read(currencyCodeProvider);
     if (widget.initialIncome != null) {
       _isExpense = false;
       _amountController.text = widget.initialIncome!.amount.toString();
+      _applyForeign(widget.initialIncome!.originalCurrency, widget.initialIncome!.originalAmount, widget.initialIncome!.amount);
       _selectedDate = widget.initialIncome!.date;
       final existingSource = widget.initialIncome!.source;
       // Match the stored source to a preset (case-insensitive); anything else
@@ -82,6 +93,7 @@ class _EntryFormViewState extends ConsumerState<EntryFormView> {
     } else if (widget.initialExpense != null) {
       _isExpense = true;
       _amountController.text = widget.initialExpense!.amount.toString();
+      _applyForeign(widget.initialExpense!.originalCurrency, widget.initialExpense!.originalAmount, widget.initialExpense!.amount);
       _selectedDate = widget.initialExpense!.date;
       _selectedCategoryId = widget.initialExpense!.categoryId;
       _noteController.text = widget.initialExpense!.note ?? '';
@@ -92,12 +104,55 @@ class _EntryFormViewState extends ConsumerState<EntryFormView> {
     }
   }
 
+  /// When editing a foreign-currency entry, show the original amount/currency
+  /// and back out the exchange rate that was used.
+  void _applyForeign(String? currency, double? originalAmount, double baseAmount) {
+    if (currency == null || originalAmount == null || originalAmount <= 0) return;
+    _currencyCode = currency;
+    _amountController.text = _trim(originalAmount);
+    _rateController.text = _trim(baseAmount / originalAmount);
+  }
+
+  String _trim(double v) {
+    final s = v.toStringAsFixed(4);
+    return s.contains('.') ? s.replaceFirst(RegExp(r'0+$'), '').replaceFirst(RegExp(r'\.$'), '') : s;
+  }
+
   @override
   void dispose() {
     _amountController.dispose();
     _sourceController.dispose();
     _noteController.dispose();
+    _rateController.dispose();
     super.dispose();
+  }
+
+  /// Fetches the live exchange rate for the selected currency → base and fills
+  /// the rate field. Silent on failure — the user can type a rate manually.
+  Future<void> _fetchRate() async {
+    if (!_isForeign) return;
+    setState(() => _fetchingRate = true);
+    try {
+      final rate = await ref
+          .read(currencyConversionServiceProvider)
+          .fetchRate(_currencyCode, _baseCurrency);
+      if (!mounted) return;
+      if (rate != null && rate > 0) {
+        _rateController.text = _trim(rate);
+      }
+    } finally {
+      if (mounted) setState(() => _fetchingRate = false);
+    }
+  }
+
+  void _onCurrencyChanged(String code) {
+    setState(() {
+      _currencyCode = code;
+      if (!_isForeign) _rateController.clear();
+    });
+    if (_isForeign && _rateController.text.trim().isEmpty) {
+      _fetchRate();
+    }
   }
 
   Future<void> _selectDate() async {
@@ -128,12 +183,29 @@ class _EntryFormViewState extends ConsumerState<EntryFormView> {
   void _saveForm() async {
     if (!_formKey.currentState!.validate()) return;
 
-    final amount = double.tryParse(_amountController.text) ?? 0.0;
-    if (amount <= 0) {
+    final entered = double.tryParse(_amountController.text) ?? 0.0;
+    if (entered <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Enter an amount greater than 0.')),
       );
       return;
+    }
+
+    // Resolve the base-currency amount + original-currency fields.
+    double amount = entered;
+    String? originalCurrency;
+    double? originalAmount;
+    if (_isForeign) {
+      final rate = double.tryParse(_rateController.text.trim()) ?? 0.0;
+      if (rate <= 0) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Enter an exchange rate for the selected currency.')),
+        );
+        return;
+      }
+      amount = entered * rate;
+      originalCurrency = _currencyCode;
+      originalAmount = entered;
     }
 
     final uuid = const Uuid().v4();
@@ -153,6 +225,8 @@ class _EntryFormViewState extends ConsumerState<EntryFormView> {
         source: _expenseSource,
         aiConfidence: _aiConfidence,
         accountId: _selectedAccountId,
+        originalCurrency: originalCurrency,
+        originalAmount: originalAmount,
       );
 
       final repo = ref.read(expenseRepositoryProvider);
@@ -175,6 +249,8 @@ class _EntryFormViewState extends ConsumerState<EntryFormView> {
         isRecurring: _isRecurring,
         frequency: _frequency,
         accountId: _selectedAccountId,
+        originalCurrency: originalCurrency,
+        originalAmount: originalAmount,
       );
 
       final repo = ref.read(incomeRepositoryProvider);
@@ -352,25 +428,125 @@ class _EntryFormViewState extends ConsumerState<EntryFormView> {
   }
 
   Widget _buildAmountField() {
-    final currencySym = currencySymbol(ref.read(currencyCodeProvider));
-    return TextFormField(
-      controller: _amountController,
-      keyboardType: const TextInputType.numberWithOptions(decimal: true),
-      style: GoogleFonts.fraunces(fontSize: 28, fontWeight: FontWeight.w500, color: AppColors.text),
-      decoration: InputDecoration(
-        labelText: 'Amount',
-        hintText: '0.00',
-        prefixIcon: Padding(
-          padding: const EdgeInsets.only(bottom: 2),
-          child: Text(currencySym, style: GoogleFonts.fraunces(fontSize: 22, fontWeight: FontWeight.w500, color: AppColors.primary)),
+    final currencySym = currencySymbol(_currencyCode);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        TextFormField(
+          controller: _amountController,
+          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          style: GoogleFonts.fraunces(fontSize: 28, fontWeight: FontWeight.w500, color: AppColors.text),
+          onChanged: (_) => setState(() {}),
+          decoration: InputDecoration(
+            labelText: 'Amount',
+            hintText: '0.00',
+            prefixIcon: Padding(
+              padding: const EdgeInsets.only(bottom: 2),
+              child: Text(currencySym, style: GoogleFonts.fraunces(fontSize: 22, fontWeight: FontWeight.w500, color: AppColors.primary)),
+            ),
+            prefixIconConstraints: const BoxConstraints(minWidth: 36),
+            suffixIcon: _buildCurrencySelector(),
+          ),
+          validator: (v) {
+            if (v == null || v.trim().isEmpty) return 'Enter an amount';
+            if (double.tryParse(v) == null) return 'Enter a valid number';
+            return null;
+          },
         ),
-        prefixIconConstraints: const BoxConstraints(minWidth: 36),
+        if (_isForeign) ...[
+          const SizedBox(height: 12),
+          _buildConversionRow(),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildCurrencySelector() {
+    return Padding(
+      padding: const EdgeInsets.only(right: 8),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+        decoration: BoxDecoration(
+          color: AppColors.primary.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: DropdownButtonHideUnderline(
+          child: DropdownButton<String>(
+            value: _currencyCode,
+            isDense: true,
+            borderRadius: BorderRadius.circular(12),
+            icon: const Icon(Icons.expand_more_rounded, size: 16, color: AppColors.primary),
+            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.primary),
+            items: supportedCurrencies
+                .map((c) => DropdownMenuItem(
+                      value: c,
+                      child: Text(c, style: const TextStyle(fontWeight: FontWeight.w700)),
+                    ))
+                .toList(),
+            onChanged: (v) {
+              if (v != null) _onCurrencyChanged(v);
+            },
+          ),
+        ),
       ),
-      validator: (v) {
-        if (v == null || v.trim().isEmpty) return 'Enter an amount';
-        if (double.tryParse(v) == null) return 'Enter a valid number';
-        return null;
-      },
+    );
+  }
+
+  Widget _buildConversionRow() {
+    final base = _baseCurrency;
+    final baseSym = currencySymbol(base);
+    final entered = double.tryParse(_amountController.text.trim());
+    final rate = double.tryParse(_rateController.text.trim());
+    final converted = (entered != null && rate != null) ? entered * rate : null;
+
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.divider.withValues(alpha: 0.5)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Text('1 $_currencyCode =', style: const TextStyle(fontSize: 13, color: AppColors.textSecondary)),
+              const SizedBox(width: 8),
+              Expanded(
+                child: TextFormField(
+                  controller: _rateController,
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+                  onChanged: (_) => setState(() {}),
+                  decoration: InputDecoration(
+                    isDense: true,
+                    prefixText: baseSym,
+                    hintText: 'rate',
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 4),
+              IconButton(
+                tooltip: 'Fetch live rate',
+                visualDensity: VisualDensity.compact,
+                icon: _fetchingRate
+                    ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                    : const Icon(Icons.refresh_rounded, size: 18, color: AppColors.primary),
+                onPressed: _fetchingRate ? null : _fetchRate,
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            converted != null
+                ? '≈ $baseSym${converted.toStringAsFixed(2)} in $base'
+                : 'Enter a rate to see the $base amount',
+            style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: AppColors.primary),
+          ),
+        ],
+      ),
     );
   }
 

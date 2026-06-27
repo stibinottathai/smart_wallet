@@ -38,6 +38,8 @@ class ExpenseRepositoryImpl implements ExpenseRepository {
       source: domain.ExpenseSource.fromJson(dbExpense.source),
       aiConfidence: dbExpense.aiConfidence,
       accountId: dbExpense.accountId,
+      originalCurrency: dbExpense.originalCurrency,
+      originalAmount: dbExpense.originalAmount,
       isSynced: dbExpense.isSynced,
       remoteId: dbExpense.remoteId,
     );
@@ -54,6 +56,8 @@ class ExpenseRepositoryImpl implements ExpenseRepository {
       source: Value(expense.source.toJson()),
       aiConfidence: Value(expense.aiConfidence),
       accountId: Value(expense.accountId),
+      originalCurrency: Value(expense.originalCurrency),
+      originalAmount: Value(expense.originalAmount),
       isSynced: Value(expense.isSynced),
       remoteId: Value(expense.remoteId),
     );

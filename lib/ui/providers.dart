@@ -11,6 +11,7 @@ import '../data/repositories/recurring_rule_repository_impl.dart';
 import '../data/repositories/debt_repository_impl.dart';
 import '../data/services/recurring_transaction_service.dart';
 import '../data/services/subscription_detection_service.dart';
+import '../data/services/currency_conversion_service.dart';
 import '../data/services/database.dart' hide ProactiveInsight;
 import '../data/services/insights_service.dart';
 import '../data/services/proactive_insight_service.dart';
@@ -82,6 +83,10 @@ final recurringTransactionServiceProvider = Provider<RecurringTransactionService
 final debtRepositoryProvider = Provider<DebtRepository>((ref) {
   final db = ref.watch(databaseProvider);
   return DebtRepositoryImpl(db);
+});
+
+final currencyConversionServiceProvider = Provider<CurrencyConversionService>((ref) {
+  return CurrencyConversionService();
 });
 
 // Services

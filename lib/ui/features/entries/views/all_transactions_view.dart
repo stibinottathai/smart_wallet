@@ -979,20 +979,32 @@ class _ExpenseListTile extends ConsumerWidget {
                   ),
                 ),
                 const SizedBox(width: 8),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: AppColors.secondary.withValues(alpha: 0.08),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text(
-                    '-$symbol${expense.amount.toStringAsFixed(2)}',
-                    style: TextStyle(
-                      fontWeight: FontWeight.w700,
-                      fontSize: 14,
-                      color: AppColors.secondary.withValues(alpha: 0.9),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: AppColors.secondary.withValues(alpha: 0.08),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        '-$symbol${expense.amount.toStringAsFixed(2)}',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w700,
+                          fontSize: 14,
+                          color: AppColors.secondary.withValues(alpha: 0.9),
+                        ),
+                      ),
                     ),
-                  ),
+                    if (expense.isForeign) ...[
+                      const SizedBox(height: 3),
+                      Text(
+                        '${currencySymbol(expense.originalCurrency!)}${expense.originalAmount!.toStringAsFixed(2)} ${expense.originalCurrency}',
+                        style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w500, color: AppColors.textSecondary),
+                      ),
+                    ],
+                  ],
                 ),
               ],
             ),
@@ -1071,20 +1083,32 @@ class _IncomeListTile extends ConsumerWidget {
                   ),
                 ),
                 const SizedBox(width: 8),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: AppColors.primary.withValues(alpha: 0.08),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text(
-                    '+$symbol${income.amount.toStringAsFixed(2)}',
-                    style: TextStyle(
-                      fontWeight: FontWeight.w700,
-                      fontSize: 14,
-                      color: AppColors.primary.withValues(alpha: 0.9),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: AppColors.primary.withValues(alpha: 0.08),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        '+$symbol${income.amount.toStringAsFixed(2)}',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w700,
+                          fontSize: 14,
+                          color: AppColors.primary.withValues(alpha: 0.9),
+                        ),
+                      ),
                     ),
-                  ),
+                    if (income.isForeign) ...[
+                      const SizedBox(height: 3),
+                      Text(
+                        '${currencySymbol(income.originalCurrency!)}${income.originalAmount!.toStringAsFixed(2)} ${income.originalCurrency}',
+                        style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w500, color: AppColors.textSecondary),
+                      ),
+                    ],
+                  ],
                 ),
               ],
             ),

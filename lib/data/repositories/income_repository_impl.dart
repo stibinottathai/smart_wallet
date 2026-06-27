@@ -30,6 +30,8 @@ class IncomeRepositoryImpl implements IncomeRepository {
       isRecurring: dbIncome.isRecurring,
       frequency: domain.IncomeFrequency.fromJson(dbIncome.frequency),
       accountId: dbIncome.accountId,
+      originalCurrency: dbIncome.originalCurrency,
+      originalAmount: dbIncome.originalAmount,
       isSynced: dbIncome.isSynced,
       remoteId: dbIncome.remoteId,
     );
@@ -44,6 +46,8 @@ class IncomeRepositoryImpl implements IncomeRepository {
       isRecurring: Value(income.isRecurring),
       frequency: Value(income.frequency.toJson()),
       accountId: Value(income.accountId),
+      originalCurrency: Value(income.originalCurrency),
+      originalAmount: Value(income.originalAmount),
       isSynced: Value(income.isSynced),
       remoteId: Value(income.remoteId),
     );

@@ -552,6 +552,28 @@ class $IncomesTable extends Incomes with TableInfo<$IncomesTable, Income> {
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _originalCurrencyMeta = const VerificationMeta(
+    'originalCurrency',
+  );
+  @override
+  late final GeneratedColumn<String> originalCurrency = GeneratedColumn<String>(
+    'original_currency',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _originalAmountMeta = const VerificationMeta(
+    'originalAmount',
+  );
+  @override
+  late final GeneratedColumn<double> originalAmount = GeneratedColumn<double>(
+    'original_amount',
+    aliasedName,
+    true,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _isSyncedMeta = const VerificationMeta(
     'isSynced',
   );
@@ -587,6 +609,8 @@ class $IncomesTable extends Incomes with TableInfo<$IncomesTable, Income> {
     isRecurring,
     frequency,
     accountId,
+    originalCurrency,
+    originalAmount,
     isSynced,
     remoteId,
   ];
@@ -654,6 +678,24 @@ class $IncomesTable extends Incomes with TableInfo<$IncomesTable, Income> {
         accountId.isAcceptableOrUnknown(data['account_id']!, _accountIdMeta),
       );
     }
+    if (data.containsKey('original_currency')) {
+      context.handle(
+        _originalCurrencyMeta,
+        originalCurrency.isAcceptableOrUnknown(
+          data['original_currency']!,
+          _originalCurrencyMeta,
+        ),
+      );
+    }
+    if (data.containsKey('original_amount')) {
+      context.handle(
+        _originalAmountMeta,
+        originalAmount.isAcceptableOrUnknown(
+          data['original_amount']!,
+          _originalAmountMeta,
+        ),
+      );
+    }
     if (data.containsKey('is_synced')) {
       context.handle(
         _isSyncedMeta,
@@ -703,6 +745,14 @@ class $IncomesTable extends Incomes with TableInfo<$IncomesTable, Income> {
         DriftSqlType.string,
         data['${effectivePrefix}account_id'],
       ),
+      originalCurrency: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}original_currency'],
+      ),
+      originalAmount: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}original_amount'],
+      ),
       isSynced: attachedDatabase.typeMapping.read(
         DriftSqlType.bool,
         data['${effectivePrefix}is_synced'],
@@ -728,6 +778,8 @@ class Income extends DataClass implements Insertable<Income> {
   final bool isRecurring;
   final String frequency;
   final String? accountId;
+  final String? originalCurrency;
+  final double? originalAmount;
   final bool isSynced;
   final String? remoteId;
   const Income({
@@ -738,6 +790,8 @@ class Income extends DataClass implements Insertable<Income> {
     required this.isRecurring,
     required this.frequency,
     this.accountId,
+    this.originalCurrency,
+    this.originalAmount,
     required this.isSynced,
     this.remoteId,
   });
@@ -752,6 +806,12 @@ class Income extends DataClass implements Insertable<Income> {
     map['frequency'] = Variable<String>(frequency);
     if (!nullToAbsent || accountId != null) {
       map['account_id'] = Variable<String>(accountId);
+    }
+    if (!nullToAbsent || originalCurrency != null) {
+      map['original_currency'] = Variable<String>(originalCurrency);
+    }
+    if (!nullToAbsent || originalAmount != null) {
+      map['original_amount'] = Variable<double>(originalAmount);
     }
     map['is_synced'] = Variable<bool>(isSynced);
     if (!nullToAbsent || remoteId != null) {
@@ -771,6 +831,12 @@ class Income extends DataClass implements Insertable<Income> {
       accountId: accountId == null && nullToAbsent
           ? const Value.absent()
           : Value(accountId),
+      originalCurrency: originalCurrency == null && nullToAbsent
+          ? const Value.absent()
+          : Value(originalCurrency),
+      originalAmount: originalAmount == null && nullToAbsent
+          ? const Value.absent()
+          : Value(originalAmount),
       isSynced: Value(isSynced),
       remoteId: remoteId == null && nullToAbsent
           ? const Value.absent()
@@ -791,6 +857,8 @@ class Income extends DataClass implements Insertable<Income> {
       isRecurring: serializer.fromJson<bool>(json['isRecurring']),
       frequency: serializer.fromJson<String>(json['frequency']),
       accountId: serializer.fromJson<String?>(json['accountId']),
+      originalCurrency: serializer.fromJson<String?>(json['originalCurrency']),
+      originalAmount: serializer.fromJson<double?>(json['originalAmount']),
       isSynced: serializer.fromJson<bool>(json['isSynced']),
       remoteId: serializer.fromJson<String?>(json['remoteId']),
     );
@@ -806,6 +874,8 @@ class Income extends DataClass implements Insertable<Income> {
       'isRecurring': serializer.toJson<bool>(isRecurring),
       'frequency': serializer.toJson<String>(frequency),
       'accountId': serializer.toJson<String?>(accountId),
+      'originalCurrency': serializer.toJson<String?>(originalCurrency),
+      'originalAmount': serializer.toJson<double?>(originalAmount),
       'isSynced': serializer.toJson<bool>(isSynced),
       'remoteId': serializer.toJson<String?>(remoteId),
     };
@@ -819,6 +889,8 @@ class Income extends DataClass implements Insertable<Income> {
     bool? isRecurring,
     String? frequency,
     Value<String?> accountId = const Value.absent(),
+    Value<String?> originalCurrency = const Value.absent(),
+    Value<double?> originalAmount = const Value.absent(),
     bool? isSynced,
     Value<String?> remoteId = const Value.absent(),
   }) => Income(
@@ -829,6 +901,12 @@ class Income extends DataClass implements Insertable<Income> {
     isRecurring: isRecurring ?? this.isRecurring,
     frequency: frequency ?? this.frequency,
     accountId: accountId.present ? accountId.value : this.accountId,
+    originalCurrency: originalCurrency.present
+        ? originalCurrency.value
+        : this.originalCurrency,
+    originalAmount: originalAmount.present
+        ? originalAmount.value
+        : this.originalAmount,
     isSynced: isSynced ?? this.isSynced,
     remoteId: remoteId.present ? remoteId.value : this.remoteId,
   );
@@ -843,6 +921,12 @@ class Income extends DataClass implements Insertable<Income> {
           : this.isRecurring,
       frequency: data.frequency.present ? data.frequency.value : this.frequency,
       accountId: data.accountId.present ? data.accountId.value : this.accountId,
+      originalCurrency: data.originalCurrency.present
+          ? data.originalCurrency.value
+          : this.originalCurrency,
+      originalAmount: data.originalAmount.present
+          ? data.originalAmount.value
+          : this.originalAmount,
       isSynced: data.isSynced.present ? data.isSynced.value : this.isSynced,
       remoteId: data.remoteId.present ? data.remoteId.value : this.remoteId,
     );
@@ -858,6 +942,8 @@ class Income extends DataClass implements Insertable<Income> {
           ..write('isRecurring: $isRecurring, ')
           ..write('frequency: $frequency, ')
           ..write('accountId: $accountId, ')
+          ..write('originalCurrency: $originalCurrency, ')
+          ..write('originalAmount: $originalAmount, ')
           ..write('isSynced: $isSynced, ')
           ..write('remoteId: $remoteId')
           ..write(')'))
@@ -873,6 +959,8 @@ class Income extends DataClass implements Insertable<Income> {
     isRecurring,
     frequency,
     accountId,
+    originalCurrency,
+    originalAmount,
     isSynced,
     remoteId,
   );
@@ -887,6 +975,8 @@ class Income extends DataClass implements Insertable<Income> {
           other.isRecurring == this.isRecurring &&
           other.frequency == this.frequency &&
           other.accountId == this.accountId &&
+          other.originalCurrency == this.originalCurrency &&
+          other.originalAmount == this.originalAmount &&
           other.isSynced == this.isSynced &&
           other.remoteId == this.remoteId);
 }
@@ -899,6 +989,8 @@ class IncomesCompanion extends UpdateCompanion<Income> {
   final Value<bool> isRecurring;
   final Value<String> frequency;
   final Value<String?> accountId;
+  final Value<String?> originalCurrency;
+  final Value<double?> originalAmount;
   final Value<bool> isSynced;
   final Value<String?> remoteId;
   final Value<int> rowid;
@@ -910,6 +1002,8 @@ class IncomesCompanion extends UpdateCompanion<Income> {
     this.isRecurring = const Value.absent(),
     this.frequency = const Value.absent(),
     this.accountId = const Value.absent(),
+    this.originalCurrency = const Value.absent(),
+    this.originalAmount = const Value.absent(),
     this.isSynced = const Value.absent(),
     this.remoteId = const Value.absent(),
     this.rowid = const Value.absent(),
@@ -922,6 +1016,8 @@ class IncomesCompanion extends UpdateCompanion<Income> {
     this.isRecurring = const Value.absent(),
     required String frequency,
     this.accountId = const Value.absent(),
+    this.originalCurrency = const Value.absent(),
+    this.originalAmount = const Value.absent(),
     this.isSynced = const Value.absent(),
     this.remoteId = const Value.absent(),
     this.rowid = const Value.absent(),
@@ -938,6 +1034,8 @@ class IncomesCompanion extends UpdateCompanion<Income> {
     Expression<bool>? isRecurring,
     Expression<String>? frequency,
     Expression<String>? accountId,
+    Expression<String>? originalCurrency,
+    Expression<double>? originalAmount,
     Expression<bool>? isSynced,
     Expression<String>? remoteId,
     Expression<int>? rowid,
@@ -950,6 +1048,8 @@ class IncomesCompanion extends UpdateCompanion<Income> {
       if (isRecurring != null) 'is_recurring': isRecurring,
       if (frequency != null) 'frequency': frequency,
       if (accountId != null) 'account_id': accountId,
+      if (originalCurrency != null) 'original_currency': originalCurrency,
+      if (originalAmount != null) 'original_amount': originalAmount,
       if (isSynced != null) 'is_synced': isSynced,
       if (remoteId != null) 'remote_id': remoteId,
       if (rowid != null) 'rowid': rowid,
@@ -964,6 +1064,8 @@ class IncomesCompanion extends UpdateCompanion<Income> {
     Value<bool>? isRecurring,
     Value<String>? frequency,
     Value<String?>? accountId,
+    Value<String?>? originalCurrency,
+    Value<double?>? originalAmount,
     Value<bool>? isSynced,
     Value<String?>? remoteId,
     Value<int>? rowid,
@@ -976,6 +1078,8 @@ class IncomesCompanion extends UpdateCompanion<Income> {
       isRecurring: isRecurring ?? this.isRecurring,
       frequency: frequency ?? this.frequency,
       accountId: accountId ?? this.accountId,
+      originalCurrency: originalCurrency ?? this.originalCurrency,
+      originalAmount: originalAmount ?? this.originalAmount,
       isSynced: isSynced ?? this.isSynced,
       remoteId: remoteId ?? this.remoteId,
       rowid: rowid ?? this.rowid,
@@ -1006,6 +1110,12 @@ class IncomesCompanion extends UpdateCompanion<Income> {
     if (accountId.present) {
       map['account_id'] = Variable<String>(accountId.value);
     }
+    if (originalCurrency.present) {
+      map['original_currency'] = Variable<String>(originalCurrency.value);
+    }
+    if (originalAmount.present) {
+      map['original_amount'] = Variable<double>(originalAmount.value);
+    }
     if (isSynced.present) {
       map['is_synced'] = Variable<bool>(isSynced.value);
     }
@@ -1028,6 +1138,8 @@ class IncomesCompanion extends UpdateCompanion<Income> {
           ..write('isRecurring: $isRecurring, ')
           ..write('frequency: $frequency, ')
           ..write('accountId: $accountId, ')
+          ..write('originalCurrency: $originalCurrency, ')
+          ..write('originalAmount: $originalAmount, ')
           ..write('isSynced: $isSynced, ')
           ..write('remoteId: $remoteId, ')
           ..write('rowid: $rowid')
@@ -1130,6 +1242,28 @@ class $ExpensesTable extends Expenses with TableInfo<$ExpensesTable, Expense> {
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _originalCurrencyMeta = const VerificationMeta(
+    'originalCurrency',
+  );
+  @override
+  late final GeneratedColumn<String> originalCurrency = GeneratedColumn<String>(
+    'original_currency',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _originalAmountMeta = const VerificationMeta(
+    'originalAmount',
+  );
+  @override
+  late final GeneratedColumn<double> originalAmount = GeneratedColumn<double>(
+    'original_amount',
+    aliasedName,
+    true,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _isSyncedMeta = const VerificationMeta(
     'isSynced',
   );
@@ -1167,6 +1301,8 @@ class $ExpensesTable extends Expenses with TableInfo<$ExpensesTable, Expense> {
     source,
     aiConfidence,
     accountId,
+    originalCurrency,
+    originalAmount,
     isSynced,
     remoteId,
   ];
@@ -1249,6 +1385,24 @@ class $ExpensesTable extends Expenses with TableInfo<$ExpensesTable, Expense> {
         accountId.isAcceptableOrUnknown(data['account_id']!, _accountIdMeta),
       );
     }
+    if (data.containsKey('original_currency')) {
+      context.handle(
+        _originalCurrencyMeta,
+        originalCurrency.isAcceptableOrUnknown(
+          data['original_currency']!,
+          _originalCurrencyMeta,
+        ),
+      );
+    }
+    if (data.containsKey('original_amount')) {
+      context.handle(
+        _originalAmountMeta,
+        originalAmount.isAcceptableOrUnknown(
+          data['original_amount']!,
+          _originalAmountMeta,
+        ),
+      );
+    }
     if (data.containsKey('is_synced')) {
       context.handle(
         _isSyncedMeta,
@@ -1306,6 +1460,14 @@ class $ExpensesTable extends Expenses with TableInfo<$ExpensesTable, Expense> {
         DriftSqlType.string,
         data['${effectivePrefix}account_id'],
       ),
+      originalCurrency: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}original_currency'],
+      ),
+      originalAmount: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}original_amount'],
+      ),
       isSynced: attachedDatabase.typeMapping.read(
         DriftSqlType.bool,
         data['${effectivePrefix}is_synced'],
@@ -1333,6 +1495,8 @@ class Expense extends DataClass implements Insertable<Expense> {
   final String source;
   final double? aiConfidence;
   final String? accountId;
+  final String? originalCurrency;
+  final double? originalAmount;
   final bool isSynced;
   final String? remoteId;
   const Expense({
@@ -1345,6 +1509,8 @@ class Expense extends DataClass implements Insertable<Expense> {
     required this.source,
     this.aiConfidence,
     this.accountId,
+    this.originalCurrency,
+    this.originalAmount,
     required this.isSynced,
     this.remoteId,
   });
@@ -1367,6 +1533,12 @@ class Expense extends DataClass implements Insertable<Expense> {
     }
     if (!nullToAbsent || accountId != null) {
       map['account_id'] = Variable<String>(accountId);
+    }
+    if (!nullToAbsent || originalCurrency != null) {
+      map['original_currency'] = Variable<String>(originalCurrency);
+    }
+    if (!nullToAbsent || originalAmount != null) {
+      map['original_amount'] = Variable<double>(originalAmount);
     }
     map['is_synced'] = Variable<bool>(isSynced);
     if (!nullToAbsent || remoteId != null) {
@@ -1392,6 +1564,12 @@ class Expense extends DataClass implements Insertable<Expense> {
       accountId: accountId == null && nullToAbsent
           ? const Value.absent()
           : Value(accountId),
+      originalCurrency: originalCurrency == null && nullToAbsent
+          ? const Value.absent()
+          : Value(originalCurrency),
+      originalAmount: originalAmount == null && nullToAbsent
+          ? const Value.absent()
+          : Value(originalAmount),
       isSynced: Value(isSynced),
       remoteId: remoteId == null && nullToAbsent
           ? const Value.absent()
@@ -1414,6 +1592,8 @@ class Expense extends DataClass implements Insertable<Expense> {
       source: serializer.fromJson<String>(json['source']),
       aiConfidence: serializer.fromJson<double?>(json['aiConfidence']),
       accountId: serializer.fromJson<String?>(json['accountId']),
+      originalCurrency: serializer.fromJson<String?>(json['originalCurrency']),
+      originalAmount: serializer.fromJson<double?>(json['originalAmount']),
       isSynced: serializer.fromJson<bool>(json['isSynced']),
       remoteId: serializer.fromJson<String?>(json['remoteId']),
     );
@@ -1431,6 +1611,8 @@ class Expense extends DataClass implements Insertable<Expense> {
       'source': serializer.toJson<String>(source),
       'aiConfidence': serializer.toJson<double?>(aiConfidence),
       'accountId': serializer.toJson<String?>(accountId),
+      'originalCurrency': serializer.toJson<String?>(originalCurrency),
+      'originalAmount': serializer.toJson<double?>(originalAmount),
       'isSynced': serializer.toJson<bool>(isSynced),
       'remoteId': serializer.toJson<String?>(remoteId),
     };
@@ -1446,6 +1628,8 @@ class Expense extends DataClass implements Insertable<Expense> {
     String? source,
     Value<double?> aiConfidence = const Value.absent(),
     Value<String?> accountId = const Value.absent(),
+    Value<String?> originalCurrency = const Value.absent(),
+    Value<double?> originalAmount = const Value.absent(),
     bool? isSynced,
     Value<String?> remoteId = const Value.absent(),
   }) => Expense(
@@ -1460,6 +1644,12 @@ class Expense extends DataClass implements Insertable<Expense> {
     source: source ?? this.source,
     aiConfidence: aiConfidence.present ? aiConfidence.value : this.aiConfidence,
     accountId: accountId.present ? accountId.value : this.accountId,
+    originalCurrency: originalCurrency.present
+        ? originalCurrency.value
+        : this.originalCurrency,
+    originalAmount: originalAmount.present
+        ? originalAmount.value
+        : this.originalAmount,
     isSynced: isSynced ?? this.isSynced,
     remoteId: remoteId.present ? remoteId.value : this.remoteId,
   );
@@ -1480,6 +1670,12 @@ class Expense extends DataClass implements Insertable<Expense> {
           ? data.aiConfidence.value
           : this.aiConfidence,
       accountId: data.accountId.present ? data.accountId.value : this.accountId,
+      originalCurrency: data.originalCurrency.present
+          ? data.originalCurrency.value
+          : this.originalCurrency,
+      originalAmount: data.originalAmount.present
+          ? data.originalAmount.value
+          : this.originalAmount,
       isSynced: data.isSynced.present ? data.isSynced.value : this.isSynced,
       remoteId: data.remoteId.present ? data.remoteId.value : this.remoteId,
     );
@@ -1497,6 +1693,8 @@ class Expense extends DataClass implements Insertable<Expense> {
           ..write('source: $source, ')
           ..write('aiConfidence: $aiConfidence, ')
           ..write('accountId: $accountId, ')
+          ..write('originalCurrency: $originalCurrency, ')
+          ..write('originalAmount: $originalAmount, ')
           ..write('isSynced: $isSynced, ')
           ..write('remoteId: $remoteId')
           ..write(')'))
@@ -1514,6 +1712,8 @@ class Expense extends DataClass implements Insertable<Expense> {
     source,
     aiConfidence,
     accountId,
+    originalCurrency,
+    originalAmount,
     isSynced,
     remoteId,
   );
@@ -1530,6 +1730,8 @@ class Expense extends DataClass implements Insertable<Expense> {
           other.source == this.source &&
           other.aiConfidence == this.aiConfidence &&
           other.accountId == this.accountId &&
+          other.originalCurrency == this.originalCurrency &&
+          other.originalAmount == this.originalAmount &&
           other.isSynced == this.isSynced &&
           other.remoteId == this.remoteId);
 }
@@ -1544,6 +1746,8 @@ class ExpensesCompanion extends UpdateCompanion<Expense> {
   final Value<String> source;
   final Value<double?> aiConfidence;
   final Value<String?> accountId;
+  final Value<String?> originalCurrency;
+  final Value<double?> originalAmount;
   final Value<bool> isSynced;
   final Value<String?> remoteId;
   final Value<int> rowid;
@@ -1557,6 +1761,8 @@ class ExpensesCompanion extends UpdateCompanion<Expense> {
     this.source = const Value.absent(),
     this.aiConfidence = const Value.absent(),
     this.accountId = const Value.absent(),
+    this.originalCurrency = const Value.absent(),
+    this.originalAmount = const Value.absent(),
     this.isSynced = const Value.absent(),
     this.remoteId = const Value.absent(),
     this.rowid = const Value.absent(),
@@ -1571,6 +1777,8 @@ class ExpensesCompanion extends UpdateCompanion<Expense> {
     required String source,
     this.aiConfidence = const Value.absent(),
     this.accountId = const Value.absent(),
+    this.originalCurrency = const Value.absent(),
+    this.originalAmount = const Value.absent(),
     this.isSynced = const Value.absent(),
     this.remoteId = const Value.absent(),
     this.rowid = const Value.absent(),
@@ -1589,6 +1797,8 @@ class ExpensesCompanion extends UpdateCompanion<Expense> {
     Expression<String>? source,
     Expression<double>? aiConfidence,
     Expression<String>? accountId,
+    Expression<String>? originalCurrency,
+    Expression<double>? originalAmount,
     Expression<bool>? isSynced,
     Expression<String>? remoteId,
     Expression<int>? rowid,
@@ -1603,6 +1813,8 @@ class ExpensesCompanion extends UpdateCompanion<Expense> {
       if (source != null) 'source': source,
       if (aiConfidence != null) 'ai_confidence': aiConfidence,
       if (accountId != null) 'account_id': accountId,
+      if (originalCurrency != null) 'original_currency': originalCurrency,
+      if (originalAmount != null) 'original_amount': originalAmount,
       if (isSynced != null) 'is_synced': isSynced,
       if (remoteId != null) 'remote_id': remoteId,
       if (rowid != null) 'rowid': rowid,
@@ -1619,6 +1831,8 @@ class ExpensesCompanion extends UpdateCompanion<Expense> {
     Value<String>? source,
     Value<double?>? aiConfidence,
     Value<String?>? accountId,
+    Value<String?>? originalCurrency,
+    Value<double?>? originalAmount,
     Value<bool>? isSynced,
     Value<String?>? remoteId,
     Value<int>? rowid,
@@ -1633,6 +1847,8 @@ class ExpensesCompanion extends UpdateCompanion<Expense> {
       source: source ?? this.source,
       aiConfidence: aiConfidence ?? this.aiConfidence,
       accountId: accountId ?? this.accountId,
+      originalCurrency: originalCurrency ?? this.originalCurrency,
+      originalAmount: originalAmount ?? this.originalAmount,
       isSynced: isSynced ?? this.isSynced,
       remoteId: remoteId ?? this.remoteId,
       rowid: rowid ?? this.rowid,
@@ -1669,6 +1885,12 @@ class ExpensesCompanion extends UpdateCompanion<Expense> {
     if (accountId.present) {
       map['account_id'] = Variable<String>(accountId.value);
     }
+    if (originalCurrency.present) {
+      map['original_currency'] = Variable<String>(originalCurrency.value);
+    }
+    if (originalAmount.present) {
+      map['original_amount'] = Variable<double>(originalAmount.value);
+    }
     if (isSynced.present) {
       map['is_synced'] = Variable<bool>(isSynced.value);
     }
@@ -1693,6 +1915,8 @@ class ExpensesCompanion extends UpdateCompanion<Expense> {
           ..write('source: $source, ')
           ..write('aiConfidence: $aiConfidence, ')
           ..write('accountId: $accountId, ')
+          ..write('originalCurrency: $originalCurrency, ')
+          ..write('originalAmount: $originalAmount, ')
           ..write('isSynced: $isSynced, ')
           ..write('remoteId: $remoteId, ')
           ..write('rowid: $rowid')
@@ -6235,6 +6459,8 @@ typedef $$IncomesTableCreateCompanionBuilder =
       Value<bool> isRecurring,
       required String frequency,
       Value<String?> accountId,
+      Value<String?> originalCurrency,
+      Value<double?> originalAmount,
       Value<bool> isSynced,
       Value<String?> remoteId,
       Value<int> rowid,
@@ -6248,6 +6474,8 @@ typedef $$IncomesTableUpdateCompanionBuilder =
       Value<bool> isRecurring,
       Value<String> frequency,
       Value<String?> accountId,
+      Value<String?> originalCurrency,
+      Value<double?> originalAmount,
       Value<bool> isSynced,
       Value<String?> remoteId,
       Value<int> rowid,
@@ -6294,6 +6522,16 @@ class $$IncomesTableFilterComposer
 
   ColumnFilters<String> get accountId => $composableBuilder(
     column: $table.accountId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get originalCurrency => $composableBuilder(
+    column: $table.originalCurrency,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get originalAmount => $composableBuilder(
+    column: $table.originalAmount,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -6352,6 +6590,16 @@ class $$IncomesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get originalCurrency => $composableBuilder(
+    column: $table.originalCurrency,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get originalAmount => $composableBuilder(
+    column: $table.originalAmount,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<bool> get isSynced => $composableBuilder(
     column: $table.isSynced,
     builder: (column) => ColumnOrderings(column),
@@ -6395,6 +6643,16 @@ class $$IncomesTableAnnotationComposer
   GeneratedColumn<String> get accountId =>
       $composableBuilder(column: $table.accountId, builder: (column) => column);
 
+  GeneratedColumn<String> get originalCurrency => $composableBuilder(
+    column: $table.originalCurrency,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<double> get originalAmount => $composableBuilder(
+    column: $table.originalAmount,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<bool> get isSynced =>
       $composableBuilder(column: $table.isSynced, builder: (column) => column);
 
@@ -6437,6 +6695,8 @@ class $$IncomesTableTableManager
                 Value<bool> isRecurring = const Value.absent(),
                 Value<String> frequency = const Value.absent(),
                 Value<String?> accountId = const Value.absent(),
+                Value<String?> originalCurrency = const Value.absent(),
+                Value<double?> originalAmount = const Value.absent(),
                 Value<bool> isSynced = const Value.absent(),
                 Value<String?> remoteId = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
@@ -6448,6 +6708,8 @@ class $$IncomesTableTableManager
                 isRecurring: isRecurring,
                 frequency: frequency,
                 accountId: accountId,
+                originalCurrency: originalCurrency,
+                originalAmount: originalAmount,
                 isSynced: isSynced,
                 remoteId: remoteId,
                 rowid: rowid,
@@ -6461,6 +6723,8 @@ class $$IncomesTableTableManager
                 Value<bool> isRecurring = const Value.absent(),
                 required String frequency,
                 Value<String?> accountId = const Value.absent(),
+                Value<String?> originalCurrency = const Value.absent(),
+                Value<double?> originalAmount = const Value.absent(),
                 Value<bool> isSynced = const Value.absent(),
                 Value<String?> remoteId = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
@@ -6472,6 +6736,8 @@ class $$IncomesTableTableManager
                 isRecurring: isRecurring,
                 frequency: frequency,
                 accountId: accountId,
+                originalCurrency: originalCurrency,
+                originalAmount: originalAmount,
                 isSynced: isSynced,
                 remoteId: remoteId,
                 rowid: rowid,
@@ -6509,6 +6775,8 @@ typedef $$ExpensesTableCreateCompanionBuilder =
       required String source,
       Value<double?> aiConfidence,
       Value<String?> accountId,
+      Value<String?> originalCurrency,
+      Value<double?> originalAmount,
       Value<bool> isSynced,
       Value<String?> remoteId,
       Value<int> rowid,
@@ -6524,6 +6792,8 @@ typedef $$ExpensesTableUpdateCompanionBuilder =
       Value<String> source,
       Value<double?> aiConfidence,
       Value<String?> accountId,
+      Value<String?> originalCurrency,
+      Value<double?> originalAmount,
       Value<bool> isSynced,
       Value<String?> remoteId,
       Value<int> rowid,
@@ -6580,6 +6850,16 @@ class $$ExpensesTableFilterComposer
 
   ColumnFilters<String> get accountId => $composableBuilder(
     column: $table.accountId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get originalCurrency => $composableBuilder(
+    column: $table.originalCurrency,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get originalAmount => $composableBuilder(
+    column: $table.originalAmount,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -6648,6 +6928,16 @@ class $$ExpensesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get originalCurrency => $composableBuilder(
+    column: $table.originalCurrency,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get originalAmount => $composableBuilder(
+    column: $table.originalAmount,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<bool> get isSynced => $composableBuilder(
     column: $table.isSynced,
     builder: (column) => ColumnOrderings(column),
@@ -6701,6 +6991,16 @@ class $$ExpensesTableAnnotationComposer
   GeneratedColumn<String> get accountId =>
       $composableBuilder(column: $table.accountId, builder: (column) => column);
 
+  GeneratedColumn<String> get originalCurrency => $composableBuilder(
+    column: $table.originalCurrency,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<double> get originalAmount => $composableBuilder(
+    column: $table.originalAmount,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<bool> get isSynced =>
       $composableBuilder(column: $table.isSynced, builder: (column) => column);
 
@@ -6745,6 +7045,8 @@ class $$ExpensesTableTableManager
                 Value<String> source = const Value.absent(),
                 Value<double?> aiConfidence = const Value.absent(),
                 Value<String?> accountId = const Value.absent(),
+                Value<String?> originalCurrency = const Value.absent(),
+                Value<double?> originalAmount = const Value.absent(),
                 Value<bool> isSynced = const Value.absent(),
                 Value<String?> remoteId = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
@@ -6758,6 +7060,8 @@ class $$ExpensesTableTableManager
                 source: source,
                 aiConfidence: aiConfidence,
                 accountId: accountId,
+                originalCurrency: originalCurrency,
+                originalAmount: originalAmount,
                 isSynced: isSynced,
                 remoteId: remoteId,
                 rowid: rowid,
@@ -6773,6 +7077,8 @@ class $$ExpensesTableTableManager
                 required String source,
                 Value<double?> aiConfidence = const Value.absent(),
                 Value<String?> accountId = const Value.absent(),
+                Value<String?> originalCurrency = const Value.absent(),
+                Value<double?> originalAmount = const Value.absent(),
                 Value<bool> isSynced = const Value.absent(),
                 Value<String?> remoteId = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
@@ -6786,6 +7092,8 @@ class $$ExpensesTableTableManager
                 source: source,
                 aiConfidence: aiConfidence,
                 accountId: accountId,
+                originalCurrency: originalCurrency,
+                originalAmount: originalAmount,
                 isSynced: isSynced,
                 remoteId: remoteId,
                 rowid: rowid,
