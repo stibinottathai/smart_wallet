@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'ui/core/currency_utils.dart';
 import 'ui/core/theme.dart';
@@ -8,6 +9,11 @@ import 'ui/providers.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // Lock the app to portrait — no landscape/horizontal layout.
+  await SystemChrome.setPreferredOrientations([
+    DeviceOrientation.portraitUp,
+    DeviceOrientation.portraitDown,
+  ]);
   await loadCurrencyPref();
   await loadAiSettingsPref();
   await loadOnboardingPref();

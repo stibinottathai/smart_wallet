@@ -65,9 +65,6 @@ class NotificationService {
 
     if (androidPlugin != null) {
       await androidPlugin.requestNotificationsPermission();
-      // Required for reliable, on-time delivery on Android 12+ (otherwise
-      // alarms are batched by Doze and may be delayed for hours or skipped).
-      await androidPlugin.requestExactAlarmsPermission();
       await androidPlugin.createNotificationChannel(
         const AndroidNotificationChannel(
           _reminderChannelId,
@@ -129,13 +126,12 @@ class NotificationService {
   /// Schedules a zoned notification, choosing an alarm mode that won't silently
   /// fail.
   ///
-  /// On Android 12+ an *exact* alarm requires the SCHEDULE_EXACT_ALARM
-  /// permission; if it isn't granted, [zonedSchedule] with an exact mode throws
-  /// and the notification is never registered — which is why the instant "Test"
-  /// works but nothing fires automatically. We use exact only when the OS
-  /// reports it as allowed, and otherwise fall back to an inexact (still
-  /// while-idle) alarm so the notification always gets scheduled; it may just
-  /// fire a few minutes late.
+  /// The app does NOT request the SCHEDULE_EXACT_ALARM / USE_EXACT_ALARM
+  /// permissions (they're Play-restricted and unnecessary for daily reminders).
+  /// On Android <12 exact alarms need no permission, so [canScheduleExactNotifications]
+  /// is true and we use an exact while-idle alarm; on Android 12+ it reports
+  /// false and we use an inexact (still while-idle) alarm, which fires within a
+  /// short window — perfectly fine for these reminders.
   Future<void> _zonedSchedule(
     int id,
     String title,
@@ -296,10 +292,10 @@ class NotificationService {
   }
 
   /// Asks the OS for everything required for *background* delivery to be
-  /// reliable: notification permission, exact-alarm permission (Android 12+),
-  /// and — crucially on aggressive OEMs (Xiaomi, Samsung, Oppo, Vivo …) — an
-  /// exemption from battery optimization, which is the usual reason scheduled
-  /// alarms never fire once the app is swiped away.
+  /// reliable: notification permission and — crucially on aggressive OEMs
+  /// (Xiaomi, Samsung, Oppo, Vivo …) — an exemption from battery optimization,
+  /// which is the usual reason scheduled alarms never fire once the app is
+  /// swiped away.
   ///
   /// Returns true if battery-optimization is (now) disabled for the app.
   Future<bool> requestBackgroundDeliveryPermissions() async {
@@ -308,15 +304,6 @@ class NotificationService {
     // Notifications (Android 13+ / iOS).
     if (await Permission.notification.isDenied) {
       await Permission.notification.request();
-    }
-
-    // Exact alarms (Android 12+). Opens the system screen if not yet allowed.
-    final androidPlugin = _plugin.resolvePlatformSpecificImplementation<
-        AndroidFlutterLocalNotificationsPlugin>();
-    final canExact =
-        await androidPlugin?.canScheduleExactNotifications() ?? true;
-    if (!canExact) {
-      await androidPlugin?.requestExactAlarmsPermission();
     }
 
     // Battery optimization exemption — the big one for "fires when closed".

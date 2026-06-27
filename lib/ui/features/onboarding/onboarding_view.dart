@@ -3,8 +3,8 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:smart_wallet/ui/core/navigation.dart';
 import 'package:smart_wallet/ui/core/theme.dart';
-import 'package:smart_wallet/ui/features/lock/views/app_lock_gate.dart';
 import 'package:smart_wallet/ui/features/onboarding/onboarding_prefs.dart';
 
 /// One-time, three-page onboarding shown only on the very first launch. It
@@ -13,8 +13,8 @@ import 'package:smart_wallet/ui/features/onboarding/onboarding_prefs.dart';
 /// screen so the first-run experience feels cohesive.
 class OnboardingView extends StatefulWidget {
   /// Called once the user finishes or skips. When null (the default, first-run
-  /// case) the flow advances into the main app via [AppLockGate]. Settings
-  /// passes a callback so "Replay onboarding" simply pops back.
+  /// case) the flow advances into the main app via [MainNavigationWrapper].
+  /// Settings passes a callback so "Replay onboarding" simply pops back.
   final VoidCallback? onComplete;
 
   const OnboardingView({super.key, this.onComplete});
@@ -121,7 +121,7 @@ class _OnboardingViewState extends State<OnboardingView>
     }
     Navigator.of(context).pushReplacement(
       PageRouteBuilder(
-        pageBuilder: (_, __, ___) => const AppLockGate(),
+        pageBuilder: (_, __, ___) => const MainNavigationWrapper(),
         transitionsBuilder: (_, animation, __, child) => FadeTransition(
           opacity: animation,
           child: ScaleTransition(

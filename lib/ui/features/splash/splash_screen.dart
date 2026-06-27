@@ -5,7 +5,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:smart_wallet/ui/core/theme.dart';
 import 'package:smart_wallet/data/services/notification_service.dart';
-import 'package:smart_wallet/ui/features/lock/views/app_lock_gate.dart';
+import 'package:smart_wallet/ui/core/navigation.dart';
 import 'package:smart_wallet/ui/features/onboarding/onboarding_prefs.dart';
 import 'package:smart_wallet/ui/features/onboarding/onboarding_view.dart';
 
@@ -72,9 +72,9 @@ class _SplashScreenState extends State<SplashScreen>
       Navigator.of(context).pushReplacement(
         PageRouteBuilder(
           // Show the one-time onboarding on the very first launch, otherwise go
-          // straight to the (optionally locked) main app.
+          // straight to the main app.
           pageBuilder: (_, __, ___) =>
-              onboardingSeen ? const AppLockGate() : const OnboardingView(),
+              onboardingSeen ? const MainNavigationWrapper() : const OnboardingView(),
           transitionsBuilder: (_, animation, __, child) {
             return FadeTransition(
               opacity: animation,

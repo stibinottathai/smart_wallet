@@ -21,6 +21,15 @@ android {
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
+    // The release-time lint gate (lintVitalAnalyzeRelease) is disabled: it adds no
+    // signal beyond `flutter analyze` for this app and its jar cache is prone to
+    // Windows file-lock failures during `bundleRelease`. Run lint explicitly with
+    // `./gradlew lint` if needed.
+    lint {
+        checkReleaseBuilds = false
+        abortOnError = false
+    }
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17

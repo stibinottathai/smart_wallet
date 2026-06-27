@@ -1,7 +1,5 @@
 package com.example.smart_wallet
 
-import io.flutter.embedding.android.FlutterFragmentActivity
+import io.flutter.embedding.android.FlutterActivity
 
-// FlutterFragmentActivity (instead of FlutterActivity) is required by the
-// local_auth plugin so the biometric prompt can attach to a FragmentActivity.
-class MainActivity : FlutterFragmentActivity()
+class MainActivity : FlutterActivity()
