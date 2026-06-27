@@ -6,7 +6,10 @@ import 'package:smart_wallet/ui/core/theme.dart';
 import 'package:smart_wallet/ui/core/currency_utils.dart';
 import 'package:smart_wallet/ui/providers.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:uuid/uuid.dart';
+import 'package:smart_wallet/data/services/insights_service.dart';
 import 'package:smart_wallet/domain/models/proactive_insight.dart';
+import 'package:smart_wallet/domain/models/models.dart' as domain;
 import '../models/chat_message.dart';
 
 class InsightsView extends ConsumerStatefulWidget {
@@ -85,6 +88,32 @@ class _InsightsViewState extends ConsumerState<InsightsView> {
       return;
     }
 
+    // ── Actionable commands (log a new expense/income) ──────────────────────
+    // If the message looks like "add 40 transport today", actually persist the
+    // transaction instead of letting the model hallucinate that it did.
+    if (_looksLikeActionRequest(query)) {
+      try {
+        final service = ref.read(insightsServiceProvider);
+        final action = await service.parseAction(
+          userQuery: query,
+          categories: categories,
+          apiKey: apiKey,
+          aiModel: aiModel,
+          aiProvider: aiProvider,
+          currencySymbol: currencySym,
+        );
+        if (!mounted) return;
+        if (action.isAction) {
+          await _executeAction(action, categories, currencySym);
+          return;
+        }
+        // Not actually an action — fall through to a normal chat answer.
+      } catch (e) {
+        if (mounted) { setState(() => _isTyping = false); _showError(e.toString()); }
+        return;
+      }
+    }
+
     final chatHistory = _messages
         .take(_messages.length - 1)
         .where((m) => m.shouldIncludeInHistory)
@@ -128,9 +157,128 @@ class _InsightsViewState extends ConsumerState<InsightsView> {
     }
   }
 
-  void _addMsg(String text, {bool isError = false}) {
+  /// Cheap local pre-filter so normal questions skip the extra intent-parse
+  /// round-trip. We only attempt action parsing when the message contains a
+  /// number *and* an action verb (add/spent/paid/received/…).
+  bool _looksLikeActionRequest(String query) {
+    final q = query.toLowerCase();
+    if (!RegExp(r'\d').hasMatch(q)) return false;
+    const verbs = [
+      'add', 'log', 'record', 'spent', 'spend', 'paid', 'pay', 'bought',
+      'buy', 'purchase', 'received', 'receive', 'got', 'earned', 'earn',
+      'income', 'salary', 'deposit', 'expense',
+    ];
+    return verbs.any((v) => RegExp('\\b$v').hasMatch(q));
+  }
+
+  /// Resolves a sensible fallback category when the model couldn't match one.
+  String _fallbackCategoryId(List<domain.Category> categories) {
+    for (final keyword in ['other', 'misc', 'general', 'uncategor']) {
+      for (final c in categories) {
+        if (c.name.toLowerCase().contains(keyword)) return c.id;
+      }
+    }
+    return categories.first.id;
+  }
+
+  String _friendlyDate(DateTime d) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final that = DateTime(d.year, d.month, d.day);
+    final diff = today.difference(that).inDays;
+    if (diff == 0) return 'today';
+    if (diff == 1) return 'yesterday';
+    return DateFormat('d MMM').format(d);
+  }
+
+  /// Persists the parsed expense/income and posts a confirmation bubble that
+  /// reflects what was actually saved. The watched DB streams then surface the
+  /// new entry on the dashboard and transactions list automatically.
+  Future<void> _executeAction(
+    AssistantAction action,
+    List<domain.Category> categories,
+    String currencySym,
+  ) async {
+    setState(() => _isTyping = false);
+
+    final amount = action.amount;
+    if (amount == null || amount <= 0) {
+      _addMsg(
+        "I can log that, but I need an amount. Try something like "
+        "**\"add 40 ${action.isIncome ? 'salary' : 'transport'} today\"**.",
+      );
+      return;
+    }
+
+    final date = action.date ?? DateTime.now();
+
+    try {
+      if (action.isExpense) {
+        if (categories.isEmpty) {
+          _addMsg("⚠️ You don't have any categories yet. Add one first, then I can log expenses for you.");
+          return;
+        }
+        final categoryId = action.categoryId ?? _fallbackCategoryId(categories);
+        final category = categories.firstWhere((c) => c.id == categoryId,
+            orElse: () => categories.first);
+
+        final expense = domain.Expense(
+          id: const Uuid().v4(),
+          amount: amount,
+          categoryId: categoryId,
+          date: date,
+          note: action.note,
+          // Chat-typed entries have no receipt, so they're recorded as manual
+          // (the dedicated "Receipt Scans" analytics stays receipt-only).
+          source: domain.ExpenseSource.manual,
+        );
+        await ref.read(expenseRepositoryProvider).addExpense(expense);
+
+        final noteStr = (action.note != null && action.note!.isNotEmpty)
+            ? ' · ${action.note}'
+            : '';
+        _addMsg(
+          "✅ **Expense added**\n\n"
+          "$currencySym${amount.toStringAsFixed(2)} · **${category.name}**$noteStr · ${_friendlyDate(date)}\n\n"
+          "_It's now in your Transactions and dashboard totals._",
+          isSystemGenerated: true,
+        );
+      } else {
+        final source = (action.incomeSource?.isNotEmpty ?? false)
+            ? action.incomeSource!
+            : (action.note?.isNotEmpty ?? false ? action.note! : 'Other');
+
+        final income = domain.Income(
+          id: const Uuid().v4(),
+          amount: amount,
+          source: source,
+          date: date,
+          isRecurring: false,
+          frequency: domain.IncomeFrequency.oneOff,
+        );
+        await ref.read(incomeRepositoryProvider).addIncome(income);
+
+        _addMsg(
+          "✅ **Income added**\n\n"
+          "$currencySym${amount.toStringAsFixed(2)} · **$source** · ${_friendlyDate(date)}\n\n"
+          "_It's now in your records and dashboard totals._",
+          isSystemGenerated: true,
+        );
+      }
+    } catch (e) {
+      _addMsg("⚠️ Sorry, I couldn't save that. Please try again or add it manually.", isError: true);
+    }
+  }
+
+  void _addMsg(String text, {bool isError = false, bool isSystemGenerated = false}) {
     setState(() {
-      _messages.add(ChatMessage(text: text, isUser: false, timestamp: DateTime.now(), isError: isError));
+      _messages.add(ChatMessage(
+        text: text,
+        isUser: false,
+        timestamp: DateTime.now(),
+        isError: isError,
+        isSystemGenerated: isSystemGenerated,
+      ));
     });
     _scrollDown();
   }
@@ -161,11 +309,11 @@ class _InsightsViewState extends ConsumerState<InsightsView> {
     return ChatMessage(
       text: "✨ Welcome! I'm your **AI Financial Assistant**\n\n"
           "Here's what I can help you with:\n\n"
+          "➕ **Log** — Just say _\"add 40 transport today\"_ and I'll record it for you\n"
           "📊 **Analyze** — Understand your spending by category, merchant, or time period\n"
           "💡 **Optimize** — Get smart saving ideas tailored to your habits\n"
-          "📈 **Compare** — See how this month stacks up against previous ones\n"
-          "🔍 **Explore** — Ask anything about your finances\n\n"
-          "_**What would you like to explore today?**_",
+          "📈 **Compare** — See how this month stacks up against previous ones\n\n"
+          "_**What would you like to do today?**_",
       isUser: false,
       timestamp: DateTime.now(),
       isSystemGenerated: true,
@@ -545,7 +693,7 @@ class _QuickChips extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final chips = ['Save money ideas', 'Analyze my food spend', 'Compare this month vs last', 'List recurring entries'];
+    final chips = ['Add 40 transport today', 'Save money ideas', 'Analyze my food spend', 'Compare this month vs last'];
     return SizedBox(
       height: 40,
       child: ListView(
