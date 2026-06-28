@@ -8,6 +8,7 @@ import 'package:smart_wallet/ui/core/theme.dart';
 import 'package:smart_wallet/ui/providers.dart';
 import 'package:uuid/uuid.dart';
 import '../views/bill_form_dialog.dart';
+import '../views/bill_detail_view.dart';
 import '../views/bills_view.dart';
 import 'section_header.dart';
 
@@ -297,11 +298,10 @@ class UpcomingBillsSection extends ConsumerWidget {
                   child: InkWell(
                     borderRadius: BorderRadius.circular(14),
                     onTap: () {
-                      showModalBottomSheet(
-                        context: context,
-                        isScrollControlled: true,
-                        backgroundColor: Colors.transparent,
-                        builder: (context) => BillFormDialog(initialBill: bill),
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => BillDetailView(initialBill: bill),
+                        ),
                       );
                     },
                     child: Padding(

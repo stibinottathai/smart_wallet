@@ -5,7 +5,7 @@ import 'package:smart_wallet/domain/models/models.dart' as domain;
 import 'package:smart_wallet/ui/core/theme.dart';
 import 'package:smart_wallet/ui/core/currency_utils.dart';
 import 'package:smart_wallet/ui/providers.dart';
-import 'package:smart_wallet/ui/features/dashboard/views/bill_form_dialog.dart';
+import 'package:smart_wallet/ui/features/dashboard/views/bill_detail_view.dart';
 import 'package:uuid/uuid.dart';
 
 class BillsView extends ConsumerStatefulWidget {
@@ -263,11 +263,10 @@ class _BillsViewState extends ConsumerState<BillsView> {
                     child: InkWell(
                       borderRadius: BorderRadius.circular(14),
                       onTap: () {
-                        showModalBottomSheet(
-                          context: context,
-                          isScrollControlled: true,
-                          backgroundColor: Colors.transparent,
-                          builder: (context) => BillFormDialog(initialBill: bill),
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => BillDetailView(initialBill: bill),
+                          ),
                         );
                       },
                       child: Padding(

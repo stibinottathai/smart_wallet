@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import 'package:smart_wallet/domain/models/models.dart' as domain;
 import 'package:smart_wallet/ui/core/theme.dart';
 import '../views/goal_form_dialog.dart';
+import '../views/goal_detail_view.dart';
 import 'section_header.dart';
 
 /// Horizontally-scrolling strip of savings-goal progress cards.
@@ -88,11 +89,10 @@ class SavingsGoalsSection extends StatelessWidget {
 
                   return GestureDetector(
                     onTap: () {
-                      showModalBottomSheet(
-                        context: context,
-                        isScrollControlled: true,
-                        backgroundColor: Colors.transparent,
-                        builder: (context) => GoalFormDialog(initialGoal: goal),
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => GoalDetailView(initialGoal: goal),
+                        ),
                       );
                     },
                     child: Container(
