@@ -2,7 +2,9 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:smart_wallet/ui/core/currency_utils.dart';
 import 'package:smart_wallet/ui/core/navigation.dart';
 import 'package:smart_wallet/ui/core/theme.dart';
 import 'package:smart_wallet/ui/features/onboarding/onboarding_prefs.dart';
@@ -11,7 +13,7 @@ import 'package:smart_wallet/ui/features/onboarding/onboarding_prefs.dart';
 /// highlights the app's pillars — AI insights, smart expense tracking, and
 /// visual analytics — using the same colour language and motion as the splash
 /// screen so the first-run experience feels cohesive.
-class OnboardingView extends StatefulWidget {
+class OnboardingView extends ConsumerStatefulWidget {
   /// Called once the user finishes or skips. When null (the default, first-run
   /// case) the flow advances into the main app via [MainNavigationWrapper].
   /// Settings passes a callback so "Replay onboarding" simply pops back.
@@ -20,10 +22,10 @@ class OnboardingView extends StatefulWidget {
   const OnboardingView({super.key, this.onComplete});
 
   @override
-  State<OnboardingView> createState() => _OnboardingViewState();
+  ConsumerState<OnboardingView> createState() => _OnboardingViewState();
 }
 
-class _OnboardingViewState extends State<OnboardingView>
+class _OnboardingViewState extends ConsumerState<OnboardingView>
     with SingleTickerProviderStateMixin {
   final _controller = PageController();
 
@@ -33,6 +35,10 @@ class _OnboardingViewState extends State<OnboardingView>
   /// Continuous page position (e.g. 1.5 while swiping between page 1 and 2),
   /// used to lerp the background accent colour smoothly.
   double _page = 0;
+
+  /// Currency the user picks on the final onboarding page. Seeded from the
+  /// current/default value so skipping keeps a sensible default.
+  late String _selectedCurrency;
 
   static const _pages = <_OnboardingPage>[
     _OnboardingPage(
@@ -70,6 +76,7 @@ class _OnboardingViewState extends State<OnboardingView>
   @override
   void initState() {
     super.initState();
+    _selectedCurrency = ref.read(currencyCodeProvider);
     _ambient = AnimationController(
       vsync: this,
       duration: const Duration(seconds: 8),
@@ -86,7 +93,10 @@ class _OnboardingViewState extends State<OnboardingView>
     super.dispose();
   }
 
-  bool get _isLast => _page.round() >= _pages.length - 1;
+  // Total pages = the intro pages + the final currency-selection page.
+  int get _pageCount => _pages.length + 1;
+
+  bool get _isLast => _page.round() >= _pageCount - 1;
 
   /// Lerps accent colours across page positions so the wash shifts as you swipe.
   Color get _currentAccent {
@@ -112,6 +122,10 @@ class _OnboardingViewState extends State<OnboardingView>
   }
 
   Future<void> _finish() async {
+    // Persist the chosen currency and update the live provider so the rest of
+    // the app uses it immediately (not just after a restart).
+    await saveCurrencyPref(_selectedCurrency);
+    ref.read(currencyCodeProvider.notifier).state = _selectedCurrency;
     await markOnboardingSeen();
     if (!mounted) return;
     // Replay mode (launched from Settings): just hand control back.
@@ -198,13 +212,21 @@ class _OnboardingViewState extends State<OnboardingView>
                 Expanded(
                   child: PageView.builder(
                     controller: _controller,
-                    itemCount: _pages.length,
-                    itemBuilder: (context, i) =>
-                        _OnboardingPageContent(page: _pages[i]),
+                    itemCount: _pageCount,
+                    itemBuilder: (context, i) {
+                      if (i < _pages.length) {
+                        return _OnboardingPageContent(page: _pages[i]);
+                      }
+                      return _CurrencyPageContent(
+                        selected: _selectedCurrency,
+                        onSelect: (code) =>
+                            setState(() => _selectedCurrency = code),
+                      );
+                    },
                   ),
                 ),
                 _PageDots(
-                  count: _pages.length,
+                  count: _pageCount,
                   page: _page,
                   accent: accent,
                 ),
@@ -322,6 +344,163 @@ class _OnboardingPageContent extends StatelessWidget {
               .fadeIn(delay: 350.ms, duration: 600.ms)
               .slideY(begin: 0.3, end: 0, curve: Curves.easeOutCubic),
           const Spacer(flex: 2),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Currency selection page ──────────────────────────────────────────────────
+
+/// Final onboarding step: lets a first-time user pick the currency the whole
+/// app tracks money in. Selection lives in the parent state; this just renders
+/// the options and reports taps via [onSelect].
+class _CurrencyPageContent extends StatelessWidget {
+  final String selected;
+  final ValueChanged<String> onSelect;
+
+  const _CurrencyPageContent({required this.selected, required this.onSelect});
+
+  static const Map<String, String> _names = {
+    'INR': 'Indian Rupee',
+    'AED': 'UAE Dirham',
+    'USD': 'US Dollar',
+    'EUR': 'Euro',
+    'GBP': 'British Pound',
+    'SAR': 'Saudi Riyal',
+    'QAR': 'Qatari Riyal',
+    'KWD': 'Kuwaiti Dinar',
+    'OMR': 'Omani Rial',
+    'BHD': 'Bahraini Dinar',
+    'JPY': 'Japanese Yen',
+    'CNY': 'Chinese Yuan',
+  };
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 28),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const SizedBox(height: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(
+              color: AppColors.primaryLight.withValues(alpha: 0.6),
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Text(
+              'GET STARTED',
+              style: GoogleFonts.inter(
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 1.4,
+                color: AppColors.primary,
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            'Choose your\ncurrency',
+            style: GoogleFonts.fraunces(
+              fontSize: 34,
+              height: 1.08,
+              fontWeight: FontWeight.w700,
+              letterSpacing: -0.8,
+              color: AppColors.text,
+            ),
+          ),
+          const SizedBox(height: 14),
+          Text(
+            'Pick the currency you want to track your money in. '
+            'You can change this anytime in Settings.',
+            style: GoogleFonts.inter(
+              fontSize: 15,
+              height: 1.5,
+              fontWeight: FontWeight.w400,
+              color: AppColors.textSecondary,
+            ),
+          ),
+          const SizedBox(height: 20),
+          Expanded(
+            child: ListView.separated(
+              padding: const EdgeInsets.only(bottom: 8),
+              itemCount: supportedCurrencies.length,
+              separatorBuilder: (_, __) => const SizedBox(height: 10),
+              itemBuilder: (context, i) {
+                final code = supportedCurrencies[i];
+                final isSelected = code == selected;
+                return GestureDetector(
+                  onTap: () => onSelect(code),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 180),
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                    decoration: BoxDecoration(
+                      color: isSelected
+                          ? AppColors.primary.withValues(alpha: 0.1)
+                          : AppColors.card,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: isSelected
+                            ? AppColors.primary
+                            : AppColors.divider.withValues(alpha: 0.5),
+                        width: isSelected ? 1.6 : 1,
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 44,
+                          height: 44,
+                          alignment: Alignment.center,
+                          decoration: BoxDecoration(
+                            color: AppColors.primaryLight.withValues(alpha: 0.5),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text(
+                            currencySymbol(code).trim(),
+                            style: GoogleFonts.inter(
+                              fontSize: 17,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.primary,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                code,
+                                style: GoogleFonts.inter(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w700,
+                                  color: AppColors.text,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                _names[code] ?? code,
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  color: AppColors.textSecondary,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        if (isSelected)
+                          const Icon(Icons.check_circle_rounded,
+                              color: AppColors.primary, size: 22),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
         ],
       ),
     );
