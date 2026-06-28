@@ -9,6 +9,7 @@ import 'package:smart_wallet/ui/core/dialogs.dart';
 import 'package:smart_wallet/ui/providers.dart';
 import 'package:smart_wallet/ui/features/entries/views/entry_form_view.dart';
 import 'package:smart_wallet/ui/features/entries/views/scan_receipt_view.dart';
+import 'package:smart_wallet/ui/features/entries/views/transaction_detail_view.dart';
 import 'package:smart_wallet/ui/core/category_icons.dart';
 import 'package:smart_wallet/ui/core/account_icons.dart';
 
@@ -559,7 +560,7 @@ class _AllTransactionsViewState extends ConsumerState<AllTransactionsView> {
           },
           child: _ExpenseListTile(expense: exp, category: cat, onTap: () {
             Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => EntryFormView(initialExpense: exp)),
+              MaterialPageRoute(builder: (_) => TransactionDetailView(initialExpense: exp)),
             );
           }),
         );
@@ -633,7 +634,7 @@ class _AllTransactionsViewState extends ConsumerState<AllTransactionsView> {
           },
           child: _IncomeListTile(income: inc, onTap: () {
             Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => EntryFormView(initialIncome: inc)),
+              MaterialPageRoute(builder: (_) => TransactionDetailView(initialIncome: inc)),
             );
           }),
         );

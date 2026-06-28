@@ -8,6 +8,8 @@ import 'package:smart_wallet/data/services/receipt_scan_service.dart';
 import 'package:smart_wallet/domain/models/models.dart' as domain;
 import 'package:smart_wallet/ui/providers.dart';
 import 'package:smart_wallet/ui/core/theme.dart';
+import 'package:smart_wallet/ui/core/account_icons.dart';
+import 'package:smart_wallet/ui/core/currency_utils.dart';
 import 'package:uuid/uuid.dart';
 
 enum ScanState { initial, pickingImage, scanning, analysis, success, error }
@@ -132,6 +134,7 @@ class ScanReceiptNotifier extends StateNotifier<ScanReceiptState> {
     required double total,
     required DateTime date,
     required String categoryId,
+    String? accountId,
   }) async {
     try {
       final repo = _ref.read(expenseRepositoryProvider);
@@ -143,6 +146,7 @@ class ScanReceiptNotifier extends StateNotifier<ScanReceiptState> {
         note: merchant, // Use merchant as note
         receiptImagePath: state.imagePath,
         source: domain.ExpenseSource.aiScan,
+        accountId: accountId,
       );
       await repo.addExpense(expense);
     } catch (e) {
@@ -167,6 +171,7 @@ class _ScanReceiptViewState extends ConsumerState<ScanReceiptView> {
   final _totalController = TextEditingController();
   final _dateController = TextEditingController();
   String? _selectedCategoryId;
+  String? _selectedAccountId;
 
   @override
   void dispose() {
@@ -328,6 +333,7 @@ class _ScanReceiptViewState extends ConsumerState<ScanReceiptView> {
             controller: _totalController,
             label: 'Total Amount',
             icon: Icons.attach_money_rounded,
+            prefixSymbol: currencySymbol(ref.watch(currencyCodeProvider)),
             keyboardType: TextInputType.numberWithOptions(decimal: true),
           ),
           const SizedBox(height: 16),
@@ -367,6 +373,8 @@ class _ScanReceiptViewState extends ConsumerState<ScanReceiptView> {
               });
             },
           ),
+          const SizedBox(height: 16),
+          _buildAccountField(),
           const SizedBox(height: 16),
           if (state.result!.items.isNotEmpty) ...[
             const Text(
@@ -409,6 +417,7 @@ class _ScanReceiptViewState extends ConsumerState<ScanReceiptView> {
                   total: double.tryParse(_totalController.text) ?? 0.0,
                   date: DateTime.tryParse(_dateController.text) ?? DateTime.now(),
                   categoryId: _selectedCategoryId!,
+                  accountId: _selectedAccountId,
                 );
                 if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
@@ -440,11 +449,75 @@ class _ScanReceiptViewState extends ConsumerState<ScanReceiptView> {
     );
   }
 
+  Widget _buildAccountField() {
+    final accountsAsync = ref.watch(allAccountsProvider);
+    return accountsAsync.when(
+      loading: () => const SizedBox(
+        height: 56,
+        child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+      ),
+      error: (err, _) => Text('$err', style: const TextStyle(color: AppColors.error)),
+      data: (allAccounts) {
+        final accounts = allAccounts.where((a) => !a.archived).toList();
+        if (accounts.isEmpty) {
+          return const SizedBox.shrink();
+        }
+        // Default to a cash account if available, otherwise the first account.
+        if (_selectedAccountId == null ||
+            !accounts.any((a) => a.id == _selectedAccountId)) {
+          final cashAccount = accounts.firstWhere(
+            (a) => a.type == domain.AccountType.cash,
+            orElse: () => accounts.first,
+          );
+          _selectedAccountId = cashAccount.id;
+        }
+        return DropdownButtonFormField<String>(
+          initialValue: _selectedAccountId,
+          isExpanded: true,
+          decoration: InputDecoration(
+            labelText: 'Account',
+            labelStyle: const TextStyle(color: AppColors.textSecondary),
+            prefixIcon: const Icon(Icons.account_balance_wallet_rounded, color: AppColors.textSecondary),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: AppColors.divider.withValues(alpha: 0.5)),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: AppColors.divider.withValues(alpha: 0.5)),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: AppColors.primary),
+            ),
+            filled: true,
+            fillColor: AppColors.card,
+          ),
+          items: accounts.map((acc) {
+            final accColor = Color(int.parse(acc.color.replaceAll('#', '0xFF')));
+            return DropdownMenuItem(
+              value: acc.id,
+              child: Row(
+                children: [
+                  Icon(getAccountIcon(acc.type), size: 18, color: accColor),
+                  const SizedBox(width: 10),
+                  Flexible(child: Text(acc.name, overflow: TextOverflow.ellipsis)),
+                ],
+              ),
+            );
+          }).toList(),
+          onChanged: (v) => setState(() => _selectedAccountId = v),
+        );
+      },
+    );
+  }
+
   Widget _buildTextField({
     required TextEditingController controller,
     required String label,
     required IconData icon,
     TextInputType? keyboardType,
+    String? prefixSymbol,
   }) {
     return TextField(
       controller: controller,
@@ -453,7 +526,22 @@ class _ScanReceiptViewState extends ConsumerState<ScanReceiptView> {
       decoration: InputDecoration(
         labelText: label,
         labelStyle: const TextStyle(color: AppColors.textSecondary),
-        prefixIcon: Icon(icon, color: AppColors.textSecondary),
+        prefixIcon: prefixSymbol != null
+            ? Padding(
+                padding: const EdgeInsets.only(left: 14, right: 8),
+                child: Text(
+                  prefixSymbol,
+                  style: const TextStyle(
+                    color: AppColors.primary,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              )
+            : Icon(icon, color: AppColors.textSecondary),
+        prefixIconConstraints: prefixSymbol != null
+            ? const BoxConstraints(minWidth: 0, minHeight: 0)
+            : null,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide(color: AppColors.divider.withValues(alpha: 0.5)),
