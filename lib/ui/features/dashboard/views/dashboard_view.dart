@@ -6,7 +6,6 @@ import 'package:smart_wallet/ui/providers.dart';
 import 'package:smart_wallet/ui/core/currency_utils.dart';
 import 'package:smart_wallet/ui/features/entries/views/entry_form_view.dart';
 import 'package:smart_wallet/ui/features/dashboard/views/balance_detail_view.dart';
-import 'package:smart_wallet/ui/features/dashboard/widgets/accounts_section.dart';
 import 'package:smart_wallet/ui/features/dashboard/widgets/animated_section.dart';
 import 'package:smart_wallet/ui/features/dashboard/widgets/balance_header_card.dart';
 import 'package:smart_wallet/ui/features/dashboard/widgets/budget_limits_section.dart';
@@ -193,11 +192,6 @@ class _DashboardContent extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 4),
-          const AnimatedSection(
-            index: 3,
-            tabIndex: 0,
-            child: RepaintBoundary(child: AccountsSection()),
-          ),
           const AnimatedSection(
             index: 4,
             tabIndex: 0,
