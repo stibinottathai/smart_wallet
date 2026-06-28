@@ -31,6 +31,7 @@ class _AllTransactionsViewState extends ConsumerState<AllTransactionsView> {
   String _searchQuery = '';
   bool _filtersExpanded = false;
   String? _filterCategoryId;
+  String? _filterIncomeSource;
   DateTime? _filterStartDate;
   DateTime? _filterEndDate;
   int _loadedCount = 20;
@@ -51,6 +52,7 @@ class _AllTransactionsViewState extends ConsumerState<AllTransactionsView> {
   void _clearFilters() {
     setState(() {
       _filterCategoryId = null;
+      _filterIncomeSource = null;
       _filterStartDate = null;
       _filterEndDate = null;
       _loadedCount = _pageSize;
@@ -59,6 +61,7 @@ class _AllTransactionsViewState extends ConsumerState<AllTransactionsView> {
 
   bool get _hasActiveFilters =>
       _filterCategoryId != null ||
+      _filterIncomeSource != null ||
       _filterStartDate != null ||
       _filterEndDate != null;
 
@@ -168,6 +171,7 @@ class _AllTransactionsViewState extends ConsumerState<AllTransactionsView> {
                     _showExpenses = false;
                     _searchController.clear();
                     _searchQuery = '';
+                    _filterCategoryId = null;
                     _loadedCount = _pageSize;
                   });
                 },
@@ -197,6 +201,7 @@ class _AllTransactionsViewState extends ConsumerState<AllTransactionsView> {
                     _showExpenses = true;
                     _searchController.clear();
                     _searchQuery = '';
+                    _filterIncomeSource = null;
                     _loadedCount = _pageSize;
                   });
                 },
@@ -353,7 +358,7 @@ class _AllTransactionsViewState extends ConsumerState<AllTransactionsView> {
               ],
             ),
             const SizedBox(height: 10),
-            if (_showExpenses) _buildCategoryChips(),
+            if (_showExpenses) _buildCategoryChips() else _buildSourceChips(),
             const SizedBox(height: 8),
             _buildDateRangeRow(),
           ],
@@ -376,15 +381,58 @@ class _AllTransactionsViewState extends ConsumerState<AllTransactionsView> {
               _loadedCount = _pageSize;
             }),
           ),
-          const SizedBox(width: 6),
-          ...categories.map((cat) => _FilterChip(
-            label: cat.name,
-            selected: _filterCategoryId == cat.id,
-            color: Color(int.parse(cat.color.replaceAll('#', '0xFF'))),
+          ...categories.map((cat) => Padding(
+            padding: const EdgeInsets.only(left: 6),
+            child: _FilterChip(
+              label: cat.name,
+              selected: _filterCategoryId == cat.id,
+              color: Color(int.parse(cat.color.replaceAll('#', '0xFF'))),
+              onTap: () => setState(() {
+                _filterCategoryId = cat.id;
+                _loadedCount = _pageSize;
+              }),
+            ),
+          )),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSourceChips() {
+    final incomes = ref.watch(allIncomesProvider).valueOrNull ?? [];
+    // Distinct sources actually present in the data, kept in first-seen order.
+    final sources = <String>[];
+    for (final inc in incomes) {
+      if (!sources.contains(inc.source)) sources.add(inc.source);
+    }
+    sources.sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
+
+    if (sources.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: [
+          _FilterChip(
+            label: 'All',
+            selected: _filterIncomeSource == null,
             onTap: () => setState(() {
-              _filterCategoryId = cat.id;
+              _filterIncomeSource = null;
               _loadedCount = _pageSize;
             }),
+          ),
+          ...sources.map((src) => Padding(
+            padding: const EdgeInsets.only(left: 6),
+            child: _FilterChip(
+              label: src,
+              selected: _filterIncomeSource == src,
+              onTap: () => setState(() {
+                _filterIncomeSource = src;
+                _loadedCount = _pageSize;
+              }),
+            ),
           )),
         ],
       ),
@@ -445,6 +493,20 @@ class _AllTransactionsViewState extends ConsumerState<AllTransactionsView> {
     }
   }
 
+  /// Orders items newest-first by [dateOf]. For entries sharing the same date
+  /// (e.g. several added today) the most recently added wins — the source
+  /// stream returns rows in insertion order, so a later position means a later
+  /// insert, and that is used as the tie-breaker.
+  List<T> _sortNewestFirst<T>(List<T> items, DateTime Function(T) dateOf) {
+    final indexed = items.asMap().entries.toList();
+    indexed.sort((a, b) {
+      final dateCmp = dateOf(b.value).compareTo(dateOf(a.value));
+      if (dateCmp != 0) return dateCmp;
+      return b.key.compareTo(a.key); // later insert first
+    });
+    return indexed.map((e) => e.value).toList();
+  }
+
   List<domain.Expense> _applyFilters(List<domain.Expense> expenses, Map<String, domain.Category> catMap) {
     var filtered = expenses;
 
@@ -481,6 +543,10 @@ class _AllTransactionsViewState extends ConsumerState<AllTransactionsView> {
       }).toList();
     }
 
+    if (_filterIncomeSource != null) {
+      filtered = filtered.where((inc) => inc.source == _filterIncomeSource).toList();
+    }
+
     if (_filterStartDate != null) {
       filtered = filtered.where((inc) => !inc.date.isBefore(_filterStartDate!)).toList();
     }
@@ -505,7 +571,10 @@ class _AllTransactionsViewState extends ConsumerState<AllTransactionsView> {
       );
     }
 
-    final sorted = List<domain.Expense>.from(filtered)..sort((a, b) => b.date.compareTo(a.date));
+    final sorted = _sortNewestFirst(
+      filtered,
+      (e) => e.date,
+    );
 
     final items = <_FlatItem>[];
     String? prevKey;
@@ -580,7 +649,10 @@ class _AllTransactionsViewState extends ConsumerState<AllTransactionsView> {
       );
     }
 
-    final sorted = List<domain.Income>.from(filtered)..sort((a, b) => b.date.compareTo(a.date));
+    final sorted = _sortNewestFirst(
+      filtered,
+      (i) => i.date,
+    );
 
     final items = <_FlatItem>[];
     String? prevKey;
@@ -643,37 +715,50 @@ class _AllTransactionsViewState extends ConsumerState<AllTransactionsView> {
   }
 
   Widget _buildEmptyState(String title, String subtitle) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 64),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 64,
-            height: 64,
-            decoration: BoxDecoration(
-              color: AppColors.surface,
-              borderRadius: BorderRadius.circular(20),
+    // Wrapped in a scroll view so the fixed-height content can never overflow
+    // when the available space shrinks (e.g. keyboard open + filters expanded).
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(minHeight: constraints.maxHeight),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 40),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 64,
+                    height: 64,
+                    decoration: BoxDecoration(
+                      color: AppColors.surface,
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Icon(
+                      _showExpenses ? Icons.receipt_long_rounded : Icons.account_balance_wallet_rounded,
+                      size: 28,
+                      color: AppColors.text.withValues(alpha: 0.3),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    title,
+                    style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: AppColors.textSecondary),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    subtitle,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
+                  ),
+                ],
+              ),
             ),
-            child: Icon(
-              _showExpenses ? Icons.receipt_long_rounded : Icons.account_balance_wallet_rounded,
-              size: 28,
-              color: AppColors.text.withValues(alpha: 0.3),
-            ),
           ),
-          const SizedBox(height: 16),
-          Text(
-            title,
-            style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: AppColors.textSecondary),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            subtitle,
-            textAlign: TextAlign.center,
-            style: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 
