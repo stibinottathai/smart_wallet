@@ -11,6 +11,10 @@ class BalanceHeaderCard extends StatelessWidget {
   final double expense;
   final String symbol;
 
+  /// When true, shows a "Tap for monthly details" cue at the bottom so users
+  /// know the card is tappable (used on the dashboard).
+  final bool showDetailsHint;
+
   const BalanceHeaderCard({
     super.key,
     required this.balance,
@@ -18,6 +22,7 @@ class BalanceHeaderCard extends StatelessWidget {
     required this.income,
     required this.expense,
     required this.symbol,
+    this.showDetailsHint = false,
   });
 
   @override
@@ -176,6 +181,36 @@ class BalanceHeaderCard extends StatelessWidget {
                   ),
                 ],
               ),
+              if (showDetailsHint) ...[
+                const SizedBox(height: 16),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        'Tap for monthly details',
+                        style: GoogleFonts.inter(
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.white.withValues(alpha: 0.85),
+                        ),
+                      ),
+                      const SizedBox(width: 5),
+                      Icon(
+                        Icons.arrow_forward_ios_rounded,
+                        size: 11,
+                        color: Colors.white.withValues(alpha: 0.85),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ],
           ),
         ),

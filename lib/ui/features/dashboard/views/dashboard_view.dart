@@ -5,6 +5,7 @@ import 'package:smart_wallet/ui/core/theme.dart';
 import 'package:smart_wallet/ui/providers.dart';
 import 'package:smart_wallet/ui/core/currency_utils.dart';
 import 'package:smart_wallet/ui/features/entries/views/entry_form_view.dart';
+import 'package:smart_wallet/ui/features/dashboard/views/balance_detail_view.dart';
 import 'package:smart_wallet/ui/features/dashboard/widgets/accounts_section.dart';
 import 'package:smart_wallet/ui/features/dashboard/widgets/animated_section.dart';
 import 'package:smart_wallet/ui/features/dashboard/widgets/balance_header_card.dart';
@@ -165,12 +166,21 @@ class _DashboardContent extends StatelessWidget {
             index: 1,
             tabIndex: 0,
             child: RepaintBoundary(
-              child: BalanceHeaderCard(
-                balance: netBalance,
-                percent: spentPercent,
-                income: totalIncome,
-                expense: totalExpense,
-                symbol: symbol,
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const BalanceDetailView()),
+                  );
+                },
+                child: BalanceHeaderCard(
+                  balance: netBalance,
+                  percent: spentPercent,
+                  income: totalIncome,
+                  expense: totalExpense,
+                  symbol: symbol,
+                  showDetailsHint: true,
+                ),
               ),
             ),
           ),
