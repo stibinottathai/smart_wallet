@@ -129,7 +129,7 @@ class BalanceHeaderCard extends StatelessWidget {
               Text(
                 '$symbol${balance.toStringAsFixed(2)}',
                 style: GoogleFonts.inter(
-                  fontSize: 40,
+                  fontSize: 32,
                   fontWeight: FontWeight.w800,
                   color: Colors.white,
                   letterSpacing: -1.0,

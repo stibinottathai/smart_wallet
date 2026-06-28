@@ -155,7 +155,7 @@ class _AccountCard extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: GoogleFonts.inter(
-                    fontSize: 17,
+                    fontSize: 15,
                     fontWeight: FontWeight.w800,
                     letterSpacing: -0.3,
                     color: negative ? AppColors.secondary : AppColors.text,

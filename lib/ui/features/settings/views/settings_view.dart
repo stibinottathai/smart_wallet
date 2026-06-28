@@ -14,6 +14,7 @@ import 'package:smart_wallet/ui/features/recurring/views/recurring_view.dart';
 import 'package:smart_wallet/ui/features/subscriptions/views/subscriptions_view.dart';
 import 'package:smart_wallet/ui/features/debts/views/debts_view.dart';
 import 'package:smart_wallet/ui/providers.dart';
+import 'package:smart_wallet/ui/features/dashboard/widgets/animated_section.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:smart_wallet/domain/models/models.dart' as domain;
 import 'package:smart_wallet/data/services/csv_export_service.dart';
@@ -43,6 +44,18 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
   }
 
 
+  /// Wraps each card with a staggered entrance animation while leaving the
+  /// [SizedBox] spacers static. The cascade replays each time the Settings tab
+  /// becomes active.
+  List<Widget> _staggerCards(List<Widget> children, int tabIndex) {
+    var i = 0;
+    return children
+        .map((w) => w is SizedBox
+            ? w
+            : AnimatedSection(index: i++, tabIndex: tabIndex, child: w))
+        .toList();
+  }
+
   @override
   Widget build(BuildContext context) {
     final apiKey = ref.watch(aiApiKeyProvider);
@@ -55,7 +68,7 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
         padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
+          children: _staggerCards([
             _SectionCard(
               icon: Icons.check_circle_rounded,
               title: 'System Status',
@@ -409,7 +422,7 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
                 ),
               ),
             ),
-          ],
+          ], 4),
         ),
       ),
     );

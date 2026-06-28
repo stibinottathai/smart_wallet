@@ -12,6 +12,7 @@ import 'package:smart_wallet/ui/features/entries/views/scan_receipt_view.dart';
 import 'package:smart_wallet/ui/features/entries/views/transaction_detail_view.dart';
 import 'package:smart_wallet/ui/core/category_icons.dart';
 import 'package:smart_wallet/ui/core/account_icons.dart';
+import 'package:smart_wallet/ui/features/dashboard/widgets/animated_section.dart';
 
 class AllTransactionsView extends ConsumerStatefulWidget {
   final bool initialShowExpenses;
@@ -123,8 +124,8 @@ class _AllTransactionsViewState extends ConsumerState<AllTransactionsView> {
       body: SafeArea(
         child: Column(
           children: [
-            _buildTypeToggle(),
-            _buildSearchField(),
+            AnimatedSection(index: 0, tabIndex: 1, child: _buildTypeToggle()),
+            AnimatedSection(index: 1, tabIndex: 1, child: _buildSearchField()),
             if (_filtersExpanded) _buildFilterPanel(),
             Expanded(
               child: incomesAsync.when(
@@ -596,43 +597,47 @@ class _AllTransactionsViewState extends ConsumerState<AllTransactionsView> {
       itemCount: items.length + (hasMore ? 1 : 0),
       padding: const EdgeInsets.only(bottom: 24),
       itemBuilder: (context, index) {
+        final Widget child;
         if (index >= items.length) {
-          return _buildLoadMoreButton();
-        }
-        final item = items[index];
-        if (item.isHeader) {
-          return _buildDateHeader(item.dateLabel!);
-        }
-        final exp = item.expense!;
-        final cat = item.category;
-        return Dismissible(
-          key: Key('all_expense_${exp.id}'),
-          direction: DismissDirection.endToStart,
-          background: Container(
-            margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 3),
-            decoration: BoxDecoration(
-              color: AppColors.secondary,
-              borderRadius: BorderRadius.circular(14),
-            ),
-            alignment: Alignment.centerRight,
-            padding: const EdgeInsets.only(right: 20.0),
-            child: const Icon(Icons.delete_outline, color: Colors.white),
-          ),
-          confirmDismiss: (direction) async {
-            return await showDeleteConfirmationDialog(context: context, itemType: 'expense');
-          },
-          onDismissed: (direction) async {
-            await ref.read(expenseRepositoryProvider).deleteExpense(exp.id);
-            if (context.mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Expense deleted')));
-            }
-          },
-          child: _ExpenseListTile(expense: exp, category: cat, onTap: () {
-            Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => TransactionDetailView(initialExpense: exp)),
+          child = _buildLoadMoreButton();
+        } else {
+          final item = items[index];
+          if (item.isHeader) {
+            child = _buildDateHeader(item.dateLabel!);
+          } else {
+            final exp = item.expense!;
+            final cat = item.category;
+            child = Dismissible(
+              key: Key('all_expense_${exp.id}'),
+              direction: DismissDirection.endToStart,
+              background: Container(
+                margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 3),
+                decoration: BoxDecoration(
+                  color: AppColors.secondary,
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                alignment: Alignment.centerRight,
+                padding: const EdgeInsets.only(right: 20.0),
+                child: const Icon(Icons.delete_outline, color: Colors.white),
+              ),
+              confirmDismiss: (direction) async {
+                return await showDeleteConfirmationDialog(context: context, itemType: 'expense');
+              },
+              onDismissed: (direction) async {
+                await ref.read(expenseRepositoryProvider).deleteExpense(exp.id);
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Expense deleted')));
+                }
+              },
+              child: _ExpenseListTile(expense: exp, category: cat, onTap: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => TransactionDetailView(initialExpense: exp)),
+                );
+              }),
             );
-          }),
-        );
+          }
+        }
+        return AnimatedSection(index: 2 + index, tabIndex: 1, child: child);
       },
     );
   }
@@ -674,42 +679,46 @@ class _AllTransactionsViewState extends ConsumerState<AllTransactionsView> {
       itemCount: items.length + (hasMore ? 1 : 0),
       padding: const EdgeInsets.only(bottom: 24),
       itemBuilder: (context, index) {
+        final Widget child;
         if (index >= items.length) {
-          return _buildLoadMoreButton();
-        }
-        final item = items[index];
-        if (item.isHeader) {
-          return _buildDateHeader(item.dateLabel!);
-        }
-        final inc = item.income!;
-        return Dismissible(
-          key: Key('all_income_${inc.id}'),
-          direction: DismissDirection.endToStart,
-          background: Container(
-            margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 3),
-            decoration: BoxDecoration(
-              color: AppColors.secondary,
-              borderRadius: BorderRadius.circular(14),
-            ),
-            alignment: Alignment.centerRight,
-            padding: const EdgeInsets.only(right: 20.0),
-            child: const Icon(Icons.delete_outline, color: Colors.white),
-          ),
-          confirmDismiss: (direction) async {
-            return await showDeleteConfirmationDialog(context: context, itemType: 'income');
-          },
-          onDismissed: (direction) async {
-            await ref.read(incomeRepositoryProvider).deleteIncome(inc.id);
-            if (context.mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Income deleted')));
-            }
-          },
-          child: _IncomeListTile(income: inc, onTap: () {
-            Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => TransactionDetailView(initialIncome: inc)),
+          child = _buildLoadMoreButton();
+        } else {
+          final item = items[index];
+          if (item.isHeader) {
+            child = _buildDateHeader(item.dateLabel!);
+          } else {
+            final inc = item.income!;
+            child = Dismissible(
+              key: Key('all_income_${inc.id}'),
+              direction: DismissDirection.endToStart,
+              background: Container(
+                margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 3),
+                decoration: BoxDecoration(
+                  color: AppColors.secondary,
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                alignment: Alignment.centerRight,
+                padding: const EdgeInsets.only(right: 20.0),
+                child: const Icon(Icons.delete_outline, color: Colors.white),
+              ),
+              confirmDismiss: (direction) async {
+                return await showDeleteConfirmationDialog(context: context, itemType: 'income');
+              },
+              onDismissed: (direction) async {
+                await ref.read(incomeRepositoryProvider).deleteIncome(inc.id);
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Income deleted')));
+                }
+              },
+              child: _IncomeListTile(income: inc, onTap: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => TransactionDetailView(initialIncome: inc)),
+                );
+              }),
             );
-          }),
-        );
+          }
+        }
+        return AnimatedSection(index: 2 + index, tabIndex: 1, child: child);
       },
     );
   }

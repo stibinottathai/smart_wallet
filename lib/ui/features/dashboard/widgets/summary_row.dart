@@ -114,7 +114,7 @@ class SummaryCard extends StatelessWidget {
               child: Text(
                 '$prefix$symbol${amount.toStringAsFixed(2)}',
                 style: GoogleFonts.inter(
-                  fontSize: 20,
+                  fontSize: 17,
                   fontWeight: FontWeight.w800,
                   color: color,
                   letterSpacing: -0.5,

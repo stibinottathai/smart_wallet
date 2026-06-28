@@ -5,8 +5,8 @@ import 'package:smart_wallet/ui/core/theme.dart';
 import 'package:smart_wallet/ui/providers.dart';
 import 'package:smart_wallet/ui/core/currency_utils.dart';
 import 'package:smart_wallet/ui/features/entries/views/entry_form_view.dart';
-import 'package:smart_wallet/ui/features/dashboard/widgets/ai_assistant_card.dart';
 import 'package:smart_wallet/ui/features/dashboard/widgets/accounts_section.dart';
+import 'package:smart_wallet/ui/features/dashboard/widgets/animated_section.dart';
 import 'package:smart_wallet/ui/features/dashboard/widgets/balance_header_card.dart';
 import 'package:smart_wallet/ui/features/dashboard/widgets/budget_limits_section.dart';
 import 'package:smart_wallet/ui/features/dashboard/widgets/greeting_header.dart';
@@ -156,43 +156,84 @@ class _DashboardContent extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const RepaintBoundary(child: GreetingHeader()),
-          RepaintBoundary(
-            child: BalanceHeaderCard(
-              balance: netBalance,
-              percent: spentPercent,
-              income: totalIncome,
-              expense: totalExpense,
-              symbol: symbol,
+          const AnimatedSection(
+            index: 0,
+            tabIndex: 0,
+            child: RepaintBoundary(child: GreetingHeader()),
+          ),
+          AnimatedSection(
+            index: 1,
+            tabIndex: 0,
+            child: RepaintBoundary(
+              child: BalanceHeaderCard(
+                balance: netBalance,
+                percent: spentPercent,
+                income: totalIncome,
+                expense: totalExpense,
+                symbol: symbol,
+              ),
             ),
           ),
           const SizedBox(height: 4),
-          RepaintBoundary(child: SummaryRow(income: totalIncome, expense: totalExpense, symbol: symbol)),
-          const SizedBox(height: 4),
-          const RepaintBoundary(child: AccountsSection()),
-          const RepaintBoundary(child: AiAssistantCard()),
-          const RepaintBoundary(child: ProactiveInsightsSection()),
-          RepaintBoundary(child: WeeklyTrendSection(expenses: expenses, symbol: symbol)),
-          RepaintBoundary(
-            child: BudgetLimitsSection(
-              expenses: expenses,
-              categories: categories,
-              symbol: symbol,
+          AnimatedSection(
+            index: 2,
+            tabIndex: 0,
+            child: RepaintBoundary(
+              child: SummaryRow(income: totalIncome, expense: totalExpense, symbol: symbol),
             ),
           ),
-          RepaintBoundary(child: SavingsGoalsSection(goals: savingsGoals, symbol: symbol)),
-          RepaintBoundary(
-            child: UpcomingBillsSection(
-              bills: bills,
-              categoryMap: categoryMap,
-              symbol: symbol,
+          const SizedBox(height: 4),
+          const AnimatedSection(
+            index: 3,
+            tabIndex: 0,
+            child: RepaintBoundary(child: AccountsSection()),
+          ),
+          const AnimatedSection(
+            index: 4,
+            tabIndex: 0,
+            child: RepaintBoundary(child: ProactiveInsightsSection()),
+          ),
+          AnimatedSection(
+            index: 5,
+            tabIndex: 0,
+            child: RepaintBoundary(child: WeeklyTrendSection(expenses: expenses, symbol: symbol)),
+          ),
+          AnimatedSection(
+            index: 6,
+            tabIndex: 0,
+            child: RepaintBoundary(
+              child: BudgetLimitsSection(
+                expenses: expenses,
+                categories: categories,
+                symbol: symbol,
+              ),
+            ),
+          ),
+          AnimatedSection(
+            index: 7,
+            tabIndex: 0,
+            child: RepaintBoundary(child: SavingsGoalsSection(goals: savingsGoals, symbol: symbol)),
+          ),
+          AnimatedSection(
+            index: 8,
+            tabIndex: 0,
+            child: RepaintBoundary(
+              child: UpcomingBillsSection(
+                bills: bills,
+                categoryMap: categoryMap,
+                symbol: symbol,
+              ),
             ),
           ),
           if (totalExpense > 0)
-            RepaintBoundary(
-              child: SpendingBreakdownSection(
-                spendMap: categorySpendMap,
-                categoryMap: categoryMap,
+            AnimatedSection(
+              index: 9,
+              tabIndex: 0,
+              child: RepaintBoundary(
+                child: SpendingBreakdownSection(
+                  spendMap: categorySpendMap,
+                  categoryMap: categoryMap,
+                ),
               ),
             ),
         ],

@@ -12,6 +12,7 @@ import 'package:speech_to_text/speech_to_text.dart' as stt;
 import 'package:smart_wallet/data/services/insights_service.dart';
 import 'package:smart_wallet/domain/models/proactive_insight.dart';
 import 'package:smart_wallet/domain/models/models.dart' as domain;
+import 'package:smart_wallet/ui/features/dashboard/widgets/animated_section.dart';
 import '../models/chat_message.dart';
 
 class InsightsView extends ConsumerStatefulWidget {
@@ -579,7 +580,7 @@ class _InsightsViewState extends ConsumerState<InsightsView> {
       body: Column(
         children: [
           // ── Smart Alerts Strip ───────────────────────────────────────────
-          _SmartAlertsStrip(),
+          AnimatedSection(index: 0, tabIndex: 2, child: _SmartAlertsStrip()),
           // ── Chat ─────────────────────────────────────────────────────────
           Expanded(
             child: ListView.builder(
@@ -588,9 +589,10 @@ class _InsightsViewState extends ConsumerState<InsightsView> {
               itemCount: _messages.length,
               itemBuilder: (_, i) {
                 final m = _messages[i];
+                final Widget child;
                 if (m.pendingAction != null) {
                   final sym = currencySymbol(ref.read(currencyCodeProvider));
-                  return _ActionConfirmCard(
+                  child = _ActionConfirmCard(
                     key: ValueKey('action_${m.timestamp.microsecondsSinceEpoch}'),
                     action: m.pendingAction!,
                     currencySym: sym,
@@ -613,8 +615,10 @@ class _InsightsViewState extends ConsumerState<InsightsView> {
                       );
                     },
                   );
+                } else {
+                  child = _ChatBubble(message: m);
                 }
-                return _ChatBubble(message: m);
+                return AnimatedSection(index: 1 + i, tabIndex: 2, child: child);
               },
             ),
           ),
