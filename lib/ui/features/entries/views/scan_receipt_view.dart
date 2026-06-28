@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:google_mlkit_document_scanner/google_mlkit_document_scanner.dart';
 import 'package:smart_wallet/data/services/receipt_scan_service.dart';
+import 'package:smart_wallet/data/services/backup_service.dart';
 import 'package:smart_wallet/domain/models/models.dart' as domain;
 import 'package:smart_wallet/ui/providers.dart';
 import 'package:smart_wallet/ui/core/theme.dart';
@@ -138,13 +139,19 @@ class ScanReceiptNotifier extends StateNotifier<ScanReceiptState> {
   }) async {
     try {
       final repo = _ref.read(expenseRepositoryProvider);
+      // The scanner/picker leaves the image in a temp/cache dir that the OS can
+      // clear (and that's wiped on uninstall). Copy it into permanent storage
+      // so it survives and can be included in a backup.
+      final persistedPath = state.imagePath != null
+          ? await BackupService().persistReceiptImage(state.imagePath!)
+          : null;
       final expense = domain.Expense(
         id: const Uuid().v4(),
         amount: total,
         categoryId: categoryId,
         date: date,
         note: merchant, // Use merchant as note
-        receiptImagePath: state.imagePath,
+        receiptImagePath: persistedPath,
         source: domain.ExpenseSource.aiScan,
         accountId: accountId,
       );

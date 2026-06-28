@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:smart_wallet/ui/core/theme.dart';
 import 'package:smart_wallet/ui/core/currency_utils.dart';
+import 'package:smart_wallet/ui/core/account_icons.dart';
 import 'package:smart_wallet/ui/providers.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:uuid/uuid.dart';
@@ -160,9 +161,10 @@ class _InsightsViewState extends ConsumerState<InsightsView> {
     // If the message looks like "add 40 transport today", actually persist the
     // transaction instead of letting the model hallucinate that it did.
     if (_looksLikeActionRequest(query)) {
+      AssistantAction action = AssistantAction.none();
       try {
         final service = ref.read(insightsServiceProvider);
-        final action = await service.parseAction(
+        action = await service.parseAction(
           userQuery: query,
           categories: categories,
           apiKey: apiKey,
@@ -170,16 +172,24 @@ class _InsightsViewState extends ConsumerState<InsightsView> {
           aiProvider: aiProvider,
           currencySymbol: currencySym,
         );
-        if (!mounted) return;
-        if (action.isAction) {
-          await _executeAction(action, categories, currencySym);
-          return;
-        }
-        // Not actually an action — fall through to a normal chat answer.
-      } catch (e) {
-        if (mounted) { setState(() => _isTyping = false); _showError(e.toString()); }
+      } catch (_) {
+        // Network/parse failure — fall back to local detection below so an
+        // obvious command still works (saving is local-only, so it's fine
+        // offline). A genuine question will produce no action and fall through.
+      }
+      if (!mounted) return;
+      if (!action.isAction) {
+        // The model didn't classify it as a transaction. For a clear command
+        // like "salary credited", recognise it locally so the card still opens
+        // instead of giving a generic balance answer.
+        final local = _localFallbackAction(query);
+        if (local != null) action = local;
+      }
+      if (action.isAction) {
+        _presentActionCard(action, categories, currencySym);
         return;
       }
+      // Not actually an action — fall through to a normal chat answer.
     }
 
     final chatHistory = _messages
@@ -226,17 +236,112 @@ class _InsightsViewState extends ConsumerState<InsightsView> {
   }
 
   /// Cheap local pre-filter so normal questions skip the extra intent-parse
-  /// round-trip. We only attempt action parsing when the message contains a
-  /// number *and* an action verb (add/spent/paid/received/…).
+  /// round-trip. We attempt action parsing when the message contains an action
+  /// verb (add/spent/paid/received/salary/…) and either a number, or — for a
+  /// clear logging phrase that isn't a question — no number at all, in which
+  /// case the confirmation card asks for the amount (e.g. "salary credited").
   bool _looksLikeActionRequest(String query) {
     final q = query.toLowerCase();
-    if (!RegExp(r'\d').hasMatch(q)) return false;
     const verbs = [
       'add', 'log', 'record', 'spent', 'spend', 'paid', 'pay', 'bought',
       'buy', 'purchase', 'received', 'receive', 'got', 'earned', 'earn',
-      'income', 'salary', 'deposit', 'expense',
+      'income', 'salary', 'deposit', 'expense', 'credited', 'credit',
     ];
-    return verbs.any((v) => RegExp('\\b$v').hasMatch(q));
+    final hasVerb = verbs.any((v) => RegExp('\\b$v').hasMatch(q));
+    if (!hasVerb) return false;
+    if (RegExp(r'\d').hasMatch(q)) return true;
+    // No amount given: only treat as an action if it reads like a command,
+    // not a question/analysis request (those go to the chat assistant).
+    return !_looksLikeQuestion(q);
+  }
+
+  /// True when the message reads like a question or analysis request rather than
+  /// a command to log a transaction.
+  bool _looksLikeQuestion(String q) {
+    if (q.contains('?')) return true;
+    const starters = [
+      'how', 'what', 'when', 'where', 'why', 'which', 'who', 'can you',
+      'show', 'analyze', 'analyse', 'compare', 'list', 'tell', 'give',
+    ];
+    final trimmed = q.trimLeft();
+    return starters.any((w) => trimmed.startsWith(w));
+  }
+
+  /// Local, no-API fallback that recognises an obvious "log a transaction"
+  /// command when the model's intent parser returns nothing (or is unreachable).
+  /// Guarantees the confirmation card appears for clear phrases like
+  /// "salary credited" even on weaker models. Returns null when the message
+  /// doesn't look like a command.
+  AssistantAction? _localFallbackAction(String query) {
+    final q = query.toLowerCase();
+
+    const incomeWords = [
+      'salary', 'credited', 'credit', 'received', 'receive', 'income',
+      'earned', 'earn', 'deposit', 'bonus', 'refund', 'interest', 'dividend',
+      'allowance', 'pension', 'stipend', 'cashback', 'freelance', 'payout', 'wage',
+    ];
+    const expenseWords = [
+      'spent', 'spend', 'paid', 'pay', 'bought', 'buy', 'purchase',
+      'expense', 'bill', 'add', 'log', 'record',
+    ];
+
+    final isIncome = incomeWords.any((w) => RegExp('\\b$w').hasMatch(q));
+    final isExpense = !isIncome && expenseWords.any((w) => RegExp('\\b$w').hasMatch(q));
+    if (!isIncome && !isExpense) return null;
+
+    // First number in the message becomes the amount (null when none given, in
+    // which case the card asks for it).
+    double? amount;
+    final match = RegExp(r'\d+(?:\.\d+)?').firstMatch(q);
+    if (match != null) amount = double.tryParse(match.group(0)!);
+
+    if (isIncome) {
+      const sources = {
+        'salary': 'Salary', 'freelance': 'Freelance', 'bonus': 'Bonus',
+        'refund': 'Refund', 'interest': 'Interest', 'dividend': 'Dividend',
+        'gift': 'Gift', 'rent': 'Rent', 'pension': 'Pension',
+        'cashback': 'Cashback', 'allowance': 'Allowance', 'wage': 'Wages',
+        'stipend': 'Stipend', 'payout': 'Payout',
+      };
+      String? source;
+      for (final e in sources.entries) {
+        if (RegExp('\\b${e.key}').hasMatch(q)) {
+          source = e.value;
+          break;
+        }
+      }
+      return AssistantAction(
+        intent: 'add_income',
+        amount: amount,
+        incomeSource: source ?? 'Other',
+        date: DateTime.now(),
+      );
+    }
+
+    // Expense: leave category null so the card's picker resolves it; derive a
+    // short note from the remaining words.
+    return AssistantAction(
+      intent: 'add_expense',
+      amount: amount,
+      note: _deriveNote(query),
+      date: DateTime.now(),
+    );
+  }
+
+  /// Strips verbs, fillers and numbers to leave a short note/merchant for an
+  /// expense, e.g. "spent on lunch today" -> "lunch".
+  String? _deriveNote(String query) {
+    const stop = {
+      'add', 'log', 'record', 'spent', 'spend', 'paid', 'pay', 'bought',
+      'buy', 'purchase', 'for', 'on', 'today', 'yesterday', 'a', 'an', 'the',
+      'of', 'rs', 'inr', 'usd', 'i', 'my', 'me', 'to', 'in', 'expense', 'bill',
+    };
+    final words = query.toLowerCase().split(RegExp(r'\s+')).where((w) {
+      final t = w.replaceAll(RegExp(r'[^a-z]'), '');
+      return t.isNotEmpty && !stop.contains(t) && !RegExp(r'\d').hasMatch(w);
+    }).toList();
+    if (words.isEmpty) return null;
+    return words.join(' ');
   }
 
   /// Resolves a sensible fallback category when the model couldn't match one.
@@ -259,33 +364,48 @@ class _InsightsViewState extends ConsumerState<InsightsView> {
     return DateFormat('d MMM').format(d);
   }
 
-  /// Persists the parsed expense/income and posts a confirmation bubble that
-  /// reflects what was actually saved. The watched DB streams then surface the
-  /// new entry on the dashboard and transactions list automatically.
-  Future<void> _executeAction(
+  /// Instead of silently saving (which always defaulted to the Cash account),
+  /// surface an interactive confirmation card so the user can pick which account
+  /// the money comes from / goes into — and the category for expenses — before
+  /// anything is committed. This is the assistant "asking" with selectable
+  /// options. The actual write happens in [_persistAction] once confirmed.
+  void _presentActionCard(
     AssistantAction action,
     List<domain.Category> categories,
     String currencySym,
-  ) async {
+  ) {
     setState(() => _isTyping = false);
 
-    final amount = action.amount;
-    if (amount == null || amount <= 0) {
-      _addMsg(
-        "I can log that, but I need an amount. Try something like "
-        "**\"add 40 ${action.isIncome ? 'salary' : 'transport'} today\"**.",
-      );
+    // A missing amount is no longer a dead end — the card shows an input field
+    // so the user can type it inline instead of re-phrasing the whole command.
+    if (action.isExpense && categories.isEmpty) {
+      _addMsg("⚠️ You don't have any categories yet. Add one first, then I can log expenses for you.");
       return;
     }
 
+    setState(() {
+      _messages.add(ChatMessage(
+        text: action.isIncome ? 'Confirm income' : 'Confirm expense',
+        isUser: false,
+        timestamp: DateTime.now(),
+        pendingAction: action,
+      ));
+    });
+    _scrollDown();
+  }
+
+  /// Commits a confirmed action — with the account/category the user picked in
+  /// the card — and posts a confirmation bubble reflecting what was actually
+  /// saved. The watched DB streams then surface the new entry on the dashboard
+  /// and transactions list automatically. Returns true on success.
+  Future<bool> _persistAction(AssistantAction action, String currencySym) async {
+    final amount = action.amount;
+    if (amount == null || amount <= 0) return false;
     final date = action.date ?? DateTime.now();
 
     try {
       if (action.isExpense) {
-        if (categories.isEmpty) {
-          _addMsg("⚠️ You don't have any categories yet. Add one first, then I can log expenses for you.");
-          return;
-        }
+        final categories = ref.read(allCategoriesProvider).value ?? [];
         final categoryId = action.categoryId ?? _fallbackCategoryId(categories);
         final category = categories.firstWhere((c) => c.id == categoryId,
             orElse: () => categories.first);
@@ -299,6 +419,7 @@ class _InsightsViewState extends ConsumerState<InsightsView> {
           // Chat-typed entries have no receipt, so they're recorded as manual
           // (the dedicated "Receipt Scans" analytics stays receipt-only).
           source: domain.ExpenseSource.manual,
+          accountId: action.accountId,
         );
         await ref.read(expenseRepositoryProvider).addExpense(expense);
 
@@ -307,8 +428,8 @@ class _InsightsViewState extends ConsumerState<InsightsView> {
             : '';
         _addMsg(
           "✅ **Expense added**\n\n"
-          "$currencySym${amount.toStringAsFixed(2)} · **${category.name}**$noteStr · ${_friendlyDate(date)}\n\n"
-          "_It's now in your Transactions and dashboard totals._",
+          "$currencySym${amount.toStringAsFixed(2)} · **${category.name}**$noteStr\n"
+          "Paid from **${_accountName(action.accountId)}** · ${_friendlyDate(date)}",
           isSystemGenerated: true,
         );
       } else {
@@ -323,19 +444,33 @@ class _InsightsViewState extends ConsumerState<InsightsView> {
           date: date,
           isRecurring: false,
           frequency: domain.IncomeFrequency.oneOff,
+          accountId: action.accountId,
         );
         await ref.read(incomeRepositoryProvider).addIncome(income);
 
         _addMsg(
           "✅ **Income added**\n\n"
-          "$currencySym${amount.toStringAsFixed(2)} · **$source** · ${_friendlyDate(date)}\n\n"
-          "_It's now in your records and dashboard totals._",
+          "$currencySym${amount.toStringAsFixed(2)} · **$source**\n"
+          "Added to **${_accountName(action.accountId)}** · ${_friendlyDate(date)}",
           isSystemGenerated: true,
         );
       }
+      return true;
     } catch (e) {
       _addMsg("⚠️ Sorry, I couldn't save that. Please try again or add it manually.", isError: true);
+      return false;
     }
+  }
+
+  /// Display name for the account a transaction was attributed to. A null id
+  /// falls back to the default (Cash) account, matching balance attribution.
+  String _accountName(String? accountId) {
+    final accounts = ref.read(allAccountsProvider).value ?? [];
+    final id = accountId ?? defaultAccountId;
+    for (final a in accounts) {
+      if (a.id == id) return a.name;
+    }
+    return 'Cash';
   }
 
   void _addMsg(String text, {bool isError = false, bool isSystemGenerated = false}) {
@@ -377,7 +512,8 @@ class _InsightsViewState extends ConsumerState<InsightsView> {
     return ChatMessage(
       text: "✨ Welcome! I'm your **AI Financial Assistant**\n\n"
           "Here's what I can help you with:\n\n"
-          "➕ **Log** — Just say _\"add 40 transport today\"_ and I'll record it for you\n"
+          "➕ **Add expenses** — Say _\"add 40 transport today\"_ and I'll ask which account to use\n"
+          "💰 **Add income** — Say _\"salary credited\"_ and I'll ask how much, then log it to the account you pick\n"
           "📊 **Analyze** — Understand your spending by category, merchant, or time period\n"
           "💡 **Optimize** — Get smart saving ideas tailored to your habits\n"
           "📈 **Compare** — See how this month stacks up against previous ones\n\n"
@@ -450,7 +586,36 @@ class _InsightsViewState extends ConsumerState<InsightsView> {
               controller: _scrollCtrl,
               padding: const EdgeInsets.fromLTRB(16, 20, 16, 8),
               itemCount: _messages.length,
-              itemBuilder: (_, i) => _ChatBubble(message: _messages[i]),
+              itemBuilder: (_, i) {
+                final m = _messages[i];
+                if (m.pendingAction != null) {
+                  final sym = currencySymbol(ref.read(currencyCodeProvider));
+                  return _ActionConfirmCard(
+                    key: ValueKey('action_${m.timestamp.microsecondsSinceEpoch}'),
+                    action: m.pendingAction!,
+                    currencySym: sym,
+                    onConfirm: (finalAction) async {
+                      final ok = await _persistAction(finalAction, sym);
+                      // Once saved, drop the interactive card (the confirmation
+                      // bubble already records the result). This stops it from
+                      // re-opening or reverting to a blank form when the list
+                      // rebuilds / it scrolls back into view.
+                      if (ok && mounted) {
+                        setState(() => _messages.remove(m));
+                      }
+                      return ok;
+                    },
+                    onCancel: () {
+                      if (mounted) setState(() => _messages.remove(m));
+                      _addMsg(
+                        "No problem — I didn't save anything. Just tell me again when you're ready.",
+                        isSystemGenerated: true,
+                      );
+                    },
+                  );
+                }
+                return _ChatBubble(message: m);
+              },
             ),
           ),
           if (_isTyping) _TypingIndicator(),
@@ -711,6 +876,412 @@ class _ChatBubble extends StatelessWidget {
   }
 }
 
+/// Interactive confirmation card the assistant shows before saving a parsed
+/// expense/income. Lets the user pick the account (so money no longer always
+/// comes out of Cash) and, for expenses, adjust the category — then commits.
+enum _CardStatus { choosing, saving, done, cancelled }
+
+class _ActionConfirmCard extends ConsumerStatefulWidget {
+  final AssistantAction action;
+  final String currencySym;
+  final Future<bool> Function(AssistantAction) onConfirm;
+  final VoidCallback onCancel;
+
+  const _ActionConfirmCard({
+    super.key,
+    required this.action,
+    required this.currencySym,
+    required this.onConfirm,
+    required this.onCancel,
+  });
+
+  @override
+  ConsumerState<_ActionConfirmCard> createState() => _ActionConfirmCardState();
+}
+
+class _ActionConfirmCardState extends ConsumerState<_ActionConfirmCard>
+    with AutomaticKeepAliveClientMixin {
+  _CardStatus _status = _CardStatus.choosing;
+  String? _accountId;
+  String? _categoryId;
+
+  /// The amount to save. Seeded from the parsed action; when the parser couldn't
+  /// find one, the card shows an input field that drives this instead.
+  double? _amount;
+  late final TextEditingController _amountCtrl;
+
+  bool get _isIncome => widget.action.isIncome;
+
+  // Keep the card's selections/state alive even when it scrolls off-screen, so
+  // an in-progress (or just-saved) card never reverts to a blank form.
+  @override
+  bool get wantKeepAlive => true;
+
+  /// True when the parser didn't extract an amount, so we must ask for it.
+  bool get _needsAmountInput =>
+      widget.action.amount == null || widget.action.amount! <= 0;
+
+  /// Context-aware prompt for the amount field, e.g. "How much salary credited?"
+  /// for an income or "How much on lunch?" for an expense.
+  String get _amountLabel {
+    if (_isIncome) {
+      final src = (widget.action.incomeSource ?? widget.action.note ?? '').trim();
+      return src.isEmpty
+          ? 'How much was credited?'
+          : 'How much ${src.toLowerCase()} credited?';
+    }
+    final note = (widget.action.note ?? '').trim();
+    return note.isEmpty ? 'How much did you spend?' : 'How much on ${note.toLowerCase()}?';
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _categoryId = widget.action.categoryId;
+    final parsed = widget.action.amount;
+    _amount = (parsed != null && parsed > 0) ? parsed : null;
+    _amountCtrl = TextEditingController();
+    _amountCtrl.addListener(() {
+      final v = double.tryParse(_amountCtrl.text.trim());
+      setState(() => _amount = (v != null && v > 0) ? v : null);
+    });
+  }
+
+  @override
+  void dispose() {
+    _amountCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _confirm() async {
+    if (_amount == null) return;
+    setState(() => _status = _CardStatus.saving);
+    final finalAction = widget.action.copyWith(
+      amount: _amount,
+      accountId: _accountId,
+      categoryId: _isIncome ? null : _categoryId,
+    );
+    final ok = await widget.onConfirm(finalAction);
+    if (!mounted) return;
+    setState(() => _status = ok ? _CardStatus.done : _CardStatus.choosing);
+  }
+
+  void _cancel() {
+    setState(() => _status = _CardStatus.cancelled);
+    widget.onCancel();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    super.build(context); // required by AutomaticKeepAliveClientMixin
+    final accounts = (ref.watch(allAccountsProvider).value ?? [])
+        .where((a) => !a.archived)
+        .toList();
+    final categories = ref.watch(allCategoriesProvider).value ?? [];
+
+    // Lazily pick a sensible default account (prefer Cash) once accounts load.
+    if (_accountId == null && accounts.isNotEmpty) {
+      final preferred = accounts.firstWhere(
+        (a) => a.id == defaultAccountId || a.type == domain.AccountType.cash,
+        orElse: () => accounts.first,
+      );
+      _accountId = preferred.id;
+    }
+    if (_categoryId == null && !_isIncome && categories.isNotEmpty) {
+      _categoryId = categories.first.id;
+    }
+
+    if (_status == _CardStatus.done || _status == _CardStatus.cancelled) {
+      return _resolvedTile();
+    }
+
+    final action = widget.action;
+    final color = _isIncome ? AppColors.primary : AppColors.secondary;
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Align(
+        alignment: Alignment.centerLeft,
+        child: Container(
+          constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.86),
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: AppColors.card,
+            borderRadius: const BorderRadius.only(
+              topLeft: Radius.circular(16),
+              topRight: Radius.circular(16),
+              bottomLeft: Radius.circular(4),
+              bottomRight: Radius.circular(16),
+            ),
+            border: Border.all(color: color.withValues(alpha: 0.4)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // ── Header: type + amount ──────────────────────────────────────
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                      color: color.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Icon(
+                      _isIncome ? Icons.south_west_rounded : Icons.north_east_rounded,
+                      size: 16,
+                      color: color,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    _isIncome ? 'Add income' : 'Add expense',
+                    style: GoogleFonts.inter(
+                      fontSize: 13.5,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.text,
+                    ),
+                  ),
+                  const Spacer(),
+                  // Only echo the amount in the header when we already have one;
+                  // otherwise it's collected via the input field below.
+                  if (!_needsAmountInput)
+                    Text(
+                      '${widget.currencySym}${_amount!.toStringAsFixed(2)}',
+                      style: GoogleFonts.inter(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w800,
+                        color: color,
+                      ),
+                    ),
+                ],
+              ),
+              if (action.note != null && action.note!.isNotEmpty ||
+                  (_isIncome && (action.incomeSource?.isNotEmpty ?? false))) ...[
+                const SizedBox(height: 4),
+                Text(
+                  _isIncome
+                      ? (action.incomeSource ?? action.note ?? '')
+                      : action.note!,
+                  style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                ),
+              ],
+              const SizedBox(height: 14),
+
+              // ── Amount input (only when the parser couldn't find one) ──────
+              if (_needsAmountInput) ...[
+                _label(_amountLabel),
+                const SizedBox(height: 6),
+                TextField(
+                  controller: _amountCtrl,
+                  autofocus: true,
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+                  decoration: InputDecoration(
+                    prefixText: '${widget.currencySym} ',
+                    prefixStyle: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                      color: color,
+                    ),
+                    hintText: '0.00',
+                    isDense: true,
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+                    filled: true,
+                    fillColor: AppColors.surface,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide.none,
+                    ),
+                  ),
+                  onSubmitted: (_) {
+                    if (_amount != null) _confirm();
+                  },
+                ),
+                const SizedBox(height: 14),
+              ],
+
+              // ── Category picker (expense only) ─────────────────────────────
+              if (!_isIncome && categories.isNotEmpty) ...[
+                _label('Category'),
+                const SizedBox(height: 6),
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  children: categories.map((c) {
+                    return _selectChip(
+                      label: c.name,
+                      selected: _categoryId == c.id,
+                      onTap: () => setState(() => _categoryId = c.id),
+                    );
+                  }).toList(),
+                ),
+                const SizedBox(height: 14),
+              ],
+
+              // ── Account picker ─────────────────────────────────────────────
+              _label(_isIncome ? 'Add to which account?' : 'Pay from which account?'),
+              const SizedBox(height: 6),
+              if (accounts.isEmpty)
+                const Text(
+                  'No accounts found — it will use your default account.',
+                  style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                )
+              else
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  children: accounts.map((a) {
+                    return _selectChip(
+                      label: a.name,
+                      selected: _accountId == a.id,
+                      icon: getAccountIcon(a.type),
+                      onTap: () => setState(() => _accountId = a.id),
+                    );
+                  }).toList(),
+                ),
+              const SizedBox(height: 16),
+
+              // ── Actions ────────────────────────────────────────────────────
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: _status == _CardStatus.saving ? null : _cancel,
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AppColors.textSecondary,
+                        side: BorderSide(color: AppColors.divider),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        padding: const EdgeInsets.symmetric(vertical: 11),
+                      ),
+                      child: const Text('Cancel', style: TextStyle(fontWeight: FontWeight.w600)),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    flex: 2,
+                    child: FilledButton.icon(
+                      onPressed: (_status == _CardStatus.saving || _amount == null)
+                          ? null
+                          : _confirm,
+                      style: FilledButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        disabledBackgroundColor: AppColors.primary.withValues(alpha: 0.4),
+                        disabledForegroundColor: Colors.white70,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        padding: const EdgeInsets.symmetric(vertical: 11),
+                      ),
+                      icon: _status == _CardStatus.saving
+                          ? const SizedBox(
+                              width: 15,
+                              height: 15,
+                              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                            )
+                          : const Icon(Icons.check_rounded, size: 18),
+                      label: Text(
+                        _status == _CardStatus.saving
+                            ? 'Saving…'
+                            : (_isIncome ? 'Add income' : 'Add expense'),
+                        style: const TextStyle(fontWeight: FontWeight.w700),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _resolvedTile() {
+    final cancelled = _status == _CardStatus.cancelled;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Align(
+        alignment: Alignment.centerLeft,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          decoration: BoxDecoration(
+            color: AppColors.surface.withValues(alpha: 0.6),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: AppColors.divider.withValues(alpha: 0.5)),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                cancelled ? Icons.close_rounded : Icons.check_circle_rounded,
+                size: 14,
+                color: cancelled ? AppColors.textSecondary : AppColors.primary,
+              ),
+              const SizedBox(width: 6),
+              Text(
+                cancelled ? 'Cancelled' : 'Saved',
+                style: GoogleFonts.inter(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textSecondary,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _label(String text) => Text(
+        text,
+        style: GoogleFonts.inter(
+          fontSize: 11.5,
+          fontWeight: FontWeight.w600,
+          color: AppColors.textSecondary,
+        ),
+      );
+
+  Widget _selectChip({
+    required String label,
+    required bool selected,
+    required VoidCallback onTap,
+    IconData? icon,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
+        decoration: BoxDecoration(
+          color: selected ? AppColors.primary.withValues(alpha: 0.12) : AppColors.surface,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: selected ? AppColors.primary : AppColors.divider.withValues(alpha: 0.6),
+            width: selected ? 1.4 : 1,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (icon != null) ...[
+              Icon(icon, size: 14, color: selected ? AppColors.primary : AppColors.textSecondary),
+              const SizedBox(width: 5),
+            ],
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 12.5,
+                fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                color: selected ? AppColors.primary : AppColors.text,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _TypingIndicator extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
@@ -766,7 +1337,7 @@ class _QuickChips extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final chips = ['Add 40 transport today', 'Save money ideas', 'Analyze my food spend', 'Compare this month vs last'];
+    final chips = ['Add 40 transport today', 'Salary credited', 'Save money ideas', 'Analyze my food spend'];
     return SizedBox(
       height: 40,
       child: ListView(

@@ -46,6 +46,10 @@ class AssistantAction {
   final String? incomeSource;
   final DateTime? date;
 
+  /// Account the money is paid from (expense) or into (income). Resolved
+  /// interactively in the chat UI, not by the parser.
+  final String? accountId;
+
   AssistantAction({
     required this.intent,
     this.amount,
@@ -53,6 +57,7 @@ class AssistantAction {
     this.note,
     this.incomeSource,
     this.date,
+    this.accountId,
   });
 
   bool get isExpense => intent == 'add_expense';
@@ -60,6 +65,26 @@ class AssistantAction {
   bool get isAction => isExpense || isIncome;
 
   static AssistantAction none() => AssistantAction(intent: 'none');
+
+  AssistantAction copyWith({
+    String? intent,
+    double? amount,
+    String? categoryId,
+    String? note,
+    String? incomeSource,
+    DateTime? date,
+    String? accountId,
+  }) {
+    return AssistantAction(
+      intent: intent ?? this.intent,
+      amount: amount ?? this.amount,
+      categoryId: categoryId ?? this.categoryId,
+      note: note ?? this.note,
+      incomeSource: incomeSource ?? this.incomeSource,
+      date: date ?? this.date,
+      accountId: accountId ?? this.accountId,
+    );
+  }
 }
 
 class SpendingInsight {

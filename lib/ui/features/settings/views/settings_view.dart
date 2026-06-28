@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
@@ -19,6 +18,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:smart_wallet/domain/models/models.dart' as domain;
 import 'package:smart_wallet/data/services/csv_export_service.dart';
 import 'package:smart_wallet/data/services/csv_import_service.dart';
+import 'package:smart_wallet/data/services/backup_service.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:permission_handler/permission_handler.dart';
 
@@ -1338,12 +1338,20 @@ class _CsvImportExportSectionState
     List<domain.Category> categories,
     List<domain.SavingsGoal> goals,
     List<domain.Bill> bills,
+    List<domain.RecurringRule> recurringRules,
+    List<domain.Debt> debts,
+    List<domain.Account> accounts,
+    List<domain.Transfer> transfers,
   })> _collectData() async {
     List<domain.Income> incomes = [];
     List<domain.Expense> expenses = [];
     List<domain.Category> categories = [];
     List<domain.SavingsGoal> goals = [];
     List<domain.Bill> bills = [];
+    List<domain.RecurringRule> recurringRules = [];
+    List<domain.Debt> debts = [];
+    List<domain.Account> accounts = [];
+    List<domain.Transfer> transfers = [];
 
     try {
       incomes = await ref.read(incomeRepositoryProvider).getAllIncomes();
@@ -1351,12 +1359,20 @@ class _CsvImportExportSectionState
       categories = await ref.read(expenseRepositoryProvider).getAllCategories();
       goals = await ref.read(savingsGoalRepositoryProvider).getAllGoals();
       bills = await ref.read(billRepositoryProvider).getAllBills();
+      recurringRules = await ref.read(recurringRuleRepositoryProvider).getAllRules();
+      debts = await ref.read(debtRepositoryProvider).getAllDebts();
+      accounts = await ref.read(accountRepositoryProvider).getAllAccounts();
+      transfers = await ref.read(transferRepositoryProvider).getAllTransfers();
     } catch (_) {
       incomes = ref.read(allIncomesProvider).value ?? [];
       expenses = ref.read(allExpensesProvider).value ?? [];
       categories = ref.read(allCategoriesProvider).value ?? [];
       goals = ref.read(allSavingsGoalsProvider).value ?? [];
       bills = ref.read(allBillsProvider).value ?? [];
+      recurringRules = ref.read(allRecurringRulesProvider).value ?? [];
+      debts = ref.read(allDebtsProvider).value ?? [];
+      accounts = ref.read(allAccountsProvider).value ?? [];
+      transfers = ref.read(allTransfersProvider).value ?? [];
     }
 
     return (
@@ -1365,29 +1381,45 @@ class _CsvImportExportSectionState
       categories: categories,
       goals: goals,
       bills: bills,
+      recurringRules: recurringRules,
+      debts: debts,
+      accounts: accounts,
+      transfers: transfers,
     );
+  }
+
+  /// Builds the full backup as ZIP bytes: the CSV plus every receipt image it
+  /// references, bundled under `images/`.
+  Future<Uint8List> _buildBackupBytes() async {
+    final data = await _collectData();
+    final csvContent = CsvExportService().buildCsvContent(
+      incomes: data.incomes,
+      expenses: data.expenses,
+      categories: data.categories,
+      goals: data.goals,
+      bills: data.bills,
+      recurringRules: data.recurringRules,
+      debts: data.debts,
+      accounts: data.accounts,
+      transfers: data.transfers,
+    );
+    final imagePaths =
+        data.expenses.map((e) => e.receiptImagePath).whereType<String>();
+    return BackupService()
+        .buildBackupZip(csvContent: csvContent, imagePaths: imagePaths);
   }
 
   Future<void> _downloadCsv() async {
     setState(() => _isProcessing = true);
     try {
-      final data = await _collectData();
-
-      final service = CsvExportService();
-      final csvContent = service.buildCsvContent(
-        incomes: data.incomes,
-        expenses: data.expenses,
-        categories: data.categories,
-        goals: data.goals,
-        bills: data.bills,
-      );
+      final bytes = await _buildBackupBytes();
 
       final result = await FilePicker.saveFile(
-        dialogTitle: 'Save CSV file',
-        fileName: 'smart_wallet_export.csv',
-        bytes: Uint8List.fromList(utf8.encode(csvContent)),
+        dialogTitle: 'Save backup file',
+        fileName: 'smart_wallet_backup.zip',
+        bytes: bytes,
         type: FileType.custom,
-        allowedExtensions: ['csv'],
+        allowedExtensions: ['zip'],
       );
 
       if (result != null && mounted) {
@@ -1397,7 +1429,7 @@ class _CsvImportExportSectionState
               children: [
                 Icon(Icons.check_circle_rounded, color: Colors.white, size: 20),
                 SizedBox(width: 12),
-                Text('CSV file saved successfully'),
+                Text('Backup saved successfully'),
               ],
             ),
           ),
@@ -1407,7 +1439,7 @@ class _CsvImportExportSectionState
       if (mounted) {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(SnackBar(content: Text('Failed to save CSV: $e')));
+        ).showSnackBar(SnackBar(content: Text('Failed to save backup: $e')));
       }
     } finally {
       if (mounted) {
@@ -1416,24 +1448,18 @@ class _CsvImportExportSectionState
     }
   }
 
-  /// Writes the export to a temp file and opens the system share sheet, which
+  /// Writes the backup to a temp file and opens the system share sheet, which
   /// includes "Save to Drive" / Google Drive as a destination.
   Future<void> _shareCsv() async {
     setState(() => _isProcessing = true);
     try {
-      final data = await _collectData();
-      await CsvExportService().exportDataToCsv(
-        incomes: data.incomes,
-        expenses: data.expenses,
-        categories: data.categories,
-        goals: data.goals,
-        bills: data.bills,
-      );
+      final bytes = await _buildBackupBytes();
+      await BackupService().shareBackupZip(bytes);
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(SnackBar(content: Text('Failed to share CSV: $e')));
+        ).showSnackBar(SnackBar(content: Text('Failed to share backup: $e')));
       }
     } finally {
       if (mounted) {
@@ -1447,7 +1473,7 @@ class _CsvImportExportSectionState
     try {
       final result = await FilePicker.pickFiles(
         type: FileType.custom,
-        allowedExtensions: ['csv'],
+        allowedExtensions: ['zip', 'csv'],
       );
 
       if (result == null ||
@@ -1456,13 +1482,33 @@ class _CsvImportExportSectionState
         return;
       }
 
-      final file = File(result.files.single.path!);
-      final importResult = await CsvImportService().importDataFromCsv(
-        file: file,
+      final path = result.files.single.path!;
+      final file = File(path);
+
+      // A ZIP backup carries receipt images; extract them into permanent
+      // storage and re-point each expense at the restored image. A plain CSV
+      // (older export) is read directly with no images.
+      String csvContent;
+      String? receiptImageDir;
+      if (path.toLowerCase().endsWith('.zip')) {
+        final extracted = await BackupService().extractBackupZip(file);
+        csvContent = extracted.csvContent;
+        receiptImageDir = extracted.imageDir;
+      } else {
+        csvContent = await file.readAsString();
+      }
+
+      final importResult = await CsvImportService().importDataFromCsvContent(
+        content: csvContent,
         incomeRepository: ref.read(incomeRepositoryProvider),
         expenseRepository: ref.read(expenseRepositoryProvider),
         savingsGoalRepository: ref.read(savingsGoalRepositoryProvider),
         billRepository: ref.read(billRepositoryProvider),
+        recurringRuleRepository: ref.read(recurringRuleRepositoryProvider),
+        debtRepository: ref.read(debtRepositoryProvider),
+        accountRepository: ref.read(accountRepositoryProvider),
+        transferRepository: ref.read(transferRepositoryProvider),
+        receiptImageDir: receiptImageDir,
       );
 
       if (!mounted) return;
@@ -1473,6 +1519,11 @@ class _CsvImportExportSectionState
         ref.invalidate(allCategoriesProvider);
         ref.invalidate(allSavingsGoalsProvider);
         ref.invalidate(allBillsProvider);
+        ref.invalidate(allRecurringRulesProvider);
+        ref.invalidate(allDebtsProvider);
+        ref.invalidate(allAccountsProvider);
+        ref.invalidate(allTransfersProvider);
+        ref.invalidate(accountBalancesProvider);
 
         showDialog(
           context: context,
@@ -1490,7 +1541,11 @@ class _CsvImportExportSectionState
               '• ${importResult.categoriesCreated} new categories\n'
               '• ${importResult.budgetsImported} budget limits\n'
               '• ${importResult.goalsImported} savings goals\n'
-              '• ${importResult.billsImported} bills & subscriptions.',
+              '• ${importResult.billsImported} bills & subscriptions\n'
+              '• ${importResult.recurringImported} recurring rules\n'
+              '• ${importResult.debtsImported} debts & loans\n'
+              '• ${importResult.accountsImported} accounts\n'
+              '• ${importResult.transfersImported} transfers.',
               textAlign: TextAlign.center,
             ),
             actions: [
@@ -1529,7 +1584,7 @@ class _CsvImportExportSectionState
       if (mounted) {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(SnackBar(content: Text('Failed to import CSV: $e')));
+        ).showSnackBar(SnackBar(content: Text('Failed to import backup: $e')));
       }
     } finally {
       if (mounted) {
@@ -1544,7 +1599,7 @@ class _CsvImportExportSectionState
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Text(
-          'Back up your full ledger to a CSV file — transactions, monthly budget limits, savings goals, and upcoming bills & subscriptions — then restore it all on a new device or after reinstalling.',
+          'Back up everything to a single file — transactions, accounts, transfers, budgets, savings goals, bills, recurring rules, debts and your scanned receipt images — then restore it all on a new device or after reinstalling.',
           style: TextStyle(
             fontSize: 13,
             color: AppColors.text.withValues(alpha: 0.6),
