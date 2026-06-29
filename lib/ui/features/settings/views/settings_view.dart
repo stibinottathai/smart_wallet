@@ -13,6 +13,7 @@ import 'package:smart_wallet/ui/features/accounts/views/accounts_view.dart';
 import 'package:smart_wallet/ui/features/recurring/views/recurring_view.dart';
 import 'package:smart_wallet/ui/features/subscriptions/views/subscriptions_view.dart';
 import 'package:smart_wallet/ui/features/forecast/views/forecast_view.dart';
+import 'package:smart_wallet/ui/features/calculator/views/emi_calculator_view.dart';
 import 'package:smart_wallet/ui/features/debts/views/debts_view.dart';
 import 'package:smart_wallet/ui/providers.dart';
 import 'package:smart_wallet/ui/features/dashboard/widgets/animated_section.dart';
@@ -277,6 +278,39 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
                       const Expanded(
                         child: Text(
                           'Project your future balance from recurring rules, bills & EMIs',
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: AppColors.textSecondary,
+                            height: 1.4,
+                          ),
+                        ),
+                      ),
+                      const Icon(
+                        Icons.chevron_right_rounded,
+                        size: 20,
+                        color: AppColors.textSecondary,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            _SectionCard(
+              icon: Icons.calculate_rounded,
+              title: 'EMI / Loan Calculator',
+              child: InkWell(
+                borderRadius: BorderRadius.circular(12),
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const EmiCalculatorView()),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 4),
+                  child: Row(
+                    children: [
+                      const Expanded(
+                        child: Text(
+                          'Calculate monthly EMI, total interest & view year-wise amortization',
                           style: TextStyle(
                             fontSize: 13,
                             color: AppColors.textSecondary,

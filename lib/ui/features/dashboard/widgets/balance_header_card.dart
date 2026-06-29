@@ -33,6 +33,7 @@ class _BalanceHeaderCardState extends State<BalanceHeaderCard>
     with SingleTickerProviderStateMixin {
   late final AnimationController _controller;
   late Animation<double> _progress;
+  late Animation<double> _balanceAnimation;
 
   @override
   void initState() {
@@ -42,6 +43,8 @@ class _BalanceHeaderCardState extends State<BalanceHeaderCard>
       duration: const Duration(milliseconds: 1000),
     );
     _progress = Tween<double>(begin: 0.0, end: widget.percent.clamp(0.0, 1.0))
+        .animate(CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic));
+    _balanceAnimation = Tween<double>(begin: 0.0, end: widget.balance)
         .animate(CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic));
     // Start after the first frame so the fill plays as the card settles in
     // (not while it's still hidden behind the entrance animation).
@@ -55,11 +58,17 @@ class _BalanceHeaderCardState extends State<BalanceHeaderCard>
     super.didUpdateWidget(oldWidget);
     // Smoothly re-animate to the new value when the data/month changes
     // (e.g. swiping between months on the Balance Details page).
-    if (oldWidget.percent != widget.percent) {
+    if (oldWidget.percent != widget.percent || oldWidget.balance != widget.balance) {
       _progress = Tween<double>(
         begin: _progress.value,
         end: widget.percent.clamp(0.0, 1.0),
       ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic));
+      
+      _balanceAnimation = Tween<double>(
+        begin: _balanceAnimation.value,
+        end: widget.balance,
+      ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic));
+
       _controller.forward(from: 0.0);
     }
   }
@@ -183,13 +192,16 @@ class _BalanceHeaderCardState extends State<BalanceHeaderCard>
                 ],
               ),
               const SizedBox(height: 18),
-              Text(
-                '$symbol${balance.toStringAsFixed(2)}',
-                style: GoogleFonts.inter(
-                  fontSize: 32,
-                  fontWeight: FontWeight.w800,
-                  color: Colors.white,
-                  letterSpacing: -1.0,
+              AnimatedBuilder(
+                animation: _balanceAnimation,
+                builder: (context, _) => Text(
+                  '$symbol${_balanceAnimation.value.toStringAsFixed(2)}',
+                  style: GoogleFonts.inter(
+                    fontSize: 32,
+                    fontWeight: FontWeight.w800,
+                    color: Colors.white,
+                    letterSpacing: -1.0,
+                  ),
                 ),
               ),
               const SizedBox(height: 26),
