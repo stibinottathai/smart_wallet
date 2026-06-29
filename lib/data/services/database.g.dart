@@ -3820,6 +3820,21 @@ class $AccountsTable extends Accounts with TableInfo<$AccountsTable, Account> {
     requiredDuringInsert: false,
     defaultValue: const Constant(0),
   );
+  static const VerificationMeta _isDefaultMeta = const VerificationMeta(
+    'isDefault',
+  );
+  @override
+  late final GeneratedColumn<bool> isDefault = GeneratedColumn<bool>(
+    'is_default',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("is_default" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -3829,6 +3844,7 @@ class $AccountsTable extends Accounts with TableInfo<$AccountsTable, Account> {
     openingBalance,
     archived,
     sortOrder,
+    isDefault,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -3892,6 +3908,12 @@ class $AccountsTable extends Accounts with TableInfo<$AccountsTable, Account> {
         sortOrder.isAcceptableOrUnknown(data['sort_order']!, _sortOrderMeta),
       );
     }
+    if (data.containsKey('is_default')) {
+      context.handle(
+        _isDefaultMeta,
+        isDefault.isAcceptableOrUnknown(data['is_default']!, _isDefaultMeta),
+      );
+    }
     return context;
   }
 
@@ -3929,6 +3951,10 @@ class $AccountsTable extends Accounts with TableInfo<$AccountsTable, Account> {
         DriftSqlType.int,
         data['${effectivePrefix}sort_order'],
       )!,
+      isDefault: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}is_default'],
+      )!,
     );
   }
 
@@ -3946,6 +3972,7 @@ class Account extends DataClass implements Insertable<Account> {
   final double openingBalance;
   final bool archived;
   final int sortOrder;
+  final bool isDefault;
   const Account({
     required this.id,
     required this.name,
@@ -3954,6 +3981,7 @@ class Account extends DataClass implements Insertable<Account> {
     required this.openingBalance,
     required this.archived,
     required this.sortOrder,
+    required this.isDefault,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -3965,6 +3993,7 @@ class Account extends DataClass implements Insertable<Account> {
     map['opening_balance'] = Variable<double>(openingBalance);
     map['archived'] = Variable<bool>(archived);
     map['sort_order'] = Variable<int>(sortOrder);
+    map['is_default'] = Variable<bool>(isDefault);
     return map;
   }
 
@@ -3977,6 +4006,7 @@ class Account extends DataClass implements Insertable<Account> {
       openingBalance: Value(openingBalance),
       archived: Value(archived),
       sortOrder: Value(sortOrder),
+      isDefault: Value(isDefault),
     );
   }
 
@@ -3993,6 +4023,7 @@ class Account extends DataClass implements Insertable<Account> {
       openingBalance: serializer.fromJson<double>(json['openingBalance']),
       archived: serializer.fromJson<bool>(json['archived']),
       sortOrder: serializer.fromJson<int>(json['sortOrder']),
+      isDefault: serializer.fromJson<bool>(json['isDefault']),
     );
   }
   @override
@@ -4006,6 +4037,7 @@ class Account extends DataClass implements Insertable<Account> {
       'openingBalance': serializer.toJson<double>(openingBalance),
       'archived': serializer.toJson<bool>(archived),
       'sortOrder': serializer.toJson<int>(sortOrder),
+      'isDefault': serializer.toJson<bool>(isDefault),
     };
   }
 
@@ -4017,6 +4049,7 @@ class Account extends DataClass implements Insertable<Account> {
     double? openingBalance,
     bool? archived,
     int? sortOrder,
+    bool? isDefault,
   }) => Account(
     id: id ?? this.id,
     name: name ?? this.name,
@@ -4025,6 +4058,7 @@ class Account extends DataClass implements Insertable<Account> {
     openingBalance: openingBalance ?? this.openingBalance,
     archived: archived ?? this.archived,
     sortOrder: sortOrder ?? this.sortOrder,
+    isDefault: isDefault ?? this.isDefault,
   );
   Account copyWithCompanion(AccountsCompanion data) {
     return Account(
@@ -4037,6 +4071,7 @@ class Account extends DataClass implements Insertable<Account> {
           : this.openingBalance,
       archived: data.archived.present ? data.archived.value : this.archived,
       sortOrder: data.sortOrder.present ? data.sortOrder.value : this.sortOrder,
+      isDefault: data.isDefault.present ? data.isDefault.value : this.isDefault,
     );
   }
 
@@ -4049,14 +4084,23 @@ class Account extends DataClass implements Insertable<Account> {
           ..write('color: $color, ')
           ..write('openingBalance: $openingBalance, ')
           ..write('archived: $archived, ')
-          ..write('sortOrder: $sortOrder')
+          ..write('sortOrder: $sortOrder, ')
+          ..write('isDefault: $isDefault')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode =>
-      Object.hash(id, name, type, color, openingBalance, archived, sortOrder);
+  int get hashCode => Object.hash(
+    id,
+    name,
+    type,
+    color,
+    openingBalance,
+    archived,
+    sortOrder,
+    isDefault,
+  );
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -4067,7 +4111,8 @@ class Account extends DataClass implements Insertable<Account> {
           other.color == this.color &&
           other.openingBalance == this.openingBalance &&
           other.archived == this.archived &&
-          other.sortOrder == this.sortOrder);
+          other.sortOrder == this.sortOrder &&
+          other.isDefault == this.isDefault);
 }
 
 class AccountsCompanion extends UpdateCompanion<Account> {
@@ -4078,6 +4123,7 @@ class AccountsCompanion extends UpdateCompanion<Account> {
   final Value<double> openingBalance;
   final Value<bool> archived;
   final Value<int> sortOrder;
+  final Value<bool> isDefault;
   final Value<int> rowid;
   const AccountsCompanion({
     this.id = const Value.absent(),
@@ -4087,6 +4133,7 @@ class AccountsCompanion extends UpdateCompanion<Account> {
     this.openingBalance = const Value.absent(),
     this.archived = const Value.absent(),
     this.sortOrder = const Value.absent(),
+    this.isDefault = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   AccountsCompanion.insert({
@@ -4097,6 +4144,7 @@ class AccountsCompanion extends UpdateCompanion<Account> {
     this.openingBalance = const Value.absent(),
     this.archived = const Value.absent(),
     this.sortOrder = const Value.absent(),
+    this.isDefault = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        name = Value(name),
@@ -4110,6 +4158,7 @@ class AccountsCompanion extends UpdateCompanion<Account> {
     Expression<double>? openingBalance,
     Expression<bool>? archived,
     Expression<int>? sortOrder,
+    Expression<bool>? isDefault,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -4120,6 +4169,7 @@ class AccountsCompanion extends UpdateCompanion<Account> {
       if (openingBalance != null) 'opening_balance': openingBalance,
       if (archived != null) 'archived': archived,
       if (sortOrder != null) 'sort_order': sortOrder,
+      if (isDefault != null) 'is_default': isDefault,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -4132,6 +4182,7 @@ class AccountsCompanion extends UpdateCompanion<Account> {
     Value<double>? openingBalance,
     Value<bool>? archived,
     Value<int>? sortOrder,
+    Value<bool>? isDefault,
     Value<int>? rowid,
   }) {
     return AccountsCompanion(
@@ -4142,6 +4193,7 @@ class AccountsCompanion extends UpdateCompanion<Account> {
       openingBalance: openingBalance ?? this.openingBalance,
       archived: archived ?? this.archived,
       sortOrder: sortOrder ?? this.sortOrder,
+      isDefault: isDefault ?? this.isDefault,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -4170,6 +4222,9 @@ class AccountsCompanion extends UpdateCompanion<Account> {
     if (sortOrder.present) {
       map['sort_order'] = Variable<int>(sortOrder.value);
     }
+    if (isDefault.present) {
+      map['is_default'] = Variable<bool>(isDefault.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -4186,6 +4241,7 @@ class AccountsCompanion extends UpdateCompanion<Account> {
           ..write('openingBalance: $openingBalance, ')
           ..write('archived: $archived, ')
           ..write('sortOrder: $sortOrder, ')
+          ..write('isDefault: $isDefault, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -8084,6 +8140,7 @@ typedef $$AccountsTableCreateCompanionBuilder =
       Value<double> openingBalance,
       Value<bool> archived,
       Value<int> sortOrder,
+      Value<bool> isDefault,
       Value<int> rowid,
     });
 typedef $$AccountsTableUpdateCompanionBuilder =
@@ -8095,6 +8152,7 @@ typedef $$AccountsTableUpdateCompanionBuilder =
       Value<double> openingBalance,
       Value<bool> archived,
       Value<int> sortOrder,
+      Value<bool> isDefault,
       Value<int> rowid,
     });
 
@@ -8139,6 +8197,11 @@ class $$AccountsTableFilterComposer
 
   ColumnFilters<int> get sortOrder => $composableBuilder(
     column: $table.sortOrder,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get isDefault => $composableBuilder(
+    column: $table.isDefault,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -8186,6 +8249,11 @@ class $$AccountsTableOrderingComposer
     column: $table.sortOrder,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<bool> get isDefault => $composableBuilder(
+    column: $table.isDefault,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$AccountsTableAnnotationComposer
@@ -8219,6 +8287,9 @@ class $$AccountsTableAnnotationComposer
 
   GeneratedColumn<int> get sortOrder =>
       $composableBuilder(column: $table.sortOrder, builder: (column) => column);
+
+  GeneratedColumn<bool> get isDefault =>
+      $composableBuilder(column: $table.isDefault, builder: (column) => column);
 }
 
 class $$AccountsTableTableManager
@@ -8256,6 +8327,7 @@ class $$AccountsTableTableManager
                 Value<double> openingBalance = const Value.absent(),
                 Value<bool> archived = const Value.absent(),
                 Value<int> sortOrder = const Value.absent(),
+                Value<bool> isDefault = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => AccountsCompanion(
                 id: id,
@@ -8265,6 +8337,7 @@ class $$AccountsTableTableManager
                 openingBalance: openingBalance,
                 archived: archived,
                 sortOrder: sortOrder,
+                isDefault: isDefault,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -8276,6 +8349,7 @@ class $$AccountsTableTableManager
                 Value<double> openingBalance = const Value.absent(),
                 Value<bool> archived = const Value.absent(),
                 Value<int> sortOrder = const Value.absent(),
+                Value<bool> isDefault = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => AccountsCompanion.insert(
                 id: id,
@@ -8285,6 +8359,7 @@ class $$AccountsTableTableManager
                 openingBalance: openingBalance,
                 archived: archived,
                 sortOrder: sortOrder,
+                isDefault: isDefault,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0

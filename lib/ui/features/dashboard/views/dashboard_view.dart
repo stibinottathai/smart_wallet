@@ -22,6 +22,10 @@ class DashboardView extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // Keep the auto-refresh provider alive so smart alerts are generated on
+    // launch and after each new transaction without any manual scan.
+    ref.watch(autoInsightRefreshProvider);
+
     final incomesAsync = ref.watch(allIncomesProvider);
     final expensesAsync = ref.watch(allExpensesProvider);
     final categoriesAsync = ref.watch(allCategoriesProvider);

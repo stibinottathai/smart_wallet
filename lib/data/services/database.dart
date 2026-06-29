@@ -68,6 +68,7 @@ class Accounts extends Table {
   RealColumn get openingBalance => real().withDefault(const Constant(0))();
   BoolColumn get archived => boolean().withDefault(const Constant(false))();
   IntColumn get sortOrder => integer().withDefault(const Constant(0))();
+  BoolColumn get isDefault => boolean().withDefault(const Constant(false))();
 
   @override
   Set<Column> get primaryKey => {id};
@@ -193,6 +194,7 @@ const List<AccountsCompanion> _defaultAccounts = [
     type: Value('cash'),
     color: Value('#4F5B56'),
     sortOrder: Value(0),
+    isDefault: Value(true),
   ),
   AccountsCompanion(
     id: Value('acc_bank'),
@@ -222,7 +224,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(driftDatabase(name: 'smart_wallet'));
 
   @override
-  int get schemaVersion => 11;
+  int get schemaVersion => 12;
 
   @override
   MigrationStrategy get migration {
@@ -312,6 +314,16 @@ class AppDatabase extends _$AppDatabase {
           await m.addColumn(expenses, expenses.originalAmount);
           await m.addColumn(incomes, incomes.originalCurrency);
           await m.addColumn(incomes, incomes.originalAmount);
+        }
+        if (from < 12) {
+          // Default account: users can mark one account as the auto-selected
+          // account when opening the transaction form.
+          await m.addColumn(accounts, accounts.isDefault);
+          // Seed acc_cash as the initial default to match the pre-existing
+          // hardcoded fallback behaviour.
+          await customStatement(
+            "UPDATE accounts SET is_default = 1 WHERE id = 'acc_cash'",
+          );
         }
       },
       beforeOpen: (details) async {

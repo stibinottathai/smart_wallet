@@ -135,7 +135,7 @@ class _InsightsViewState extends ConsumerState<InsightsView> {
     }
   }
 
-  Future<void> _sendMessage(String query) async {
+  Future<void> _sendMessage(String query, {bool skipActionCheck = false}) async {
     if (query.trim().isEmpty) return;
 
     if (_isListening) {
@@ -168,7 +168,7 @@ class _InsightsViewState extends ConsumerState<InsightsView> {
     // ── Actionable commands (log a new expense/income) ──────────────────────
     // If the message looks like "add 40 transport today", actually persist the
     // transaction instead of letting the model hallucinate that it did.
-    if (_looksLikeActionRequest(query)) {
+    if (!skipActionCheck && _looksLikeActionRequest(query)) {
       AssistantAction action = AssistantAction.none();
       try {
         final service = ref.read(insightsServiceProvider);
@@ -372,11 +372,12 @@ class _InsightsViewState extends ConsumerState<InsightsView> {
     return DateFormat('d MMM').format(d);
   }
 
-  /// Instead of silently saving (which always defaulted to the Cash account),
-  /// surface an interactive confirmation card so the user can pick which account
-  /// the money comes from / goes into — and the category for expenses — before
-  /// anything is committed. This is the assistant "asking" with selectable
-  /// options. The actual write happens in [_persistAction] once confirmed.
+  /// Handles an actionable command from the assistant. When all required fields
+  /// are already resolved by the parser (amount + category for expenses, amount
+  /// for income), the entry is saved immediately and a ✅ confirmation bubble
+  /// appears so the user sees exactly what was recorded. Otherwise a lightweight
+  /// card collects only the missing field(s). The default account is always
+  /// resolved automatically — the user is never asked to pick one.
   void _presentActionCard(
     AssistantAction action,
     List<domain.Category> categories,
@@ -384,10 +385,22 @@ class _InsightsViewState extends ConsumerState<InsightsView> {
   ) {
     setState(() => _isTyping = false);
 
-    // A missing amount is no longer a dead end — the card shows an input field
-    // so the user can type it inline instead of re-phrasing the whole command.
     if (action.isExpense && categories.isEmpty) {
       _addMsg("⚠️ You don't have any categories yet. Add one first, then I can log expenses for you.");
+      return;
+    }
+
+    // Resolve the default account upfront so the confirmation bubble always
+    // shows which account was used, even on the auto-save path.
+    final resolvedAccountId = ref.read(defaultAccountIdProvider);
+    final actionWithAccount = action.copyWith(accountId: resolvedAccountId);
+
+    // Auto-save when the parser already has all required fields — amount present
+    // and either it's income (no category needed) or a category was matched.
+    final hasAmount = actionWithAccount.amount != null && actionWithAccount.amount! > 0;
+    final hasCategory = actionWithAccount.isIncome || actionWithAccount.categoryId != null;
+    if (hasAmount && hasCategory) {
+      _persistAction(actionWithAccount, currencySym);
       return;
     }
 
@@ -396,7 +409,7 @@ class _InsightsViewState extends ConsumerState<InsightsView> {
         text: action.isIncome ? 'Confirm income' : 'Confirm expense',
         isUser: false,
         timestamp: DateTime.now(),
-        pendingAction: action,
+        pendingAction: actionWithAccount,
       ));
     });
     _scrollDown();
@@ -534,6 +547,17 @@ class _InsightsViewState extends ConsumerState<InsightsView> {
 
   @override
   Widget build(BuildContext context) {
+    // When a smart-alert action button sets a pending message (from the
+    // dashboard), auto-send it as if the user typed it so the AI responds
+    // immediately with context-aware analysis.
+    ref.listen<String?>(pendingChatMessageProvider, (_, message) {
+      if (message == null) return;
+      ref.read(pendingChatMessageProvider.notifier).state = null;
+      Future.microtask(() {
+        if (mounted) _sendMessage(message, skipActionCheck: true);
+      });
+    });
+
     return Scaffold(
       appBar: AppBar(
         title: Row(
@@ -888,9 +912,9 @@ class _ChatBubble extends StatelessWidget {
   }
 }
 
-/// Interactive confirmation card the assistant shows before saving a parsed
-/// expense/income. Lets the user pick the account (so money no longer always
-/// comes out of Cash) and, for expenses, adjust the category — then commits.
+/// Lightweight card shown only when a required field is missing from the parsed
+/// action (amount or, for expenses, category). The account is always resolved
+/// automatically from the user's default — the card never asks for it.
 enum _CardStatus { choosing, saving, done, cancelled }
 
 class _ActionConfirmCard extends ConsumerStatefulWidget {
@@ -914,7 +938,6 @@ class _ActionConfirmCard extends ConsumerStatefulWidget {
 class _ActionConfirmCardState extends ConsumerState<_ActionConfirmCard>
     with AutomaticKeepAliveClientMixin {
   _CardStatus _status = _CardStatus.choosing;
-  String? _accountId;
   String? _categoryId;
 
   /// The amount to save. Seeded from the parsed action; when the parser couldn't
@@ -970,8 +993,8 @@ class _ActionConfirmCardState extends ConsumerState<_ActionConfirmCard>
     setState(() => _status = _CardStatus.saving);
     final finalAction = widget.action.copyWith(
       amount: _amount,
-      accountId: _accountId,
       categoryId: _isIncome ? null : _categoryId,
+      // accountId is already set on widget.action by _presentActionCard
     );
     final ok = await widget.onConfirm(finalAction);
     if (!mounted) return;
@@ -986,19 +1009,8 @@ class _ActionConfirmCardState extends ConsumerState<_ActionConfirmCard>
   @override
   Widget build(BuildContext context) {
     super.build(context); // required by AutomaticKeepAliveClientMixin
-    final accounts = (ref.watch(allAccountsProvider).value ?? [])
-        .where((a) => !a.archived)
-        .toList();
     final categories = ref.watch(allCategoriesProvider).value ?? [];
 
-    // Lazily pick a sensible default account (prefer Cash) once accounts load.
-    if (_accountId == null && accounts.isNotEmpty) {
-      final preferred = accounts.firstWhere(
-        (a) => a.id == defaultAccountId || a.type == domain.AccountType.cash,
-        orElse: () => accounts.first,
-      );
-      _accountId = preferred.id;
-    }
     if (_categoryId == null && !_isIncome && categories.isNotEmpty) {
       _categoryId = categories.first.id;
     }
@@ -1131,27 +1143,6 @@ class _ActionConfirmCardState extends ConsumerState<_ActionConfirmCard>
                 const SizedBox(height: 14),
               ],
 
-              // ── Account picker ─────────────────────────────────────────────
-              _label(_isIncome ? 'Add to which account?' : 'Pay from which account?'),
-              const SizedBox(height: 6),
-              if (accounts.isEmpty)
-                const Text(
-                  'No accounts found — it will use your default account.',
-                  style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
-                )
-              else
-                Wrap(
-                  spacing: 6,
-                  runSpacing: 6,
-                  children: accounts.map((a) {
-                    return _selectChip(
-                      label: a.name,
-                      selected: _accountId == a.id,
-                      icon: getAccountIcon(a.type),
-                      onTap: () => setState(() => _accountId = a.id),
-                    );
-                  }).toList(),
-                ),
               const SizedBox(height: 16),
 
               // ── Actions ────────────────────────────────────────────────────
@@ -1349,7 +1340,7 @@ class _QuickChips extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final chips = ['Add 40 transport today', 'Salary credited', 'Save money ideas', 'Analyze my food spend'];
+    final chips = ['Add 40 transport today', 'Salary credited 50000', 'Save money ideas', 'Analyze my food spend'];
     return SizedBox(
       height: 40,
       child: ListView(

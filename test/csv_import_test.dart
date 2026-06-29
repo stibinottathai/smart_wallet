@@ -212,6 +212,13 @@ class FakeAccountRepository implements AccountRepository {
 
   @override
   Stream<List<domain.Account>> watchAllAccounts() => Stream.value(accounts);
+
+  @override
+  Future<void> setDefaultAccount(String id) async {
+    for (var i = 0; i < accounts.length; i++) {
+      accounts[i] = accounts[i].copyWith(isDefault: accounts[i].id == id);
+    }
+  }
 }
 
 class FakeTransferRepository implements TransferRepository {

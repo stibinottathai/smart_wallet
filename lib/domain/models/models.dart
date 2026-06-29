@@ -252,6 +252,7 @@ class Account {
   final double openingBalance;
   final bool archived;
   final int sortOrder;
+  final bool isDefault;
 
   const Account({
     required this.id,
@@ -261,6 +262,7 @@ class Account {
     this.openingBalance = 0,
     this.archived = false,
     this.sortOrder = 0,
+    this.isDefault = false,
   });
 
   Account copyWith({
@@ -271,6 +273,7 @@ class Account {
     double? openingBalance,
     bool? archived,
     int? sortOrder,
+    bool? isDefault,
   }) {
     return Account(
       id: id ?? this.id,
@@ -280,6 +283,7 @@ class Account {
       openingBalance: openingBalance ?? this.openingBalance,
       archived: archived ?? this.archived,
       sortOrder: sortOrder ?? this.sortOrder,
+      isDefault: isDefault ?? this.isDefault,
     );
   }
 }

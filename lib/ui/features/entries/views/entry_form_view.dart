@@ -650,12 +650,13 @@ class _EntryFormViewState extends ConsumerState<EntryFormView> {
         if (accounts.isEmpty) {
           return const SizedBox.shrink();
         }
-        // Default to the first account; keep an editing transaction's account
-        // even if it no longer matches an active one isn't possible here, so
-        // fall back to the first available account.
+        // Prefer the user-designated default account; fall back to first available.
         if (_selectedAccountId == null ||
             !accounts.any((a) => a.id == _selectedAccountId)) {
-          _selectedAccountId = accounts.first.id;
+          final defaultId = ref.read(defaultAccountIdProvider);
+          _selectedAccountId = accounts.any((a) => a.id == defaultId)
+              ? defaultId
+              : accounts.first.id;
         }
         return DropdownButtonFormField<String>(
           initialValue: _selectedAccountId,

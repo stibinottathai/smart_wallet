@@ -236,6 +236,14 @@ final accountBalancesProvider = Provider<Map<String, double>>((ref) {
   return balances;
 });
 
+/// The ID of the account marked as default. Falls back to [defaultAccountId]
+/// ('acc_cash') if no account has [isDefault] set, ensuring backwards compat.
+final defaultAccountIdProvider = Provider<String>((ref) {
+  final accounts = ref.watch(allAccountsProvider).value ?? const [];
+  final found = accounts.where((a) => a.isDefault).firstOrNull;
+  return found?.id ?? defaultAccountId;
+});
+
 // AI Settings
 // Default to OpenRouter + DeepSeek so the app is usable out of the box (and the
 // config dialog shows DeepSeek selected rather than "Other (Custom)").
@@ -288,6 +296,10 @@ final analysisDateRangeProvider = StateProvider<(DateTime, DateTime)?>((ref) {
   return (DateTime(now.year, now.month - 5, 1), DateTime(now.year, now.month + 1, 0));
 });
 
+/// Message queued by a smart-alert action button to be auto-sent in the AI
+/// chat as soon as the chat tab is shown. Cleared after the chat sends it.
+final pendingChatMessageProvider = StateProvider<String?>((ref) => null);
+
 /// Stream of non-dismissed proactive insight cards, newest first.
 final activeInsightsProvider = StreamProvider<List<ProactiveInsight>>((ref) {
   final repo = ref.watch(proactiveInsightRepositoryProvider);
@@ -328,6 +340,63 @@ final financialHealthScoreProvider = FutureProvider<domain.FinancialHealthScore>
   await repo.saveSnapshot(score, currentMonth);
 
   return score;
+});
+
+/// Automatically triggers the rule engine + LLM pipeline on app launch and
+/// whenever the number of expenses or incomes changes (new transaction added or
+/// deleted). Watched by DashboardView to stay alive. Capped at 3 runs per day
+/// so the AI is not called excessively. Skipped when no API key is configured
+/// or there is no transaction data yet.
+final autoInsightRefreshProvider = FutureProvider<void>((ref) async {
+  // Re-run this provider whenever the transaction counts change.
+  final expCount = (ref.watch(allExpensesProvider).value ?? []).length;
+  final incCount = (ref.watch(allIncomesProvider).value ?? []).length;
+  if (expCount == 0 && incCount == 0) return;
+
+  final apiKey = ref.read(aiApiKeyProvider);
+  if (apiKey.isEmpty) return;
+
+  // ── Daily rate limit: max 3 auto-refreshes per calendar day ─────────────
+  const _dateKey  = 'insight_auto_refresh_date';
+  const _countKey = 'insight_auto_refresh_count';
+  const _maxPerDay = 3;
+
+  final prefs   = await SharedPreferences.getInstance();
+  final today   = DateTime.now();
+  final todayStr = '${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
+  final savedDate  = prefs.getString(_dateKey) ?? '';
+  final savedCount = (savedDate == todayStr) ? (prefs.getInt(_countKey) ?? 0) : 0;
+
+  if (savedCount >= _maxPerDay) return;
+
+  await prefs.setString(_dateKey, todayStr);
+  await prefs.setInt(_countKey, savedCount + 1);
+  // ─────────────────────────────────────────────────────────────────────────
+
+  final service = ref.read(proactiveInsightServiceProvider);
+  final repo = ref.read(proactiveInsightRepositoryProvider);
+  final expenses = ref.read(allExpensesProvider).value ?? [];
+  final incomes = ref.read(allIncomesProvider).value ?? [];
+  final categories = ref.read(allCategoriesProvider).value ?? [];
+  final bills = ref.read(allBillsProvider).value ?? [];
+  final goals = ref.read(allSavingsGoalsProvider).value ?? [];
+  final aiModel = ref.read(aiModelProvider);
+  final aiProvider = ref.read(aiProviderProvider);
+  final code = ref.read(currencyCodeProvider);
+  final sym = currencySymbol(code);
+
+  await service.generateAndStoreInsights(
+    expenses: expenses,
+    incomes: incomes,
+    categories: categories,
+    bills: bills,
+    goals: goals,
+    apiKey: apiKey,
+    aiModel: aiModel,
+    aiProvider: aiProvider,
+    currencySymbol: sym,
+    repository: repo,
+  );
 });
 
 /// Call this to trigger the rule engine + LLM pipeline and refresh cards.

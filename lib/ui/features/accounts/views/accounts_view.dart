@@ -205,9 +205,34 @@ class _AccountTile extends StatelessWidget {
                         overflow: TextOverflow.ellipsis,
                       ),
                       const SizedBox(height: 2),
-                      Text(
-                        account.type.displayName,
-                        style: const TextStyle(fontSize: 11, color: AppColors.textSecondary),
+                      Row(
+                        children: [
+                          Text(
+                            account.type.displayName,
+                            style: const TextStyle(fontSize: 11, color: AppColors.textSecondary),
+                          ),
+                          if (account.isDefault) ...[
+                            const SizedBox(width: 6),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                              decoration: BoxDecoration(
+                                color: AppColors.primary.withValues(alpha: 0.12),
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.star_rounded, size: 9, color: AppColors.primary),
+                                  const SizedBox(width: 3),
+                                  Text(
+                                    'Default',
+                                    style: TextStyle(fontSize: 9, fontWeight: FontWeight.w600, color: AppColors.primary),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ],
                       ),
                     ],
                   ),

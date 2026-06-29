@@ -17,6 +17,7 @@ class AccountRepositoryImpl implements AccountRepository {
       openingBalance: row.openingBalance,
       archived: row.archived,
       sortOrder: row.sortOrder,
+      isDefault: row.isDefault,
     );
   }
 
@@ -29,6 +30,7 @@ class AccountRepositoryImpl implements AccountRepository {
       openingBalance: Value(account.openingBalance),
       archived: Value(account.archived),
       sortOrder: Value(account.sortOrder),
+      isDefault: Value(account.isDefault),
     );
   }
 
@@ -60,5 +62,16 @@ class AccountRepositoryImpl implements AccountRepository {
   @override
   Future<void> deleteAccount(String id) async {
     await (_db.delete(_db.accounts)..where((t) => t.id.equals(id))).go();
+  }
+
+  @override
+  Future<void> setDefaultAccount(String id) async {
+    await _db.transaction(() async {
+      await (_db.update(_db.accounts)
+            ..where((_) => const Constant(true)))
+          .write(const AccountsCompanion(isDefault: Value(false)));
+      await (_db.update(_db.accounts)..where((t) => t.id.equals(id)))
+          .write(const AccountsCompanion(isDefault: Value(true)));
+    });
   }
 }

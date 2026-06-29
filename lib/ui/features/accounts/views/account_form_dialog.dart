@@ -38,7 +38,9 @@ class _AccountFormDialogState extends ConsumerState<AccountFormDialog> {
     '#E91E63', // Pink
   ];
 
-  bool get _isDefaultAccount => widget.initialAccount?.id == defaultAccountId;
+  bool get _isHardcodedFallback => widget.initialAccount?.id == defaultAccountId;
+
+  bool get _isCurrentDefault => widget.initialAccount?.isDefault ?? false;
 
   @override
   void initState() {
@@ -95,7 +97,7 @@ class _AccountFormDialogState extends ConsumerState<AccountFormDialog> {
   }
 
   void _delete() async {
-    if (_isDefaultAccount) {
+    if (_isHardcodedFallback) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("The Cash account can't be deleted. You can archive it instead.")),
       );
@@ -272,6 +274,51 @@ class _AccountFormDialogState extends ConsumerState<AccountFormDialog> {
                       contentPadding: const EdgeInsets.symmetric(horizontal: 12),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                       onChanged: (v) => setState(() => _archived = v),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Container(
+                    decoration: BoxDecoration(
+                      border: Border.all(
+                        color: _isCurrentDefault ? AppColors.primary : AppColors.divider,
+                      ),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: ListTile(
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      leading: Icon(
+                        _isCurrentDefault ? Icons.star_rounded : Icons.star_outline_rounded,
+                        color: _isCurrentDefault ? AppColors.primary : AppColors.textSecondary,
+                      ),
+                      title: Text(
+                        _isCurrentDefault ? 'Default Account' : 'Set as Default',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                          color: _isCurrentDefault ? AppColors.primary : AppColors.text,
+                        ),
+                      ),
+                      subtitle: Text(
+                        _isCurrentDefault
+                            ? 'Auto-selected when adding a transaction'
+                            : 'Auto-select this account for new transactions',
+                        style: const TextStyle(fontSize: 12),
+                      ),
+                      trailing: _isCurrentDefault
+                          ? null
+                          : TextButton(
+                              onPressed: () async {
+                                await ref.read(accountRepositoryProvider).setDefaultAccount(widget.initialAccount!.id);
+                                if (mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(content: Text('${widget.initialAccount!.name} is now the default account.')),
+                                  );
+                                  Navigator.of(context).pop();
+                                }
+                              },
+                              child: const Text('Set'),
+                            ),
                     ),
                   ),
                 ],
