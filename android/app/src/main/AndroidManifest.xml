@@ -74,5 +74,15 @@
         <intent>
             <action android:name="android.speech.RecognitionService" />
         </intent>
+        <!-- url_launcher: open email client (Send Feedback) -->
+        <intent>
+            <action android:name="android.intent.action.SENDTO" />
+            <data android:scheme="mailto" />
+        </intent>
+        <!-- url_launcher: open browser / Play Store (Rate App, Share App) -->
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="https" />
+        </intent>
     </queries>
 </manifest>

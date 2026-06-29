@@ -63,6 +63,7 @@ dependencies:
   speech_to_text: ^7.0.0
   in_app_update: ^4.2.3
   archive: ^4.0.9
+  url_launcher: ^6.3.0
 
 dev_dependencies:
   flutter_test:

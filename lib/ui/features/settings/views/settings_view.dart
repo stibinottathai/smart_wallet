@@ -22,6 +22,8 @@ import 'package:smart_wallet/data/services/csv_import_service.dart';
 import 'package:smart_wallet/data/services/backup_service.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:share_plus/share_plus.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class SettingsView extends ConsumerStatefulWidget {
   const SettingsView({super.key});
@@ -43,6 +45,31 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
     );
   }
 
+  Future<void> _rateApp() async {
+    final uri = Uri.parse(
+      'https://play.google.com/store/apps/details?id=com.stibin.smartwallet',
+    );
+    await launchUrl(uri, mode: LaunchMode.externalApplication);
+  }
+
+  Future<void> _sendFeedback() async {
+    final uri = Uri(
+      scheme: 'mailto',
+      path: 'stibinaugustine3047@gmail.com',
+      queryParameters: {'subject': 'Smart Wallet Feedback'},
+    );
+    await launchUrl(uri);
+  }
+
+  Future<void> _shareApp() async {
+    await SharePlus.instance.share(
+      ShareParams(
+        text:
+            'Check out Smart Wallet — your personal finance manager!\nhttps://play.google.com/store/apps/details?id=com.stibin.smartwallet',
+      ),
+    );
+  }
+
 
   /// Wraps each card with a staggered entrance animation while leaving the
   /// [SizedBox] spacers static. The cascade replays each time the Settings tab
@@ -58,10 +85,6 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
 
   @override
   Widget build(BuildContext context) {
-    final apiKey = ref.watch(aiApiKeyProvider);
-    final provider = ref.watch(aiProviderProvider);
-    final isConfigured = apiKey.isNotEmpty;
-
     return Scaffold(
       appBar: AppBar(title: const Text('Settings')),
       body: SingleChildScrollView(
@@ -69,35 +92,6 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: _staggerCards([
-            _SectionCard(
-              icon: Icons.check_circle_rounded,
-              title: 'System Status',
-              child: Column(
-                children: [
-                  _StatusRow(
-                    icon: Icons.storage_rounded,
-                    title: 'Storage',
-                    subtitle: 'Offline-First (SQLite)',
-                  ),
-                  const SizedBox(height: 12),
-                  _StatusRow(
-                    icon: Icons.auto_awesome_rounded,
-                    title: 'AI Intelligence',
-                    subtitle: isConfigured
-                        ? '${provider.displayName} Activated'
-                        : 'Not Configured',
-                    subtitleColor: isConfigured ? null : AppColors.secondary,
-                  ),
-                  const SizedBox(height: 12),
-                  _StatusRow(
-                    icon: Icons.security_rounded,
-                    title: 'Data Privacy',
-                    subtitle: 'All transactions stay local',
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 12),
             _AiSettingsSection(),
             const SizedBox(height: 12),
             _CurrencySection(),
@@ -274,123 +268,6 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
             ),
             const SizedBox(height: 12),
             _SectionCard(
-              icon: Icons.info_outline_rounded,
-              title: 'About',
-              trailing: Icon(
-                Icons.more_horiz_rounded,
-                size: 18,
-                color: AppColors.text.withValues(alpha: 0.3),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Your personal income & expense ledger. Add income or scan receipts to pre-fill expense entries. Get AI-powered spending insights.',
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: AppColors.textSecondary,
-                      height: 1.5,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  const Divider(),
-                  const SizedBox(height: 12),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        'Version',
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: AppColors.text.withValues(alpha: 0.6),
-                        ),
-                      ),
-                      const Text(
-                        '1.0.2',
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.text,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        'Data',
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: AppColors.text.withValues(alpha: 0.6),
-                        ),
-                      ),
-                      const Text(
-                        'Offline-First',
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.text,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        'Developer',
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: AppColors.text.withValues(alpha: 0.6),
-                        ),
-                      ),
-                      const Text(
-                        'Stibin Augustine',
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.text,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  const Divider(),
-                  const SizedBox(height: 4),
-                  InkWell(
-                    borderRadius: BorderRadius.circular(8),
-                    onTap: _replayOnboarding,
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 8),
-                      child: Row(
-                        children: [
-                          const Icon(Icons.auto_awesome_rounded,
-                              size: 18, color: AppColors.primary),
-                          const SizedBox(width: 10),
-                          const Expanded(
-                            child: Text(
-                              'View app tour',
-                              style: TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w600,
-                                color: AppColors.text,
-                              ),
-                            ),
-                          ),
-                          const Icon(Icons.chevron_right_rounded,
-                              size: 20, color: AppColors.textSecondary),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 12),
-            _SectionCard(
               icon: Icons.notifications_active_rounded,
               title: 'Notifications & Battery',
               child: InkWell(
@@ -420,6 +297,87 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
                     ],
                   ),
                 ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            _SectionCard(
+              icon: Icons.policy_rounded,
+              title: 'Privacy Policy',
+              child: InkWell(
+                borderRadius: BorderRadius.circular(12),
+                onTap: () => launchUrl(
+                  Uri.parse('https://stibinottathai.github.io/smart-wallet-privacy-policy/'),
+                  mode: LaunchMode.externalApplication,
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 4),
+                  child: Row(
+                    children: [
+                      const Expanded(
+                        child: Text(
+                          'Read how we collect, use and protect your data',
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: AppColors.textSecondary,
+                            height: 1.4,
+                          ),
+                        ),
+                      ),
+                      const Icon(
+                        Icons.open_in_new_rounded,
+                        size: 18,
+                        color: AppColors.textSecondary,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            _SectionCard(
+              icon: Icons.info_outline_rounded,
+              title: 'About',
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Your personal income & expense ledger. Add income or scan receipts to pre-fill expense entries. Get AI-powered spending insights.',
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: AppColors.textSecondary,
+                      height: 1.5,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  const Divider(height: 1),
+                  const SizedBox(height: 6),
+                  _AboutInfoRow(label: 'Version', value: '1.0.2'),
+                  _AboutInfoRow(label: 'Data', value: 'Offline-First'),
+                  _AboutInfoRow(label: 'Developer', value: 'Stibin Augustine'),
+                  const SizedBox(height: 6),
+                  const Divider(height: 1),
+                  const SizedBox(height: 2),
+                  _AboutActionRow(
+                    icon: Icons.star_rounded,
+                    label: 'Rate App',
+                    onTap: _rateApp,
+                  ),
+                  _AboutActionRow(
+                    icon: Icons.feedback_rounded,
+                    label: 'Send Feedback',
+                    onTap: _sendFeedback,
+                  ),
+                  _AboutActionRow(
+                    icon: Icons.share_rounded,
+                    label: 'Share App',
+                    onTap: _shareApp,
+                  ),
+                  _AboutActionRow(
+                    icon: Icons.auto_awesome_rounded,
+                    label: 'View App Tour',
+                    onTap: _replayOnboarding,
+                  ),
+                ],
               ),
             ),
           ], 4),
@@ -1274,61 +1232,80 @@ class _CurrencySection extends ConsumerWidget {
   }
 }
 
-class _StatusRow extends StatelessWidget {
-  final IconData icon;
-  final String title;
-  final String subtitle;
-  final Color? subtitleColor;
+class _AboutInfoRow extends StatelessWidget {
+  final String label;
+  final String value;
 
-  const _StatusRow({
+  const _AboutInfoRow({required this.label, required this.value});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 5),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 13,
+              color: AppColors.text.withValues(alpha: 0.6),
+            ),
+          ),
+          Text(
+            value,
+            style: const TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: AppColors.text,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _AboutActionRow extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+
+  const _AboutActionRow({
     required this.icon,
-    required this.title,
-    required this.subtitle,
-    this.subtitleColor,
+    required this.label,
+    required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Container(
-          width: 32,
-          height: 32,
-          decoration: BoxDecoration(
-            color: AppColors.surface,
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Icon(
-            icon,
-            size: 16,
-            color: AppColors.text.withValues(alpha: 0.5),
-          ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                title,
+    return InkWell(
+      borderRadius: BorderRadius.circular(8),
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        child: Row(
+          children: [
+            Icon(icon, size: 18, color: AppColors.primary),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                label,
                 style: const TextStyle(
-                  fontWeight: FontWeight.w600,
                   fontSize: 13,
+                  fontWeight: FontWeight.w600,
                   color: AppColors.text,
                 ),
               ),
-              const SizedBox(height: 1),
-              Text(
-                subtitle,
-                style: TextStyle(
-                  fontSize: 12,
-                  color: subtitleColor ?? AppColors.textSecondary,
-                ),
-              ),
-            ],
-          ),
+            ),
+            const Icon(
+              Icons.chevron_right_rounded,
+              size: 20,
+              color: AppColors.textSecondary,
+            ),
+          ],
         ),
-      ],
+      ),
     );
   }
 }
