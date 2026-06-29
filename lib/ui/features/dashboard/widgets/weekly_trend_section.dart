@@ -6,8 +6,9 @@ import 'package:smart_wallet/domain/models/models.dart' as domain;
 import 'package:smart_wallet/ui/core/theme.dart';
 import 'section_header.dart';
 
-/// Bar chart of daily expense totals over the last 7 days.
-class WeeklyTrendSection extends StatelessWidget {
+/// Bar chart of daily expense totals over the last 7 days. The bars grow up
+/// from the baseline on first appearance — like a progress bar filling.
+class WeeklyTrendSection extends StatefulWidget {
   final List<domain.Expense> expenses;
   final String symbol;
 
@@ -18,7 +19,47 @@ class WeeklyTrendSection extends StatelessWidget {
   });
 
   @override
+  State<WeeklyTrendSection> createState() => _WeeklyTrendSectionState();
+}
+
+class _WeeklyTrendSectionState extends State<WeeklyTrendSection>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+
+  static const int _barCount = 7;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1300),
+    );
+    _controller.forward();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  /// Eased grow factor (0→1) for the bar at [index]. Each bar gets its own
+  /// staggered slice of the timeline so they rise left-to-right, one after
+  /// another, rather than all at once.
+  double _barFactor(int index) {
+    // Each bar's window starts a little after the previous one's and overlaps,
+    // so the cascade stays smooth.
+    final start = (index / (_barCount + 2)).clamp(0.0, 1.0);
+    const window = 0.45; // fraction of the timeline each bar takes to fill
+    final t = ((_controller.value - start) / window).clamp(0.0, 1.0);
+    return Curves.easeOutCubic.transform(t);
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final expenses = widget.expenses;
+    final symbol = widget.symbol;
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
 
@@ -57,7 +98,12 @@ class WeeklyTrendSection extends StatelessWidget {
               const SizedBox(height: 24),
               SizedBox(
                 height: 150,
-                child: BarChart(
+                child: AnimatedBuilder(
+                  animation: _controller,
+                  builder: (context, _) => BarChart(
+                  // We drive the grow-up ourselves via [_grow], so disable
+                  // fl_chart's own implicit tween to avoid fighting it.
+                  duration: Duration.zero,
                   BarChartData(
                     alignment: BarChartAlignment.spaceAround,
                     maxY: yAxisLimit,
@@ -117,7 +163,7 @@ class WeeklyTrendSection extends StatelessWidget {
                         x: index,
                         barRods: [
                           BarChartRodData(
-                            toY: total,
+                            toY: total * _barFactor(index),
                             color: AppColors.secondary,
                             width: 14,
                             borderRadius: const BorderRadius.vertical(top: Radius.circular(4)),
@@ -131,6 +177,7 @@ class WeeklyTrendSection extends StatelessWidget {
                       );
                     }),
                   ),
+                ),
                 ),
               ),
             ],
