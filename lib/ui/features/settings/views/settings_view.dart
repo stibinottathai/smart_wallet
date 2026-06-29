@@ -453,7 +453,7 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
                   const SizedBox(height: 12),
                   const Divider(height: 1),
                   const SizedBox(height: 6),
-                  _AboutInfoRow(label: 'Version', value: '1.0.2'),
+                  _AboutInfoRow(label: 'Version', value: '1.0.4'),
                   _AboutInfoRow(label: 'Data', value: 'Offline-First'),
                   _AboutInfoRow(label: 'Developer', value: 'Stibin Augustine'),
                   const SizedBox(height: 6),
