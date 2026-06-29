@@ -14,6 +14,7 @@ import 'package:smart_wallet/ui/features/recurring/views/recurring_view.dart';
 import 'package:smart_wallet/ui/features/subscriptions/views/subscriptions_view.dart';
 import 'package:smart_wallet/ui/features/forecast/views/forecast_view.dart';
 import 'package:smart_wallet/ui/features/calculator/views/emi_calculator_view.dart';
+import 'package:smart_wallet/ui/features/networth/views/net_worth_view.dart';
 import 'package:smart_wallet/ui/features/debts/views/debts_view.dart';
 import 'package:smart_wallet/ui/providers.dart';
 import 'package:smart_wallet/ui/features/dashboard/widgets/animated_section.dart';
@@ -286,6 +287,39 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
                         ),
                       ),
                       const Icon(
+                        Icons.chevron_right_rounded,
+                        size: 20,
+                        color: AppColors.textSecondary,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            _SectionCard(
+              icon: Icons.account_balance_rounded,
+              title: 'Net Worth Overview',
+              child: InkWell(
+                borderRadius: BorderRadius.circular(12),
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const NetWorthView()),
+                ),
+                child: const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 4),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          'Assets vs liabilities — see your total net worth at a glance',
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: AppColors.textSecondary,
+                            height: 1.4,
+                          ),
+                        ),
+                      ),
+                      Icon(
                         Icons.chevron_right_rounded,
                         size: 20,
                         color: AppColors.textSecondary,

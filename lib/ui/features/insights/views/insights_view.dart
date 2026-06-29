@@ -91,7 +91,14 @@ class _InsightsViewState extends ConsumerState<InsightsView> {
           _inputCtrl.selection = TextSelection.fromPosition(
             TextPosition(offset: _inputCtrl.text.length),
           );
-          if (result.finalResult) _isListening = false;
+          if (result.finalResult) {
+            _isListening = false;
+            // Auto-send once the user has stopped talking and the
+            // speech engine returns a confirmed final result.
+            if (result.recognizedWords.trim().isNotEmpty) {
+              Future.microtask(() => _sendMessage(result.recognizedWords));
+            }
+          }
         });
       },
       listenOptions: stt.SpeechListenOptions(
@@ -629,6 +636,7 @@ class _InsightsViewState extends ConsumerState<InsightsView> {
             onSend: _sendMessage,
             isListening: _isListening,
             onMic: _toggleListening,
+            onSendMessage: _sendMessage,
           ),
         ],
       ),
@@ -1362,20 +1370,50 @@ class _QuickChips extends StatelessWidget {
   }
 }
 
-class _InputBar extends StatelessWidget {
+class _InputBar extends StatefulWidget {
   final TextEditingController controller;
   final ValueChanged<String> onSend;
+  final ValueChanged<String> onSendMessage;
   final bool isListening;
   final VoidCallback onMic;
   const _InputBar({
     required this.controller,
     required this.onSend,
+    required this.onSendMessage,
     required this.isListening,
     required this.onMic,
   });
 
   @override
+  State<_InputBar> createState() => _InputBarState();
+}
+
+class _InputBarState extends State<_InputBar> with SingleTickerProviderStateMixin {
+  late final AnimationController _pulseCtrl;
+  late final Animation<double> _pulseAnim;
+
+  @override
+  void initState() {
+    super.initState();
+    // Waveform pulse animation (0→1→0 repeat)
+    _pulseCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 700),
+    )..repeat(reverse: true);
+    _pulseAnim = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _pulseCtrl, curve: Curves.easeInOut),
+    );
+  }
+
+  @override
+  void dispose() {
+    _pulseCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final isListening = widget.isListening;
     return Container(
       padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
       decoration: BoxDecoration(
@@ -1384,46 +1422,154 @@ class _InputBar extends StatelessWidget {
       ),
       child: SafeArea(
         top: false,
-        child: Row(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Expanded(
-              child: TextField(
-                controller: controller,
-                textCapitalization: TextCapitalization.sentences,
-                style: const TextStyle(fontSize: 14),
-                decoration: InputDecoration(
-                  hintText: isListening ? 'Listening… speak now' : 'Ask or say a command…',
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
-                  filled: true,
-                  fillColor: AppColors.surface,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(24),
-                    borderSide: BorderSide.none,
-                  ),
-                  // Mic button lives inside the field so it's always reachable.
-                  suffixIcon: IconButton(
-                    icon: Icon(
-                      isListening ? Icons.mic_rounded : Icons.mic_none_rounded,
-                      color: isListening ? AppColors.error : AppColors.textSecondary,
-                      size: 22,
+            // ── Animated AI listening indicator ──────────────────────────
+            if (isListening)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: AnimatedBuilder(
+                  animation: _pulseAnim,
+                  builder: (context, _) {
+                    // The 5 AI brand colors from the orb
+                    const aiColors = [
+                      Color(0xFF00FFC2),
+                      Color(0xFF00A3FF),
+                      Color(0xFFB026FF),
+                      Color(0xFFFF26A8),
+                      Color(0xFF00FFC2),
+                    ];
+                    return Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [
+                            const Color(0xFF00FFC2).withValues(alpha: 0.08 + 0.05 * _pulseAnim.value),
+                            const Color(0xFF00A3FF).withValues(alpha: 0.06 + 0.04 * _pulseAnim.value),
+                            const Color(0xFFB026FF).withValues(alpha: 0.08 + 0.05 * _pulseAnim.value),
+                          ],
+                          begin: Alignment.centerLeft,
+                          end: Alignment.centerRight,
+                        ),
+                        borderRadius: BorderRadius.circular(24),
+                        border: Border.all(
+                          color: const Color(0xFF00A3FF).withValues(alpha: 0.25 + 0.2 * _pulseAnim.value),
+                          width: 1.5,
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          // Animated waveform bars in AI orb colors
+                          ...List.generate(5, (i) {
+                            // Each bar gets an offset phase so they animate independently
+                            final phase = (_pulseAnim.value + i * 0.22) % 1.0;
+                            final height = 5.0 + phase * 16.0;
+                            final color = aiColors[i % aiColors.length];
+                            return Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 2),
+                              child: Container(
+                                width: 3.5,
+                                height: height,
+                                decoration: BoxDecoration(
+                                  color: color.withValues(alpha: 0.65 + phase * 0.35),
+                                  borderRadius: BorderRadius.circular(2),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: color.withValues(alpha: 0.4 * phase),
+                                      blurRadius: 4,
+                                      spreadRadius: 0,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            );
+                          }),
+                          const SizedBox(width: 10),
+                          ShaderMask(
+                            shaderCallback: (bounds) => const LinearGradient(
+                              colors: [
+                                Color(0xFF00FFC2),
+                                Color(0xFF00A3FF),
+                                Color(0xFFB026FF),
+                              ],
+                            ).createShader(bounds),
+                            child: const Text(
+                              'Listening…',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          GestureDetector(
+                            onTap: widget.onMic,
+                            child: ShaderMask(
+                              shaderCallback: (bounds) => const LinearGradient(
+                                colors: [
+                                  Color(0xFF00A3FF),
+                                  Color(0xFFB026FF),
+                                ],
+                              ).createShader(bounds),
+                              child: const Icon(
+                                Icons.stop_circle_rounded,
+                                color: Colors.white,
+                                size: 20,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
+              ),
+            // ── Input row ────────────────────────────────────────────────
+            Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: widget.controller,
+                    textCapitalization: TextCapitalization.sentences,
+                    style: const TextStyle(fontSize: 14),
+                    decoration: InputDecoration(
+                      hintText: isListening ? 'Listening… speak now' : 'Ask or say a command…',
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+                      filled: true,
+                      fillColor: AppColors.surface,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(24),
+                        borderSide: BorderSide.none,
+                      ),
+                      // Mic button lives inside the field so it's always reachable.
+                      suffixIcon: IconButton(
+                        icon: Icon(
+                          isListening ? Icons.mic_rounded : Icons.mic_none_rounded,
+                          color: isListening ? AppColors.error : AppColors.textSecondary,
+                          size: 22,
+                        ),
+                        tooltip: isListening ? 'Stop listening' : 'Speak',
+                        onPressed: widget.onMic,
+                      ),
                     ),
-                    tooltip: isListening ? 'Stop listening' : 'Speak',
-                    onPressed: onMic,
+                    onSubmitted: widget.onSend,
                   ),
                 ),
-                onSubmitted: onSend,
-              ),
-            ),
-            const SizedBox(width: 8),
-            Container(
-              decoration: BoxDecoration(
-                color: AppColors.primary,
-                shape: BoxShape.circle,
-              ),
-              child: IconButton(
-                icon: const Icon(Icons.arrow_upward_rounded, color: Colors.white, size: 20),
-                onPressed: () => onSend(controller.text),
-              ),
+                const SizedBox(width: 8),
+                Container(
+                  decoration: BoxDecoration(
+                    color: AppColors.primary,
+                    shape: BoxShape.circle,
+                  ),
+                  child: IconButton(
+                    icon: const Icon(Icons.arrow_upward_rounded, color: Colors.white, size: 20),
+                    onPressed: () => widget.onSend(widget.controller.text),
+                  ),
+                ),
+              ],
             ),
           ],
         ),
