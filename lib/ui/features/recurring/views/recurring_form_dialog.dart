@@ -286,17 +286,23 @@ class _RecurringFormDialogState extends ConsumerState<RecurringFormDialog> {
                     border: Border.all(color: AppColors.divider),
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: SwitchListTile(
-                    title: const Text('Active', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
-                    subtitle: Text(
-                      _isActive ? 'Auto-posts when due' : 'Paused — nothing will post',
-                      style: const TextStyle(fontSize: 12),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(11),
+                    child: Material(
+                      color: AppColors.card,
+                      child: SwitchListTile(
+                        title: const Text('Active', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
+                        subtitle: Text(
+                          _isActive ? 'Auto-posts when due' : 'Paused — nothing will post',
+                          style: const TextStyle(fontSize: 12),
+                        ),
+                        value: _isActive,
+                        activeThumbColor: AppColors.primary,
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(11)),
+                        onChanged: (v) => setState(() => _isActive = v),
+                      ),
                     ),
-                    value: _isActive,
-                    activeThumbColor: AppColors.primary,
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 12),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    onChanged: (v) => setState(() => _isActive = v),
                   ),
                 ),
                 const SizedBox(height: 20),
