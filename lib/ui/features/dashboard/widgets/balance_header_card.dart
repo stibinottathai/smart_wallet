@@ -4,7 +4,7 @@ import 'package:smart_wallet/ui/core/theme.dart';
 
 /// Hero balance card at the top of the dashboard — net balance, on-track /
 /// overspent badge, and a progress bar of spend against income.
-class BalanceHeaderCard extends StatelessWidget {
+class BalanceHeaderCard extends StatefulWidget {
   final double balance;
   final double percent;
   final double income;
@@ -26,7 +26,59 @@ class BalanceHeaderCard extends StatelessWidget {
   });
 
   @override
+  State<BalanceHeaderCard> createState() => _BalanceHeaderCardState();
+}
+
+class _BalanceHeaderCardState extends State<BalanceHeaderCard>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+  late Animation<double> _progress;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1000),
+    );
+    _progress = Tween<double>(begin: 0.0, end: widget.percent.clamp(0.0, 1.0))
+        .animate(CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic));
+    // Start after the first frame so the fill plays as the card settles in
+    // (not while it's still hidden behind the entrance animation).
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _controller.forward();
+    });
+  }
+
+  @override
+  void didUpdateWidget(covariant BalanceHeaderCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Smoothly re-animate to the new value when the data/month changes
+    // (e.g. swiping between months on the Balance Details page).
+    if (oldWidget.percent != widget.percent) {
+      _progress = Tween<double>(
+        begin: _progress.value,
+        end: widget.percent.clamp(0.0, 1.0),
+      ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic));
+      _controller.forward(from: 0.0);
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final balance = widget.balance;
+    final percent = widget.percent;
+    final income = widget.income;
+    final expense = widget.expense;
+    final symbol = widget.symbol;
+    final showDetailsHint = widget.showDetailsHint;
+
     final isPositive = balance >= 0;
     final displayPercent = income > 0 ? (expense / income) : (expense > 0 ? 1.0 : 0.0);
 
@@ -167,15 +219,18 @@ class BalanceHeaderCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 8),
                   ClipRRect(
-                    borderRadius: BorderRadius.circular(4),
-                    child: LinearProgressIndicator(
-                      value: percent.clamp(0.0, 1.0),
-                      minHeight: 6,
-                      backgroundColor: Colors.white.withValues(alpha: 0.15),
-                      valueColor: AlwaysStoppedAnimation<Color>(
-                        percent > 0.8
-                            ? AppColors.secondary
-                            : const Color(0xFFD4E8E2),
+                    borderRadius: BorderRadius.circular(6),
+                    child: AnimatedBuilder(
+                      animation: _progress,
+                      builder: (context, _) => LinearProgressIndicator(
+                        value: _progress.value,
+                        minHeight: 10,
+                        backgroundColor: Colors.white.withValues(alpha: 0.15),
+                        valueColor: AlwaysStoppedAnimation<Color>(
+                          percent > 0.8
+                              ? AppColors.secondary
+                              : const Color(0xFFD4E8E2),
+                        ),
                       ),
                     ),
                   ),

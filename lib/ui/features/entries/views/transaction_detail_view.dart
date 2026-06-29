@@ -8,6 +8,7 @@ import 'package:smart_wallet/ui/core/theme.dart';
 import 'package:smart_wallet/ui/core/currency_utils.dart';
 import 'package:smart_wallet/ui/core/category_icons.dart';
 import 'package:smart_wallet/ui/core/account_icons.dart';
+import 'package:smart_wallet/ui/core/dialogs.dart';
 import 'package:smart_wallet/ui/providers.dart';
 import 'package:smart_wallet/ui/features/entries/views/entry_form_view.dart';
 
@@ -68,6 +69,18 @@ class TransactionDetailView extends ConsumerWidget {
         Navigator.of(context).push(
           MaterialPageRoute(builder: (_) => EntryFormView(initialExpense: expense)),
         );
+      },
+      onDelete: () async {
+        final messenger = ScaffoldMessenger.of(context);
+        final navigator = Navigator.of(context);
+        final confirmed = await showDeleteConfirmationDialog(
+          context: context,
+          itemType: 'expense',
+        );
+        if (!confirmed) return;
+        await ref.read(expenseRepositoryProvider).deleteExpense(expense.id);
+        navigator.pop();
+        messenger.showSnackBar(const SnackBar(content: Text('Expense deleted')));
       },
       header: _amountHeader(
         icon: getCategoryIcon(category?.icon),
@@ -131,6 +144,18 @@ class TransactionDetailView extends ConsumerWidget {
           MaterialPageRoute(builder: (_) => EntryFormView(initialIncome: income)),
         );
       },
+      onDelete: () async {
+        final messenger = ScaffoldMessenger.of(context);
+        final navigator = Navigator.of(context);
+        final confirmed = await showDeleteConfirmationDialog(
+          context: context,
+          itemType: 'income',
+        );
+        if (!confirmed) return;
+        await ref.read(incomeRepositoryProvider).deleteIncome(income.id);
+        navigator.pop();
+        messenger.showSnackBar(const SnackBar(content: Text('Income deleted')));
+      },
       header: _amountHeader(
         icon: Icons.account_balance_wallet_rounded,
         iconColor: AppColors.primary,
@@ -180,6 +205,7 @@ class TransactionDetailView extends ConsumerWidget {
   Widget _scaffold({
     required BuildContext context,
     required VoidCallback onEdit,
+    required VoidCallback onDelete,
     required Widget header,
     required List<Widget> rows,
     required String? receiptImagePath,
@@ -195,9 +221,9 @@ class TransactionDetailView extends ConsumerWidget {
         ),
         actions: [
           IconButton(
-            tooltip: 'Edit',
-            icon: const Icon(Icons.edit_rounded, color: AppColors.primary),
-            onPressed: onEdit,
+            tooltip: 'Delete',
+            icon: const Icon(Icons.delete_outline_rounded, color: AppColors.secondary),
+            onPressed: onDelete,
           ),
         ],
       ),

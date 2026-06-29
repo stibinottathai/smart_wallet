@@ -609,8 +609,18 @@ class _AllTransactionsViewState extends ConsumerState<AllTransactionsView> {
             final cat = item.category;
             child = Dismissible(
               key: Key('all_expense_${exp.id}'),
-              direction: DismissDirection.endToStart,
+              direction: DismissDirection.horizontal,
               background: Container(
+                margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 3),
+                decoration: BoxDecoration(
+                  color: AppColors.primary,
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                alignment: Alignment.centerLeft,
+                padding: const EdgeInsets.only(left: 20.0),
+                child: const Icon(Icons.edit_outlined, color: Colors.white),
+              ),
+              secondaryBackground: Container(
                 margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 3),
                 decoration: BoxDecoration(
                   color: AppColors.secondary,
@@ -621,12 +631,20 @@ class _AllTransactionsViewState extends ConsumerState<AllTransactionsView> {
                 child: const Icon(Icons.delete_outline, color: Colors.white),
               ),
               confirmDismiss: (direction) async {
+                if (direction == DismissDirection.startToEnd) {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => EntryFormView(initialExpense: exp)),
+                  );
+                  return false;
+                }
                 return await showDeleteConfirmationDialog(context: context, itemType: 'expense');
               },
               onDismissed: (direction) async {
-                await ref.read(expenseRepositoryProvider).deleteExpense(exp.id);
-                if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Expense deleted')));
+                if (direction == DismissDirection.endToStart) {
+                  await ref.read(expenseRepositoryProvider).deleteExpense(exp.id);
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Expense deleted')));
+                  }
                 }
               },
               child: _ExpenseListTile(expense: exp, category: cat, onTap: () {
@@ -690,8 +708,18 @@ class _AllTransactionsViewState extends ConsumerState<AllTransactionsView> {
             final inc = item.income!;
             child = Dismissible(
               key: Key('all_income_${inc.id}'),
-              direction: DismissDirection.endToStart,
+              direction: DismissDirection.horizontal,
               background: Container(
+                margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 3),
+                decoration: BoxDecoration(
+                  color: AppColors.primary,
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                alignment: Alignment.centerLeft,
+                padding: const EdgeInsets.only(left: 20.0),
+                child: const Icon(Icons.edit_outlined, color: Colors.white),
+              ),
+              secondaryBackground: Container(
                 margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 3),
                 decoration: BoxDecoration(
                   color: AppColors.secondary,
@@ -702,12 +730,20 @@ class _AllTransactionsViewState extends ConsumerState<AllTransactionsView> {
                 child: const Icon(Icons.delete_outline, color: Colors.white),
               ),
               confirmDismiss: (direction) async {
+                if (direction == DismissDirection.startToEnd) {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => EntryFormView(initialIncome: inc)),
+                  );
+                  return false;
+                }
                 return await showDeleteConfirmationDialog(context: context, itemType: 'income');
               },
               onDismissed: (direction) async {
-                await ref.read(incomeRepositoryProvider).deleteIncome(inc.id);
-                if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Income deleted')));
+                if (direction == DismissDirection.endToStart) {
+                  await ref.read(incomeRepositoryProvider).deleteIncome(inc.id);
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Income deleted')));
+                  }
                 }
               },
               child: _IncomeListTile(income: inc, onTap: () {

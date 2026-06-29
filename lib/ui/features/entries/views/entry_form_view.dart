@@ -5,7 +5,6 @@ import 'package:intl/intl.dart';
 import 'package:uuid/uuid.dart';
 import 'package:smart_wallet/domain/models/models.dart' as domain;
 import 'package:smart_wallet/ui/core/theme.dart';
-import 'package:smart_wallet/ui/core/dialogs.dart';
 import 'package:smart_wallet/ui/providers.dart';
 import 'package:smart_wallet/ui/core/currency_utils.dart';
 import 'package:smart_wallet/ui/core/account_icons.dart';
@@ -265,39 +264,6 @@ class _EntryFormViewState extends ConsumerState<EntryFormView> {
     Navigator.of(context).pop();
   }
 
-  Future<void> _deleteEntry() async {
-    final isConfirmed = await showDeleteConfirmationDialog(
-      context: context,
-      itemType: _isExpense ? 'expense' : 'income',
-    );
-
-    if (!isConfirmed) return;
-
-    if (_isExpense) {
-      if (widget.initialExpense != null) {
-        await ref.read(expenseRepositoryProvider).deleteExpense(widget.initialExpense!.id);
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Expense deleted')),
-          );
-        }
-      }
-    } else {
-      if (widget.initialIncome != null) {
-        await ref.read(incomeRepositoryProvider).deleteIncome(widget.initialIncome!.id);
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Income deleted')),
-          );
-        }
-      }
-    }
-
-    if (mounted) {
-      Navigator.of(context).pop();
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final categoriesAsync = ref.watch(allCategoriesProvider);
@@ -305,14 +271,6 @@ class _EntryFormViewState extends ConsumerState<EntryFormView> {
     return Scaffold(
       appBar: AppBar(
         title: Text(isEdit ? 'Edit ${_isExpense ? "Expense" : "Income"}' : 'New Transaction'),
-        actions: [
-          if (isEdit)
-            IconButton(
-              icon: const Icon(Icons.delete_outline, color: AppColors.secondary),
-              onPressed: _deleteEntry,
-              tooltip: 'Delete Transaction',
-            ),
-        ],
       ),
       body: Stack(
         children: [
