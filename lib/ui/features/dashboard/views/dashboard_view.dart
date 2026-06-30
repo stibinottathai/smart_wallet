@@ -15,6 +15,7 @@ import 'package:smart_wallet/ui/features/dashboard/widgets/savings_goals_section
 import 'package:smart_wallet/ui/features/dashboard/widgets/spending_breakdown_section.dart';
 import 'package:smart_wallet/ui/features/dashboard/widgets/summary_row.dart';
 import 'package:smart_wallet/ui/features/dashboard/widgets/upcoming_bills_section.dart';
+import 'package:smart_wallet/ui/features/dashboard/widgets/wealth_summary_section.dart';
 import 'package:smart_wallet/ui/features/dashboard/widgets/weekly_trend_section.dart';
 
 class DashboardView extends ConsumerWidget {
@@ -194,6 +195,12 @@ class _DashboardContent extends StatelessWidget {
             child: RepaintBoundary(
               child: SummaryRow(income: totalIncome, expense: totalExpense, symbol: symbol),
             ),
+          ),
+          const SizedBox(height: 4),
+          const AnimatedSection(
+            index: 3,
+            tabIndex: 0,
+            child: RepaintBoundary(child: WealthSummarySection()),
           ),
           const SizedBox(height: 4),
           const AnimatedSection(

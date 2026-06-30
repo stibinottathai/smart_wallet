@@ -18,6 +18,7 @@ List<Map<String, dynamic>> runRuleEngine({
   required List<domain.Category> categories,
   required List<domain.Bill> bills,
   required List<domain.SavingsGoal> goals,
+  List<domain.Investment> investments = const [],
 }) {
   final facts = <Map<String, dynamic>>[];
   final now = DateTime.now();
@@ -261,6 +262,63 @@ List<Map<String, dynamic>> runRuleEngine({
     });
   }
 
+  // ── 9. investment_portfolio ──────────────────────────────────────────────
+  // Surfaces three kinds of portfolio alerts so the AI can narrate them as
+  // calm, factual cards without making predictions:
+  //   * portfolio_drawdown — overall unrealised loss ≥ 5%
+  //   * portfolio_rally    — overall unrealised gain ≥ 15%
+  //   * portfolio_concentration — one holding makes up ≥ 60% of total value
+  // Fires only when at least two holdings exist (a single bet doesn't need a
+  // concentration warning, and "your one investment is down" is noise).
+  final activeInvestments = investments.where((i) => !i.isClosed).toList();
+  if (activeInvestments.length >= 2) {
+    final totalInvested =
+        activeInvestments.fold<double>(0, (s, i) => s + i.investedAmount);
+    final totalCurrent =
+        activeInvestments.fold<double>(0, (s, i) => s + i.currentValue);
+    if (totalInvested > 0) {
+      final gain = totalCurrent - totalInvested;
+      final pct = gain / totalInvested * 100;
+      if (pct <= -5) {
+        facts.add({
+          'trigger_type': 'portfolio_drawdown',
+          'invested': totalInvested.round(),
+          'current_value': totalCurrent.round(),
+          'unrealised_loss': gain.abs().round(),
+          'percent': pct.round(),
+          'holdings_count': activeInvestments.length,
+        });
+      } else if (pct >= 15) {
+        facts.add({
+          'trigger_type': 'portfolio_rally',
+          'invested': totalInvested.round(),
+          'current_value': totalCurrent.round(),
+          'unrealised_gain': gain.round(),
+          'percent': pct.round(),
+          'holdings_count': activeInvestments.length,
+        });
+      }
+
+      // Concentration: largest holding's share of current portfolio value.
+      final largest = activeInvestments
+          .reduce((a, b) => a.currentValue >= b.currentValue ? a : b);
+      if (totalCurrent > 0) {
+        final share = largest.currentValue / totalCurrent * 100;
+        if (share >= 60) {
+          facts.add({
+            'trigger_type': 'portfolio_concentration',
+            'largest_holding': largest.name,
+            'largest_type': largest.type.displayName,
+            'largest_value': largest.currentValue.round(),
+            'portfolio_value': totalCurrent.round(),
+            'percent': share.round(),
+            'holdings_count': activeInvestments.length,
+          });
+        }
+      }
+    }
+  }
+
   return facts;
 }
 
@@ -347,6 +405,9 @@ class ProactiveInsightService {
     'savings_streak',
     'budget_threshold',
     'goal_stalled',
+    'portfolio_drawdown',
+    'portfolio_rally',
+    'portfolio_concentration',
   };
 
   /// Orchestrates: run rule engine → expire stale time-sensitive rows →
@@ -358,6 +419,7 @@ class ProactiveInsightService {
     required List<domain.Category> categories,
     required List<domain.Bill> bills,
     required List<domain.SavingsGoal> goals,
+    List<domain.Investment> investments = const [],
     required String apiKey,
     required String aiModel,
     required domain.AiProvider aiProvider,
@@ -372,6 +434,7 @@ class ProactiveInsightService {
       categories: categories,
       bills: bills,
       goals: goals,
+      investments: investments,
     );
 
     // ─ Freshness gate ──────────────────────────────────────────────────────────

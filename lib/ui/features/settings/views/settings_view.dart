@@ -16,6 +16,8 @@ import 'package:smart_wallet/ui/features/forecast/views/forecast_view.dart';
 import 'package:smart_wallet/ui/features/calculator/views/emi_calculator_view.dart';
 import 'package:smart_wallet/ui/features/networth/views/net_worth_view.dart';
 import 'package:smart_wallet/ui/features/debts/views/debts_view.dart';
+import 'package:smart_wallet/ui/features/investments/views/investments_view.dart';
+import 'package:smart_wallet/ui/features/categories/views/categories_view.dart';
 import 'package:smart_wallet/ui/providers.dart';
 import 'package:smart_wallet/ui/features/dashboard/widgets/animated_section.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -133,6 +135,39 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
             ),
             const SizedBox(height: 12),
             _SectionCard(
+              icon: Icons.category_rounded,
+              title: 'Categories',
+              child: InkWell(
+                borderRadius: BorderRadius.circular(12),
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const CategoriesView()),
+                ),
+                child: const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 4),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          'Add, edit or remove expense categories and income sources',
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: AppColors.textSecondary,
+                            height: 1.4,
+                          ),
+                        ),
+                      ),
+                      Icon(
+                        Icons.chevron_right_rounded,
+                        size: 20,
+                        color: AppColors.textSecondary,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            _SectionCard(
               icon: Icons.repeat_rounded,
               title: 'Recurring Transactions',
               child: InkWell(
@@ -147,6 +182,39 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
                       const Expanded(
                         child: Text(
                           'Auto-add rent, subscriptions & salary on a schedule',
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: AppColors.textSecondary,
+                            height: 1.4,
+                          ),
+                        ),
+                      ),
+                      const Icon(
+                        Icons.chevron_right_rounded,
+                        size: 20,
+                        color: AppColors.textSecondary,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            _SectionCard(
+              icon: Icons.trending_up_rounded,
+              title: 'Investments',
+              child: InkWell(
+                borderRadius: BorderRadius.circular(12),
+                onTap: () => Navigator.of(
+                  context,
+                ).push(MaterialPageRoute(builder: (_) => const InvestmentsView())),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 4),
+                  child: Row(
+                    children: [
+                      const Expanded(
+                        child: Text(
+                          'Track stocks, mutual funds, FDs, gold, crypto and more — see cost vs current value',
                           style: TextStyle(
                             fontSize: 13,
                             color: AppColors.textSecondary,
@@ -1434,6 +1502,8 @@ class _CsvImportExportSectionState
     List<domain.Debt> debts,
     List<domain.Account> accounts,
     List<domain.Transfer> transfers,
+    List<domain.Investment> investments,
+    List<domain.Category> incomeSources,
   })> _collectData() async {
     List<domain.Income> incomes = [];
     List<domain.Expense> expenses = [];
@@ -1444,6 +1514,7 @@ class _CsvImportExportSectionState
     List<domain.Debt> debts = [];
     List<domain.Account> accounts = [];
     List<domain.Transfer> transfers = [];
+    List<domain.Investment> investments = [];
 
     try {
       incomes = await ref.read(incomeRepositoryProvider).getAllIncomes();
@@ -1455,6 +1526,7 @@ class _CsvImportExportSectionState
       debts = await ref.read(debtRepositoryProvider).getAllDebts();
       accounts = await ref.read(accountRepositoryProvider).getAllAccounts();
       transfers = await ref.read(transferRepositoryProvider).getAllTransfers();
+      investments = await ref.read(investmentRepositoryProvider).getAllInvestments();
     } catch (_) {
       incomes = ref.read(allIncomesProvider).value ?? [];
       expenses = ref.read(allExpensesProvider).value ?? [];
@@ -1465,7 +1537,11 @@ class _CsvImportExportSectionState
       debts = ref.read(allDebtsProvider).value ?? [];
       accounts = ref.read(allAccountsProvider).value ?? [];
       transfers = ref.read(allTransfersProvider).value ?? [];
+      investments = ref.read(allInvestmentsProvider).value ?? [];
     }
+
+    // Income sources are always read from the provider (SharedPreferences-backed).
+    final incomeSources = ref.read(incomeSourcesProvider);
 
     return (
       incomes: incomes,
@@ -1477,6 +1553,8 @@ class _CsvImportExportSectionState
       debts: debts,
       accounts: accounts,
       transfers: transfers,
+      investments: investments,
+      incomeSources: incomeSources,
     );
   }
 
@@ -1494,6 +1572,8 @@ class _CsvImportExportSectionState
       debts: data.debts,
       accounts: data.accounts,
       transfers: data.transfers,
+      investments: data.investments,
+      incomeSources: data.incomeSources,
     );
     final imagePaths =
         data.expenses.map((e) => e.receiptImagePath).whereType<String>();
@@ -1600,6 +1680,7 @@ class _CsvImportExportSectionState
         debtRepository: ref.read(debtRepositoryProvider),
         accountRepository: ref.read(accountRepositoryProvider),
         transferRepository: ref.read(transferRepositoryProvider),
+        investmentRepository: ref.read(investmentRepositoryProvider),
         receiptImageDir: receiptImageDir,
       );
 
@@ -1615,7 +1696,15 @@ class _CsvImportExportSectionState
         ref.invalidate(allDebtsProvider);
         ref.invalidate(allAccountsProvider);
         ref.invalidate(allTransfersProvider);
+        ref.invalidate(allInvestmentsProvider);
         ref.invalidate(accountBalancesProvider);
+
+        // Restore income sources from backup if the section was present.
+        if (importResult.restoredIncomeSources.isNotEmpty) {
+          await ref
+              .read(incomeSourcesProvider.notifier)
+              .replaceAll(importResult.restoredIncomeSources);
+        }
 
         showDialog(
           context: context,
@@ -1637,7 +1726,9 @@ class _CsvImportExportSectionState
               '• ${importResult.recurringImported} recurring rules\n'
               '• ${importResult.debtsImported} debts & loans\n'
               '• ${importResult.accountsImported} accounts\n'
-              '• ${importResult.transfersImported} transfers.',
+              '• ${importResult.transfersImported} transfers\n'
+              '• ${importResult.investmentsImported} investments'
+              '${importResult.restoredIncomeSources.isNotEmpty ? '\n• ${importResult.restoredIncomeSources.length} income sources' : ''}.',
               textAlign: TextAlign.center,
             ),
             actions: [
@@ -1691,7 +1782,7 @@ class _CsvImportExportSectionState
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Text(
-          'Back up everything to a single file — transactions, accounts, transfers, budgets, savings goals, bills, recurring rules, debts and your scanned receipt images — then restore it all on a new device or after reinstalling.',
+          'Back up everything to a single file — transactions, accounts, transfers, budgets, savings goals, bills, recurring rules, debts, investments and your scanned receipt images — then restore it all on a new device or after reinstalling.',
           style: TextStyle(
             fontSize: 13,
             color: AppColors.text.withValues(alpha: 0.6),

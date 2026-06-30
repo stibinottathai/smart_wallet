@@ -345,6 +345,7 @@ class InsightsService {
     required List<domain.Category> categories,
     required List<domain.Bill> bills,
     required List<domain.SavingsGoal> goals,
+    List<domain.Investment> investments = const [],
     required String currencySymbol,
   }) {
     final categoryMap = {for (var c in categories) c.id: c.name};
@@ -462,6 +463,66 @@ class InsightsService {
         buf.writeln('- ${g.name}: ${money(g.currentAmount)} of ${money(g.targetAmount)} '
             'saved ($pct%), ${money(remaining)} to go, by '
             '${g.targetDate.toString().substring(0, 10)} ($dateStr).');
+      }
+    }
+
+    // ── Investments (portfolio at current value) ────────────────────────────
+    // Surface every active holding so the assistant can answer questions like
+    // "how is my portfolio doing?", "what's my best/worst performer?", or
+    // "should I rebalance gold?" without hallucinating numbers. Closed
+    // positions are summarized as a single realised P&L line.
+    buf.writeln();
+    final activeInvestments = investments.where((i) => !i.isClosed).toList();
+    final closedInvestments = investments.where((i) => i.isClosed).toList();
+    if (activeInvestments.isEmpty && closedInvestments.isEmpty) {
+      buf.writeln('Investments: none tracked.');
+    } else {
+      double totalInvested = 0;
+      double totalCurrent = 0;
+      final Map<String, double> byType = {};
+      for (final inv in activeInvestments) {
+        totalInvested += inv.investedAmount;
+        totalCurrent += inv.currentValue;
+        byType[inv.type.displayName] =
+            (byType[inv.type.displayName] ?? 0) + inv.currentValue;
+      }
+      final totalGain = totalCurrent - totalInvested;
+      final returnPct = totalInvested > 0
+          ? (totalGain / totalInvested * 100).toStringAsFixed(2)
+          : '0.00';
+      buf.writeln('Investments (active portfolio):');
+      buf.writeln('- Total invested: ${money(totalInvested)}');
+      buf.writeln('- Current value: ${money(totalCurrent)}');
+      buf.writeln('- Unrealised ${totalGain >= 0 ? "gain" : "loss"}: '
+          '${money(totalGain.abs())} ($returnPct%)');
+      if (byType.isNotEmpty) {
+        final mix = byType.entries.toList()
+          ..sort((a, b) => b.value.compareTo(a.value));
+        buf.writeln('- Allocation: ${mix.map((e) => "${e.key} ${money(e.value)}").join(", ")}');
+      }
+      if (activeInvestments.isNotEmpty) {
+        buf.writeln('Active holdings:');
+        // Sort by current value desc so the biggest positions come first —
+        // helps the model anchor on what matters.
+        final sorted = List<domain.Investment>.from(activeInvestments)
+          ..sort((a, b) => b.currentValue.compareTo(a.currentValue));
+        for (final inv in sorted.take(12)) {
+          final pct = inv.returnRatio * 100;
+          final platform = inv.platform != null && inv.platform!.isNotEmpty
+              ? ' [${inv.platform}]'
+              : '';
+          buf.writeln('- ${inv.name} (${inv.type.displayName})$platform: '
+              'invested ${money(inv.investedAmount)}, '
+              'now ${money(inv.currentValue)} '
+              '(${pct >= 0 ? "+" : ""}${pct.toStringAsFixed(2)}%)');
+        }
+      }
+      if (closedInvestments.isNotEmpty) {
+        final realisedGain = closedInvestments.fold<double>(
+            0, (s, i) => s + (i.currentValue - i.investedAmount));
+        buf.writeln('Closed positions: ${closedInvestments.length}, '
+            'realised ${realisedGain >= 0 ? "gain" : "loss"} '
+            '${money(realisedGain.abs())}.');
       }
     }
 
@@ -701,6 +762,7 @@ class InsightsService {
     required domain.AiProvider aiProvider,
     List<domain.Bill> bills = const [],
     List<domain.SavingsGoal> goals = const [],
+    List<domain.Investment> investments = const [],
     String currencySymbol = '\$',
   }) async* {
     if (apiKey.trim().isEmpty) {
@@ -713,17 +775,21 @@ class InsightsService {
       categories: categories,
       bills: bills,
       goals: goals,
+      investments: investments,
       currencySymbol: currencySymbol,
     );
 
     final systemPrompt = "You are the in-app AI assistant for Smart Wallet, a personal finance app. "
         "Your ONLY purpose is to help the user understand and improve their own money — the expenses, "
-        "income, budgets, savings goals, bills and AI-scanned receipts they track inside this app.\n"
+        "income, budgets, savings goals, bills, investment portfolio and AI-scanned receipts they track inside this app.\n"
         "The user's configured currency is $currencySymbol. Always format monetary values using this currency symbol.\n\n"
         "SCOPE — you may ONLY discuss:\n"
-        "- The user's spending, income, budgets, savings goals, bills and receipt scans shown in the data below.\n"
-        "- General personal-finance and money-management guidance (budgeting, saving, reducing expenses).\n"
-        "- How to use Smart Wallet's features (adding entries, scanning receipts, reports, insights, settings).\n\n"
+        "- The user's spending, income, budgets, savings goals, bills, investments and receipt scans shown in the data below.\n"
+        "- General personal-finance and money-management guidance (budgeting, saving, reducing expenses, basic investing concepts).\n"
+        "- How to use Smart Wallet's features (adding entries, scanning receipts, tracking investments, reports, insights, settings).\n"
+        "- Investments are stored at cost basis and current value — gains/losses shown are unrealised unless the position is closed. "
+        "You may comment on portfolio allocation, concentration, and unrealised performance from the data below, but do not give "
+        "specific buy/sell recommendations or predict future prices.\n\n"
         "ADDING TRANSACTIONS — the app handles logging new expenses/income through a separate flow, so the "
         "data below is always live and accurate. NEVER claim that you have added, saved, recorded or deleted a "
         "transaction yourself — you cannot. If the user asks you to add something but the data below does not "
@@ -883,6 +949,9 @@ class InsightsService {
     required String apiKey,
     required String aiModel,
     required domain.AiProvider aiProvider,
+    List<domain.Bill> bills = const [],
+    List<domain.SavingsGoal> goals = const [],
+    List<domain.Investment> investments = const [],
     String currencySymbol = '\$',
   }) async {
     final buffer = StringBuffer();
@@ -895,6 +964,9 @@ class InsightsService {
       apiKey: apiKey,
       aiModel: aiModel,
       aiProvider: aiProvider,
+      bills: bills,
+      goals: goals,
+      investments: investments,
       currencySymbol: currencySymbol,
     )) {
       buffer.write(chunk);

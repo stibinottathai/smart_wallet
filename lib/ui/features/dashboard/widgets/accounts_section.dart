@@ -19,7 +19,7 @@ class AccountsSection extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final accounts = (ref.watch(allAccountsProvider).value ?? [])
-        .where((a) => !a.archived)
+        .where((a) => !a.archived && a.id != 'acc_investments')
         .toList();
     final balances = ref.watch(accountBalancesProvider);
     final symbol = currencySymbol(ref.watch(currencyCodeProvider));

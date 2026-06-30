@@ -180,7 +180,7 @@ class _RecurringFormDialogState extends ConsumerState<RecurringFormDialog> {
         .where((c) => c.id != 'cat_income')
         .toList();
     final accounts = (ref.watch(allAccountsProvider).value ?? [])
-        .where((a) => !a.archived)
+        .where((a) => !a.archived && a.id != 'acc_investments')
         .toList();
 
     if (_isExpense && _categoryId == null && categories.isNotEmpty) {

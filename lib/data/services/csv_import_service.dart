@@ -9,6 +9,7 @@ import '../../domain/repositories/recurring_rule_repository.dart';
 import '../../domain/repositories/debt_repository.dart';
 import '../../domain/repositories/account_repository.dart';
 import '../../domain/repositories/transfer_repository.dart';
+import '../../domain/repositories/investment_repository.dart';
 
 class CsvImportResult {
   final bool success;
@@ -22,6 +23,8 @@ class CsvImportResult {
   final int debtsImported;
   final int accountsImported;
   final int transfersImported;
+  final int investmentsImported;
+  final List<domain.Category> restoredIncomeSources;
   final String? errorMessage;
 
   CsvImportResult({
@@ -36,6 +39,8 @@ class CsvImportResult {
     this.debtsImported = 0,
     this.accountsImported = 0,
     this.transfersImported = 0,
+    this.investmentsImported = 0,
+    this.restoredIncomeSources = const [],
     this.errorMessage,
   });
 }
@@ -51,6 +56,7 @@ class CsvImportService {
     DebtRepository? debtRepository,
     AccountRepository? accountRepository,
     TransferRepository? transferRepository,
+    InvestmentRepository? investmentRepository,
     String? receiptImageDir,
   }) async {
     try {
@@ -65,6 +71,7 @@ class CsvImportService {
         debtRepository: debtRepository,
         accountRepository: accountRepository,
         transferRepository: transferRepository,
+        investmentRepository: investmentRepository,
         receiptImageDir: receiptImageDir,
       );
     } catch (e) {
@@ -85,6 +92,7 @@ class CsvImportService {
     DebtRepository? debtRepository,
     AccountRepository? accountRepository,
     TransferRepository? transferRepository,
+    InvestmentRepository? investmentRepository,
     String? receiptImageDir,
   }) async {
     try {
@@ -100,6 +108,8 @@ class CsvImportService {
       int debtsImported = 0;
       int accountsImported = 0;
       int transfersImported = 0;
+      int investmentsImported = 0;
+      final List<domain.Category> restoredIncomeSources = [];
 
       // Fetch all existing data for lookup
       final existingCategories = await expenseRepository.getAllCategories();
@@ -111,6 +121,8 @@ class CsvImportService {
       final existingDebts = await debtRepository?.getAllDebts() ?? [];
       final existingAccounts = await accountRepository?.getAllAccounts() ?? [];
       final existingTransfers = await transferRepository?.getAllTransfers() ?? [];
+      final existingInvestments =
+          await investmentRepository?.getAllInvestments() ?? [];
 
       final categoryNameMap = {
         for (var c in existingCategories) c.name.trim().toLowerCase(): c
@@ -124,6 +136,7 @@ class CsvImportService {
       final debtIdSet = {for (var d in existingDebts) d.id};
       final accountIdSet = {for (var a in existingAccounts) a.id};
       final transferIdSet = {for (var t in existingTransfers) t.id};
+      final investmentIdSet = {for (var i in existingInvestments) i.id};
 
       // 'categories' | 'accounts' | 'incomes' | 'expenses' | 'goals' | 'bills' |
       // 'recurring' | 'debts' | 'transfers'
@@ -160,6 +173,12 @@ class CsvImportService {
         } else if (line == '--- TRANSFERS ---') {
           currentSection = 'transfers';
           continue;
+        } else if (line == '--- INVESTMENTS ---') {
+          currentSection = 'investments';
+          continue;
+        } else if (line == '--- INCOME SOURCES ---') {
+          currentSection = 'income_sources';
+          continue;
         }
 
         // Skip headers
@@ -171,7 +190,10 @@ class CsvImportService {
             line.startsWith('ID,Type,Title,Amount,CategoryId,Source,AccountId') ||
             line.startsWith('ID,Name,Type,Counterparty,PrincipalAmount') ||
             line.startsWith('ID,Name,Type,Color,OpeningBalance') ||
-            line.startsWith('ID,FromAccountId,ToAccountId,Amount')) {
+            line.startsWith('ID,FromAccountId,ToAccountId,Amount') ||
+            line.startsWith('ID,Name,Type,InvestedAmount,CurrentValue') ||
+            line.startsWith('ID,Name,Icon,Color') ||
+            line == 'Source') {
           continue;
         }
 
@@ -538,6 +560,35 @@ class CsvImportService {
             accountIdSet.add(account.id);
           }
           accountsImported++;
+        } else if (currentSection == 'income_sources') {
+          // Each row is ID,Name,Icon,Color (with fallback for legacy 'Source' format)
+          if (row.isEmpty) continue;
+          
+          if (row.length == 1) {
+            // Legacy format
+            final name = row[0].trim();
+            if (name.isNotEmpty && name.toLowerCase() != 'other') {
+              restoredIncomeSources.add(domain.Category(
+                id: 'inc_${name.toLowerCase().replaceAll(' ', '_')}',
+                name: name,
+                icon: 'payments',
+                color: '#6BAE6E',
+              ));
+            }
+          } else if (row.length >= 4) {
+            final id = row[0].trim();
+            final name = row[1].trim();
+            final icon = row[2].trim();
+            final color = row[3].trim();
+            if (name.isNotEmpty && name.toLowerCase() != 'other') {
+              restoredIncomeSources.add(domain.Category(
+                id: id.isNotEmpty ? id : 'inc_${name.toLowerCase().replaceAll(' ', '_')}',
+                name: name,
+                icon: icon.isNotEmpty ? icon : 'payments',
+                color: color.isNotEmpty ? color : '#6BAE6E',
+              ));
+            }
+          }
         } else if (currentSection == 'transfers') {
           if (transferRepository == null) continue;
           if (row.length < 5) continue;
@@ -566,6 +617,53 @@ class CsvImportService {
             transferIdSet.add(transfer.id);
           }
           transfersImported++;
+        } else if (currentSection == 'investments') {
+          if (investmentRepository == null) continue;
+          if (row.length < 7) continue;
+
+          final id = row[0].trim();
+          final name = row[1].trim();
+          final type = domain.InvestmentType.fromJson(row[2].trim());
+          final invested = double.tryParse(row[3].trim()) ?? 0.0;
+          final current = double.tryParse(row[4].trim()) ?? invested;
+          final units = row[5].trim().isNotEmpty ? double.tryParse(row[5].trim()) : null;
+          final purchase = DateTime.tryParse(row[6].trim()) ?? DateTime.now();
+          final lastUpdate = row.length > 7 && row[7].trim().isNotEmpty
+              ? DateTime.tryParse(row[7].trim())
+              : null;
+          final platform = row.length > 8 ? row[8].trim() : '';
+          final accountId = row.length > 9 ? row[9].trim() : '';
+          final color = row.length > 10 && row[10].trim().isNotEmpty
+              ? row[10].trim()
+              : '#2F6F5E';
+          final isClosed = row.length > 11
+              ? row[11].trim().toLowerCase() == 'yes'
+              : false;
+          final note = row.length > 12 ? row[12].trim() : '';
+
+          final inv = domain.Investment(
+            id: id.isNotEmpty ? id : const Uuid().v4(),
+            name: name.isNotEmpty ? name : 'Imported Investment',
+            type: type,
+            investedAmount: invested,
+            currentValue: current,
+            units: units,
+            purchaseDate: purchase,
+            lastValueUpdate: lastUpdate,
+            platform: platform.isEmpty ? null : platform,
+            accountId: accountId.isEmpty ? null : accountId,
+            color: color,
+            isClosed: isClosed,
+            note: note.isEmpty ? null : note,
+          );
+
+          if (investmentIdSet.contains(inv.id)) {
+            await investmentRepository.updateInvestment(inv);
+          } else {
+            await investmentRepository.addInvestment(inv);
+            investmentIdSet.add(inv.id);
+          }
+          investmentsImported++;
         }
       }
 
@@ -581,6 +679,8 @@ class CsvImportService {
         debtsImported: debtsImported,
         accountsImported: accountsImported,
         transfersImported: transfersImported,
+        investmentsImported: investmentsImported,
+        restoredIncomeSources: restoredIncomeSources,
       );
     } catch (e) {
       return CsvImportResult(

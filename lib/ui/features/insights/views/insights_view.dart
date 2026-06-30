@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:smart_wallet/ui/core/theme.dart';
 import 'package:smart_wallet/ui/core/currency_utils.dart';
-import 'package:smart_wallet/ui/core/account_icons.dart';
 import 'package:smart_wallet/ui/providers.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:uuid/uuid.dart';
@@ -153,6 +152,7 @@ class _InsightsViewState extends ConsumerState<InsightsView> {
     final categories = ref.read(allCategoriesProvider).value ?? [];
     final bills = ref.read(allBillsProvider).value ?? [];
     final goals = ref.read(allSavingsGoalsProvider).value ?? [];
+    final investments = ref.read(allInvestmentsProvider).value ?? [];
     final apiKey = ref.read(aiApiKeyProvider);
     final aiModel = ref.read(aiModelProvider);
     final aiProvider = ref.read(aiProviderProvider);
@@ -214,7 +214,7 @@ class _InsightsViewState extends ConsumerState<InsightsView> {
 
       await for (final chunk in service.streamAssistant(
         expenses: expenses, incomes: incomes, categories: categories,
-        bills: bills, goals: goals,
+        bills: bills, goals: goals, investments: investments,
         chatHistory: chatHistory, userQuery: query, apiKey: apiKey,
         aiModel: aiModel,
         aiProvider: aiProvider,

@@ -183,7 +183,7 @@ class _TransferFormDialogState extends ConsumerState<TransferFormDialog> {
     final bottomInset = MediaQuery.of(context).viewInsets.bottom;
     final currencySym = currencySymbol(ref.watch(currencyCodeProvider));
     final accounts = (ref.watch(allAccountsProvider).value ?? [])
-        .where((a) => !a.archived)
+        .where((a) => !a.archived && a.id != 'acc_investments')
         .toList();
 
     return Padding(

@@ -8,22 +8,14 @@ import 'package:smart_wallet/ui/core/theme.dart';
 import 'package:smart_wallet/ui/providers.dart';
 import 'package:smart_wallet/ui/core/currency_utils.dart';
 import 'package:smart_wallet/ui/core/account_icons.dart';
+import 'package:smart_wallet/ui/core/category_icons.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-/// Common income sources offered in the entry form dropdown. 'Other' reveals a
-/// free-text field so any source not in this list can still be entered.
+// kIncomeSources kept for any external references; the form now reads from
+// incomeSourcesProvider so users can manage their own list.
 const List<String> kIncomeSources = [
-  'Salary',
-  'Freelance',
-  'Business',
-  'Sale',
-  'Investment',
-  'Rental Income',
-  'Interest',
-  'Bonus',
-  'Gift',
-  'Refund',
-  'Other',
+  'Salary', 'Freelance', 'Business', 'Sale', 'Investment',
+  'Rental Income', 'Interest', 'Bonus', 'Gift', 'Refund', 'Other',
 ];
 
 class EntryFormView extends ConsumerStatefulWidget {
@@ -54,7 +46,7 @@ class _EntryFormViewState extends ConsumerState<EntryFormView> {
   bool _fetchingRate = false;
 
   final _sourceController = TextEditingController();
-  String _selectedSource = kIncomeSources.first;
+  String _selectedSource = 'Salary';
   bool _isRecurring = false;
   domain.IncomeFrequency _frequency = domain.IncomeFrequency.oneOff;
 
@@ -72,20 +64,21 @@ class _EntryFormViewState extends ConsumerState<EntryFormView> {
   void initState() {
     super.initState();
     _currencyCode = ref.read(currencyCodeProvider);
+    final managedSources = ref.read(incomeSourcesProvider);
+    _selectedSource = managedSources.isNotEmpty ? managedSources.first.name : 'Salary';
     if (widget.initialIncome != null) {
       _isExpense = false;
       _amountController.text = widget.initialIncome!.amount.toString();
       _applyForeign(widget.initialIncome!.originalCurrency, widget.initialIncome!.originalAmount, widget.initialIncome!.amount);
       _selectedDate = widget.initialIncome!.date;
       final existingSource = widget.initialIncome!.source;
-      // Match the stored source to a preset (case-insensitive); anything else
-      // becomes a custom 'Other' entry so the original text is preserved.
-      final preset = kIncomeSources.firstWhere(
-        (s) => s != 'Other' && s.toLowerCase() == existingSource.toLowerCase(),
-        orElse: () => 'Other',
-      );
-      _selectedSource = preset;
-      _sourceController.text = preset == 'Other' ? existingSource : '';
+      // Match the stored source to a managed source (case-insensitive); anything
+      // else becomes 'Other' so the original text is preserved.
+      final preset = managedSources.where(
+        (s) => s.name.toLowerCase() == existingSource.toLowerCase()
+      ).firstOrNull;
+      _selectedSource = preset != null ? preset.name : 'Other';
+      _sourceController.text = preset == null ? existingSource : '';
       _isRecurring = widget.initialIncome!.isRecurring;
       _frequency = widget.initialIncome!.frequency;
       _selectedAccountId = widget.initialIncome!.accountId;
@@ -527,6 +520,12 @@ class _EntryFormViewState extends ConsumerState<EntryFormView> {
   }
 
   Widget _buildSourceField() {
+    final managedSources = ref.watch(incomeSourcesProvider);
+    final allSources = [...managedSources];
+    // Guard: if current selection was removed from the list, reset to first.
+    if (!allSources.any((s) => s.name == _selectedSource) && _selectedSource != 'Other') {
+      _selectedSource = allSources.first.name;
+    }
     return Column(
       children: [
         DropdownButtonFormField<String>(
@@ -536,12 +535,31 @@ class _EntryFormViewState extends ConsumerState<EntryFormView> {
             labelText: 'Source',
             prefixIcon: Icon(Icons.business_rounded, size: 20, color: AppColors.primary),
           ),
-          items: kIncomeSources.map((s) {
-            return DropdownMenuItem(
-              value: s,
-              child: Text(s == 'Other' ? 'Other (Custom)' : s),
-            );
-          }).toList(),
+          items: [
+            ...allSources.map((s) {
+              final color = Color(int.parse(s.color.replaceAll('#', '0xFF')));
+              return DropdownMenuItem(
+                value: s.name,
+                child: Row(
+                  children: [
+                    Icon(getCategoryIcon(s.icon), color: color, size: 18),
+                    const SizedBox(width: 10),
+                    Text(s.name),
+                  ],
+                ),
+              );
+            }),
+            const DropdownMenuItem(
+              value: 'Other',
+              child: Row(
+                children: [
+                  Icon(Icons.add_circle_outline, color: AppColors.primary, size: 18),
+                  SizedBox(width: 10),
+                  Text('Other (Custom)'),
+                ],
+              ),
+            ),
+          ],
           onChanged: (v) => setState(() => _selectedSource = v ?? _selectedSource),
         ),
         if (_selectedSource == 'Other') ...[
@@ -646,7 +664,9 @@ class _EntryFormViewState extends ConsumerState<EntryFormView> {
       ),
       error: (err, _) => Text('$err', style: const TextStyle(color: AppColors.error)),
       data: (allAccounts) {
-        final accounts = allAccounts.where((a) => !a.archived).toList();
+        final accounts = allAccounts
+            .where((a) => !a.archived && a.id != 'acc_investments')
+            .toList();
         if (accounts.isEmpty) {
           return const SizedBox.shrink();
         }

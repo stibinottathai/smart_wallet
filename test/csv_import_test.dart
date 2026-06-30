@@ -92,6 +92,11 @@ class FakeExpenseRepository implements ExpenseRepository {
   }
 
   @override
+  Future<void> deleteCategory(String id) async {
+    categories.removeWhere((c) => c.id == id);
+  }
+
+  @override
   Stream<List<domain.Category>> watchAllCategories() => Stream.value(categories);
 
   @override

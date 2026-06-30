@@ -646,6 +646,140 @@ class Bill {
   }
 }
 
+enum InvestmentType {
+  stocks,
+  mutualFund,
+  etf,
+  fixedDeposit,
+  recurringDeposit,
+  bonds,
+  gold,
+  crypto,
+  realEstate,
+  ppf,
+  nps,
+  other;
+
+  String toJson() => name;
+
+  static InvestmentType fromJson(String value) {
+    return InvestmentType.values.firstWhere(
+      (e) => e.name == value,
+      orElse: () => InvestmentType.other,
+    );
+  }
+
+  String get displayName {
+    switch (this) {
+      case InvestmentType.stocks:
+        return 'Stocks';
+      case InvestmentType.mutualFund:
+        return 'Mutual Fund';
+      case InvestmentType.etf:
+        return 'ETF';
+      case InvestmentType.fixedDeposit:
+        return 'Fixed Deposit';
+      case InvestmentType.recurringDeposit:
+        return 'Recurring Deposit';
+      case InvestmentType.bonds:
+        return 'Bonds';
+      case InvestmentType.gold:
+        return 'Gold';
+      case InvestmentType.crypto:
+        return 'Crypto';
+      case InvestmentType.realEstate:
+        return 'Real Estate';
+      case InvestmentType.ppf:
+        return 'PPF';
+      case InvestmentType.nps:
+        return 'NPS';
+      case InvestmentType.other:
+        return 'Other';
+    }
+  }
+}
+
+/// A holding tracked by cost basis ([investedAmount]) vs latest known
+/// [currentValue]. Mirrors how [SavingsGoal] / [Debt] are tracked — the
+/// user manually refreshes [currentValue] (or [lastValueUpdate]) to keep the
+/// gain / loss accurate. [units] is optional and only meaningful for unit-
+/// based instruments (stocks, MF, crypto, gold grams, …).
+class Investment {
+  final String id;
+  final String name;
+  final InvestmentType type;
+  final double investedAmount;
+  final double currentValue;
+  final double? units;
+  final DateTime purchaseDate;
+  final DateTime? lastValueUpdate;
+  final String? platform;
+  final String? accountId;
+  final String color;
+  final bool isClosed;
+  final String? note;
+
+  const Investment({
+    required this.id,
+    required this.name,
+    required this.type,
+    required this.investedAmount,
+    required this.currentValue,
+    this.units,
+    required this.purchaseDate,
+    this.lastValueUpdate,
+    this.platform,
+    this.accountId,
+    required this.color,
+    this.isClosed = false,
+    this.note,
+  });
+
+  /// Absolute profit/loss in base currency (can be negative).
+  double get gainLoss => currentValue - investedAmount;
+
+  /// Return as a fraction (0.12 = +12%). Returns 0 when [investedAmount] is 0.
+  double get returnRatio =>
+      investedAmount > 0 ? (currentValue - investedAmount) / investedAmount : 0.0;
+
+  Investment copyWith({
+    String? id,
+    String? name,
+    InvestmentType? type,
+    double? investedAmount,
+    double? currentValue,
+    double? units,
+    bool clearUnits = false,
+    DateTime? purchaseDate,
+    DateTime? lastValueUpdate,
+    bool clearLastValueUpdate = false,
+    String? platform,
+    bool clearPlatform = false,
+    String? accountId,
+    bool clearAccountId = false,
+    String? color,
+    bool? isClosed,
+    String? note,
+    bool clearNote = false,
+  }) {
+    return Investment(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      type: type ?? this.type,
+      investedAmount: investedAmount ?? this.investedAmount,
+      currentValue: currentValue ?? this.currentValue,
+      units: clearUnits ? null : (units ?? this.units),
+      purchaseDate: purchaseDate ?? this.purchaseDate,
+      lastValueUpdate: clearLastValueUpdate ? null : (lastValueUpdate ?? this.lastValueUpdate),
+      platform: clearPlatform ? null : (platform ?? this.platform),
+      accountId: clearAccountId ? null : (accountId ?? this.accountId),
+      color: color ?? this.color,
+      isClosed: isClosed ?? this.isClosed,
+      note: clearNote ? null : (note ?? this.note),
+    );
+  }
+}
+
 class HealthScoreFactor {
   final String key;
   final String label;

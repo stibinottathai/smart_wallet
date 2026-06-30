@@ -60,7 +60,12 @@ class AccountsView extends ConsumerWidget {
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (err, _) => Center(child: Text('$err')),
         data: (accounts) {
-          final active = accounts.where((a) => !a.archived).toList();
+          // The 'acc_investments' system wallet is auto-managed by the
+          // Investments module — hide it here so it doesn't look like a
+          // regular account the user can rename / delete / move money into.
+          final active = accounts
+              .where((a) => !a.archived && a.id != 'acc_investments')
+              .toList();
           final archived = accounts.where((a) => a.archived).toList();
           final total = active.fold<double>(0, (s, a) => s + (balances[a.id] ?? 0));
 

@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../data/repositories/expense_repository_impl.dart';
 import '../data/repositories/income_repository_impl.dart';
@@ -9,6 +10,8 @@ import '../data/repositories/account_repository_impl.dart';
 import '../data/repositories/transfer_repository_impl.dart';
 import '../data/repositories/recurring_rule_repository_impl.dart';
 import '../data/repositories/debt_repository_impl.dart';
+import '../data/repositories/investment_repository_impl.dart';
+import '../data/services/investment_transfer_service.dart';
 import '../data/services/recurring_transaction_service.dart';
 import '../data/services/subscription_detection_service.dart';
 import '../data/services/currency_conversion_service.dart';
@@ -31,6 +34,7 @@ import '../domain/repositories/account_repository.dart';
 import '../domain/repositories/transfer_repository.dart';
 import '../domain/repositories/recurring_rule_repository.dart';
 import '../domain/repositories/debt_repository.dart';
+import '../domain/repositories/investment_repository.dart';
 import '../data/services/financial_health_service.dart';
 
 // Database Provider
@@ -83,6 +87,16 @@ final recurringTransactionServiceProvider = Provider<RecurringTransactionService
 final debtRepositoryProvider = Provider<DebtRepository>((ref) {
   final db = ref.watch(databaseProvider);
   return DebtRepositoryImpl(db);
+});
+
+final investmentRepositoryProvider = Provider<InvestmentRepository>((ref) {
+  final db = ref.watch(databaseProvider);
+  return InvestmentRepositoryImpl(db);
+});
+
+final investmentTransferServiceProvider =
+    Provider<InvestmentTransferService>((ref) {
+  return InvestmentTransferService(ref.watch(transferRepositoryProvider));
 });
 
 final currencyConversionServiceProvider = Provider<CurrencyConversionService>((ref) {
@@ -174,6 +188,50 @@ final allDebtsProvider = StreamProvider<List<domain.Debt>>((ref) {
   return repo.watchAllDebts();
 });
 
+final allInvestmentsProvider = StreamProvider<List<domain.Investment>>((ref) {
+  final repo = ref.watch(investmentRepositoryProvider);
+  return repo.watchAllInvestments();
+});
+
+/// Wallets the user actually spends from — every active account except the
+/// hidden `acc_investments` system wallet that holds investment cost basis.
+const String _kInvestmentAccountId = 'acc_investments';
+
+/// Total liquid cash across every user-visible account. This is the "Available
+/// Cash" surfaced on the dashboard and used as the cash leg of net worth.
+/// Investments are intentionally excluded — they're tracked separately at
+/// their current market value via [investmentAssetsValueProvider].
+final availableCashProvider = Provider<double>((ref) {
+  final accounts = ref.watch(allAccountsProvider).value ?? const [];
+  final balances = ref.watch(accountBalancesProvider);
+  double total = 0;
+  for (final a in accounts) {
+    if (a.archived) continue;
+    if (a.id == _kInvestmentAccountId) continue;
+    total += balances[a.id] ?? 0;
+  }
+  return total;
+});
+
+/// Sum of every active investment's **current market value** (not cost basis).
+/// This is the investment-asset leg of net worth — unrealized gains/losses are
+/// captured automatically because [Investment.currentValue] is what the user
+/// last marked the holding at.
+final investmentAssetsValueProvider = Provider<double>((ref) {
+  final investments = ref.watch(allInvestmentsProvider).value ?? const [];
+  return investments
+      .where((i) => !i.isClosed)
+      .fold<double>(0, (s, i) => s + i.currentValue);
+});
+
+/// Available Cash + Investments at current value — the headline number for
+/// the dashboard's wealth summary. Liabilities (debts) are surfaced
+/// separately in the Net Worth view rather than netted here.
+final totalNetWorthProvider = Provider<double>((ref) {
+  return ref.watch(availableCashProvider) +
+      ref.watch(investmentAssetsValueProvider);
+});
+
 /// Subscriptions auto-detected from expense history (recurring merchants).
 final detectedSubscriptionsProvider = Provider<List<Subscription>>((ref) {
   final expenses = ref.watch(allExpensesProvider).value ?? const [];
@@ -243,6 +301,118 @@ final defaultAccountIdProvider = Provider<String>((ref) {
   final found = accounts.where((a) => a.isDefault).firstOrNull;
   return found?.id ?? defaultAccountId;
 });
+
+// ── Income Sources ──────────────────────────────────────────────────────────
+// Stored in SharedPreferences so users can manage them independently of the DB.
+// 'Other' is always appended at the end of the form dropdown and is NOT stored.
+
+const String _kIncomeSourcesPrefKey = 'income_sources_v3';
+const String _kLegacyIncomeSourcesPrefKey = 'income_sources_v2';
+
+final List<domain.Category> _kDefaultIncomeSources = [
+  const domain.Category(id: 'inc_salary', name: 'Salary', icon: 'payments', color: '#6BAE6E', isDefault: true),
+  const domain.Category(id: 'inc_freelance', name: 'Freelance', icon: 'computer', color: '#688F80', isDefault: true),
+  const domain.Category(id: 'inc_business', name: 'Business', icon: 'business', color: '#2F6F5E', isDefault: true),
+  const domain.Category(id: 'inc_sale', name: 'Sale', icon: 'shopping_bag', color: '#4A90C4', isDefault: true),
+  const domain.Category(id: 'inc_investment', name: 'Investment', icon: 'trending_up', color: '#7B5EA7', isDefault: true),
+];
+
+class IncomeSourcesNotifier extends StateNotifier<List<domain.Category>> {
+  IncomeSourcesNotifier() : super(List.from(_kDefaultIncomeSources)) {
+    _load();
+  }
+
+  Future<void> _load() async {
+    final prefs = await SharedPreferences.getInstance();
+    final stored = prefs.getString(_kIncomeSourcesPrefKey);
+    if (stored != null) {
+      try {
+        final list = jsonDecode(stored) as List;
+        state = list.map((e) {
+          final id = e['id'] as String;
+          final defaultMatch = _kDefaultIncomeSources.where((d) => d.id == id).firstOrNull;
+          if (defaultMatch != null) return defaultMatch;
+          
+          return domain.Category(
+            id: id,
+            name: e['name'] as String,
+            icon: e['icon'] as String,
+            color: e['color'] as String,
+          );
+        }).toList();
+      } catch (_) {
+        state = List.from(_kDefaultIncomeSources);
+        await _save();
+      }
+    } else {
+      // Check for legacy string-based sources to migrate
+      final legacyStored = prefs.getString(_kLegacyIncomeSourcesPrefKey);
+      if (legacyStored != null) {
+        try {
+          final legacyList = List<String>.from((jsonDecode(legacyStored) as List).cast<String>());
+          state = legacyList.map((name) {
+            // Find a match in defaults or assign a default icon/color
+            final defaultMatch = _kDefaultIncomeSources.where((d) => d.name == name).firstOrNull;
+            return defaultMatch ?? domain.Category(
+              id: 'inc_${name.toLowerCase().replaceAll(' ', '_')}',
+              name: name,
+              icon: 'payments',
+              color: '#6BAE6E',
+            );
+          }).toList();
+        } catch (_) {
+          state = List.from(_kDefaultIncomeSources);
+        }
+      } else {
+        state = List.from(_kDefaultIncomeSources);
+      }
+      await _save();
+    }
+  }
+
+  Future<void> _save() async {
+    final prefs = await SharedPreferences.getInstance();
+    final list = state.map((c) => {
+      'id': c.id,
+      'name': c.name,
+      'icon': c.icon,
+      'color': c.color,
+    }).toList();
+    await prefs.setString(_kIncomeSourcesPrefKey, jsonEncode(list));
+  }
+
+  Future<void> add(domain.Category source) async {
+    if (state.length >= 15) return;
+    state = [...state, source];
+    await _save();
+  }
+
+  Future<void> updateItem(int index, domain.Category newCategory) async {
+    if (index < 0 || index >= state.length) return;
+    final list = List<domain.Category>.from(state);
+    list[index] = newCategory;
+    state = list;
+    await _save();
+  }
+
+  Future<void> delete(int index) async {
+    if (index < 0 || index >= state.length) return;
+    final list = List<domain.Category>.from(state);
+    list.removeAt(index);
+    state = list;
+    await _save();
+  }
+
+  /// Replaces the entire list (used by backup restore).
+  Future<void> replaceAll(List<domain.Category> sources) async {
+    state = List.from(sources);
+    await _save();
+  }
+}
+
+final incomeSourcesProvider =
+    StateNotifierProvider<IncomeSourcesNotifier, List<domain.Category>>(
+        (ref) => IncomeSourcesNotifier());
 
 // AI Settings
 // Default to OpenRouter + DeepSeek so the app is usable out of the box (and the
@@ -348,10 +518,13 @@ final financialHealthScoreProvider = FutureProvider<domain.FinancialHealthScore>
 /// so the AI is not called excessively. Skipped when no API key is configured
 /// or there is no transaction data yet.
 final autoInsightRefreshProvider = FutureProvider<void>((ref) async {
-  // Re-run this provider whenever the transaction counts change.
+  // Re-run this provider whenever the transaction or holdings counts change,
+  // so portfolio drawdowns/rallies surface as soon as the user updates a
+  // current value — not only when a new expense or income is logged.
   final expCount = (ref.watch(allExpensesProvider).value ?? []).length;
   final incCount = (ref.watch(allIncomesProvider).value ?? []).length;
-  if (expCount == 0 && incCount == 0) return;
+  final invCount = (ref.watch(allInvestmentsProvider).value ?? []).length;
+  if (expCount == 0 && incCount == 0 && invCount == 0) return;
 
   final apiKey = ref.read(aiApiKeyProvider);
   if (apiKey.isEmpty) return;
@@ -380,6 +553,7 @@ final autoInsightRefreshProvider = FutureProvider<void>((ref) async {
   final categories = ref.read(allCategoriesProvider).value ?? [];
   final bills = ref.read(allBillsProvider).value ?? [];
   final goals = ref.read(allSavingsGoalsProvider).value ?? [];
+  final investments = ref.read(allInvestmentsProvider).value ?? [];
   final aiModel = ref.read(aiModelProvider);
   final aiProvider = ref.read(aiProviderProvider);
   final code = ref.read(currencyCodeProvider);
@@ -391,6 +565,7 @@ final autoInsightRefreshProvider = FutureProvider<void>((ref) async {
     categories: categories,
     bills: bills,
     goals: goals,
+    investments: investments,
     apiKey: apiKey,
     aiModel: aiModel,
     aiProvider: aiProvider,
@@ -408,6 +583,7 @@ final refreshInsightsProvider = FutureProvider.autoDispose<void>((ref) async {
   final categories = ref.read(allCategoriesProvider).value ?? [];
   final bills = ref.read(allBillsProvider).value ?? [];
   final goals = ref.read(allSavingsGoalsProvider).value ?? [];
+  final investments = ref.read(allInvestmentsProvider).value ?? [];
   final apiKey = ref.read(aiApiKeyProvider);
   final aiModel = ref.read(aiModelProvider);
   final aiProvider = ref.read(aiProviderProvider);
@@ -420,6 +596,7 @@ final refreshInsightsProvider = FutureProvider.autoDispose<void>((ref) async {
     categories: categories,
     bills: bills,
     goals: goals,
+    investments: investments,
     apiKey: apiKey,
     aiModel: aiModel,
     aiProvider: aiProvider,

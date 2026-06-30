@@ -158,6 +158,29 @@ class Bills extends Table {
   Set<Column> get primaryKey => {id};
 }
 
+/// A holding (stocks, MF, FD, gold, crypto, real estate, …) tracked by cost
+/// basis vs latest known market value. Mirrors the [Debts] / [SavingsGoals]
+/// shape — the user manually refreshes [currentValue] to keep gain / loss
+/// accurate, and the row never affects expense / income totals directly.
+class Investments extends Table {
+  TextColumn get id => text()();
+  TextColumn get name => text()();
+  TextColumn get type => text()(); // InvestmentType enum string
+  RealColumn get investedAmount => real()();
+  RealColumn get currentValue => real()();
+  RealColumn get units => real().nullable()();
+  DateTimeColumn get purchaseDate => dateTime()();
+  DateTimeColumn get lastValueUpdate => dateTime().nullable()();
+  TextColumn get platform => text().nullable()(); // broker / fund house / exchange
+  TextColumn get accountId => text().nullable()(); // funding account, if linked
+  TextColumn get color => text()();
+  BoolColumn get isClosed => boolean().withDefault(const Constant(false))();
+  TextColumn get note => text().nullable()();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
 class ProactiveInsights extends Table {
   TextColumn get id => text()();
   DateTimeColumn get createdAt => dateTime()();
@@ -219,12 +242,24 @@ const List<AccountsCompanion> _defaultAccounts = [
   ),
 ];
 
-@DriftDatabase(tables: [Categories, Incomes, Expenses, SavingsGoals, Bills, ProactiveInsights, HealthScores, Accounts, Transfers, RecurringRules, Debts])
+/// Internal wallet that holds the cost basis of every active investment.
+/// Auto-managed by [InvestmentTransferService] — never shown in normal account
+/// pickers or lists, but included in [accountBalancesProvider] so total wallet
+/// math stays consistent (cash drop on buy = balance shift into this wallet).
+const AccountsCompanion _investmentSystemAccount = AccountsCompanion(
+  id: Value('acc_investments'),
+  name: Value('Investments'),
+  type: Value('other'),
+  color: Value('#2F6F5E'),
+  sortOrder: Value(99),
+);
+
+@DriftDatabase(tables: [Categories, Incomes, Expenses, SavingsGoals, Bills, ProactiveInsights, HealthScores, Accounts, Transfers, RecurringRules, Debts, Investments])
 class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(driftDatabase(name: 'smart_wallet'));
 
   @override
-  int get schemaVersion => 12;
+  int get schemaVersion => 14;
 
   @override
   MigrationStrategy get migration {
@@ -325,6 +360,18 @@ class AppDatabase extends _$AppDatabase {
             "UPDATE accounts SET is_default = 1 WHERE id = 'acc_cash'",
           );
         }
+        if (from < 13) {
+          // Investment portfolio tracking.
+          await m.createTable(investments);
+        }
+        if (from < 14) {
+          // System wallet that holds the cost basis of investments so buy /
+          // sell flows can move balance through transfers instead of expenses.
+          await into(accounts).insert(
+            _investmentSystemAccount,
+            mode: InsertMode.insertOrIgnore,
+          );
+        }
       },
       beforeOpen: (details) async {
         if (details.wasCreated) {
@@ -408,6 +455,7 @@ class AppDatabase extends _$AppDatabase {
           for (final acc in _defaultAccounts) {
             await into(accounts).insert(acc);
           }
+          await into(accounts).insert(_investmentSystemAccount);
         }
       },
     );

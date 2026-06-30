@@ -55,22 +55,29 @@ class NetWorthView extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final accountsAsync = ref.watch(allAccountsProvider);
     final debtsAsync = ref.watch(allDebtsProvider);
+    final investmentsAsync = ref.watch(allInvestmentsProvider);
     final balances = ref.watch(accountBalancesProvider);
     final code = ref.watch(currencyCodeProvider);
     final sym = currencySymbol(code);
     final fmt = NumberFormat('#,##,##0', 'en_IN');
 
-    if (accountsAsync.isLoading || debtsAsync.isLoading) {
+    if (accountsAsync.isLoading || debtsAsync.isLoading || investmentsAsync.isLoading) {
       return const Scaffold(
         appBar: _NetWorthAppBar(),
         body: Center(child: CircularProgressIndicator(color: AppColors.primary)),
       );
     }
 
-    final accounts = (accountsAsync.value ?? []).where((a) => !a.archived).toList();
+    // The 'acc_investments' system wallet holds cost basis of holdings — we
+    // exclude it from cash assets and surface investments separately at their
+    // **current value** so unrealized gains are reflected in net worth.
+    final accounts = (accountsAsync.value ?? [])
+        .where((a) => !a.archived && a.id != 'acc_investments')
+        .toList();
     final debts = debtsAsync.value ?? [];
+    final investments = (investmentsAsync.value ?? []).where((i) => !i.isClosed).toList();
 
-    // Positive-balance accounts → assets
+    // Positive-balance accounts → cash assets
     final accountAssetRows = <_Row>[];
     double totalAccountAssets = 0;
     for (final acc in accounts) {
@@ -85,6 +92,25 @@ class NetWorthView extends ConsumerWidget {
           color: Color(int.parse(acc.color.replaceAll('#', '0xFF'))),
         ));
       }
+    }
+
+    // Active investments → asset rows at current market value
+    final investmentRows = <_Row>[];
+    double totalInvestmentAssets = 0;
+    for (final inv in investments) {
+      totalInvestmentAssets += inv.currentValue;
+      final gain = inv.gainLoss;
+      final pct = inv.returnRatio * 100;
+      final gainLabel = gain == 0
+          ? inv.type.displayName
+          : '${inv.type.displayName} • ${gain >= 0 ? '+' : ''}${pct.toStringAsFixed(1)}%';
+      investmentRows.add(_Row(
+        name: inv.name,
+        subtitle: gainLabel,
+        amount: inv.currentValue,
+        icon: Icons.trending_up_rounded,
+        color: Color(int.parse(inv.color.replaceAll('#', '0xFF'))),
+      ));
     }
 
     // Lent debts (money owed to you) → assets
@@ -134,7 +160,7 @@ class NetWorthView extends ConsumerWidget {
       }
     }
 
-    final totalAssets = totalAccountAssets + totalLentAssets;
+    final totalAssets = totalAccountAssets + totalInvestmentAssets + totalLentAssets;
     final totalLiabilities = totalBorrowed + totalOverdraft;
     final netWorth = totalAssets - totalLiabilities;
 
@@ -163,16 +189,23 @@ class NetWorthView extends ConsumerWidget {
               color: AppColors.primary,
             ),
             const SizedBox(height: 10),
-            if (accountAssetRows.isEmpty && lentRows.isEmpty)
-              _EmptyCard('No accounts or lending records yet')
+            if (accountAssetRows.isEmpty && investmentRows.isEmpty && lentRows.isEmpty)
+              _EmptyCard('No accounts, investments or lending records yet')
             else ...[
               if (accountAssetRows.isNotEmpty) ...[
                 _GroupLabel('Accounts & Wallets'),
                 const SizedBox(height: 4),
                 ...accountAssetRows.map((r) => _ItemRow(row: r, fmtAmt: fmtAmt, isAsset: true)),
               ],
-              if (lentRows.isNotEmpty) ...[
+              if (investmentRows.isNotEmpty) ...[
                 if (accountAssetRows.isNotEmpty) const SizedBox(height: 10),
+                _GroupLabel('Investments (current value)'),
+                const SizedBox(height: 4),
+                ...investmentRows.map((r) => _ItemRow(row: r, fmtAmt: fmtAmt, isAsset: true)),
+              ],
+              if (lentRows.isNotEmpty) ...[
+                if (accountAssetRows.isNotEmpty || investmentRows.isNotEmpty)
+                  const SizedBox(height: 10),
                 _GroupLabel("Amounts You'll Receive"),
                 const SizedBox(height: 4),
                 ...lentRows.map((r) => _ItemRow(row: r, fmtAmt: fmtAmt, isAsset: true)),

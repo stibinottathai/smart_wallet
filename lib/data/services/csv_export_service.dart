@@ -30,6 +30,8 @@ class CsvExportService {
     List<domain.Debt> debts = const [],
     List<domain.Account> accounts = const [],
     List<domain.Transfer> transfers = const [],
+    List<domain.Investment> investments = const [],
+    List<domain.Category> incomeSources = const [],
   }) {
     final StringBuffer buffer = StringBuffer();
 
@@ -146,6 +148,28 @@ class CsvExportService {
           '${t.id},${t.fromAccountId},${t.toAccountId},${t.amount},${_date(t.date)},${_q(t.note)}');
     }
 
+    buffer.writeln();
+    buffer.writeln();
+
+    // Export Investments (holdings tracked by cost basis vs current value).
+    buffer.writeln('--- INVESTMENTS ---');
+    buffer.writeln(
+        'ID,Name,Type,InvestedAmount,CurrentValue,Units,PurchaseDate,LastValueUpdate,Platform,AccountId,Color,IsClosed,Note');
+    for (final inv in investments) {
+      buffer.writeln(
+          '${inv.id},${_q(inv.name)},${inv.type.name},${inv.investedAmount},${inv.currentValue},${_num(inv.units)},${_date(inv.purchaseDate)},${_date(inv.lastValueUpdate)},${_q(inv.platform)},${_q(inv.accountId)},${inv.color},${inv.isClosed ? "Yes" : "No"},${_q(inv.note)}');
+    }
+
+    buffer.writeln();
+    buffer.writeln();
+
+    // Export user-managed income sources (stored in SharedPreferences).
+    buffer.writeln('--- INCOME SOURCES ---');
+    buffer.writeln('ID,Name,Icon,Color');
+    for (final src in incomeSources) {
+      buffer.writeln('${src.id},${_q(src.name)},${src.icon},${src.color}');
+    }
+
     return buffer.toString();
   }
 
@@ -159,6 +183,8 @@ class CsvExportService {
     List<domain.Debt> debts = const [],
     List<domain.Account> accounts = const [],
     List<domain.Transfer> transfers = const [],
+    List<domain.Investment> investments = const [],
+    List<domain.Category> incomeSources = const [],
   }) async {
     final csvContent = buildCsvContent(
       incomes: incomes,
@@ -170,6 +196,8 @@ class CsvExportService {
       debts: debts,
       accounts: accounts,
       transfers: transfers,
+      investments: investments,
+      incomeSources: incomeSources,
     );
 
     // Save to temp file and share. The system share sheet lets the user pick

@@ -465,7 +465,9 @@ class _ScanReceiptViewState extends ConsumerState<ScanReceiptView> {
       ),
       error: (err, _) => Text('$err', style: const TextStyle(color: AppColors.error)),
       data: (allAccounts) {
-        final accounts = allAccounts.where((a) => !a.archived).toList();
+        final accounts = allAccounts
+            .where((a) => !a.archived && a.id != 'acc_investments')
+            .toList();
         if (accounts.isEmpty) {
           return const SizedBox.shrink();
         }

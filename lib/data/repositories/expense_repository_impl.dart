@@ -127,6 +127,11 @@ class ExpenseRepositoryImpl implements ExpenseRepository {
   }
 
   @override
+  Future<void> deleteCategory(String id) async {
+    await (_db.delete(_db.categories)..where((t) => t.id.equals(id))).go();
+  }
+
+  @override
   Future<domain.Category?> getCategoryById(String id) async {
     final query = _db.select(_db.categories)..where((t) => t.id.equals(id));
     final row = await query.getSingleOrNull();
