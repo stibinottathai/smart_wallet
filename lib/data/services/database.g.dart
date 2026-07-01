@@ -7061,6 +7061,374 @@ class InvestmentsCompanion extends UpdateCompanion<Investment> {
   }
 }
 
+class $ImportedSmsTable extends ImportedSms
+    with TableInfo<$ImportedSmsTable, ImportedSm> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $ImportedSmsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _hashMeta = const VerificationMeta('hash');
+  @override
+  late final GeneratedColumn<String> hash = GeneratedColumn<String>(
+    'hash',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _dateMeta = const VerificationMeta('date');
+  @override
+  late final GeneratedColumn<DateTime> date = GeneratedColumn<DateTime>(
+    'date',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _senderMeta = const VerificationMeta('sender');
+  @override
+  late final GeneratedColumn<String> sender = GeneratedColumn<String>(
+    'sender',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _referenceNumberMeta = const VerificationMeta(
+    'referenceNumber',
+  );
+  @override
+  late final GeneratedColumn<String> referenceNumber = GeneratedColumn<String>(
+    'reference_number',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _amountMeta = const VerificationMeta('amount');
+  @override
+  late final GeneratedColumn<double> amount = GeneratedColumn<double>(
+    'amount',
+    aliasedName,
+    true,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    hash,
+    date,
+    sender,
+    referenceNumber,
+    amount,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'imported_sms';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<ImportedSm> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('hash')) {
+      context.handle(
+        _hashMeta,
+        hash.isAcceptableOrUnknown(data['hash']!, _hashMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_hashMeta);
+    }
+    if (data.containsKey('date')) {
+      context.handle(
+        _dateMeta,
+        date.isAcceptableOrUnknown(data['date']!, _dateMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_dateMeta);
+    }
+    if (data.containsKey('sender')) {
+      context.handle(
+        _senderMeta,
+        sender.isAcceptableOrUnknown(data['sender']!, _senderMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_senderMeta);
+    }
+    if (data.containsKey('reference_number')) {
+      context.handle(
+        _referenceNumberMeta,
+        referenceNumber.isAcceptableOrUnknown(
+          data['reference_number']!,
+          _referenceNumberMeta,
+        ),
+      );
+    }
+    if (data.containsKey('amount')) {
+      context.handle(
+        _amountMeta,
+        amount.isAcceptableOrUnknown(data['amount']!, _amountMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {hash};
+  @override
+  ImportedSm map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return ImportedSm(
+      hash: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}hash'],
+      )!,
+      date: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}date'],
+      )!,
+      sender: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}sender'],
+      )!,
+      referenceNumber: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}reference_number'],
+      ),
+      amount: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}amount'],
+      ),
+    );
+  }
+
+  @override
+  $ImportedSmsTable createAlias(String alias) {
+    return $ImportedSmsTable(attachedDatabase, alias);
+  }
+}
+
+class ImportedSm extends DataClass implements Insertable<ImportedSm> {
+  final String hash;
+  final DateTime date;
+  final String sender;
+  final String? referenceNumber;
+  final double? amount;
+  const ImportedSm({
+    required this.hash,
+    required this.date,
+    required this.sender,
+    this.referenceNumber,
+    this.amount,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['hash'] = Variable<String>(hash);
+    map['date'] = Variable<DateTime>(date);
+    map['sender'] = Variable<String>(sender);
+    if (!nullToAbsent || referenceNumber != null) {
+      map['reference_number'] = Variable<String>(referenceNumber);
+    }
+    if (!nullToAbsent || amount != null) {
+      map['amount'] = Variable<double>(amount);
+    }
+    return map;
+  }
+
+  ImportedSmsCompanion toCompanion(bool nullToAbsent) {
+    return ImportedSmsCompanion(
+      hash: Value(hash),
+      date: Value(date),
+      sender: Value(sender),
+      referenceNumber: referenceNumber == null && nullToAbsent
+          ? const Value.absent()
+          : Value(referenceNumber),
+      amount: amount == null && nullToAbsent
+          ? const Value.absent()
+          : Value(amount),
+    );
+  }
+
+  factory ImportedSm.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return ImportedSm(
+      hash: serializer.fromJson<String>(json['hash']),
+      date: serializer.fromJson<DateTime>(json['date']),
+      sender: serializer.fromJson<String>(json['sender']),
+      referenceNumber: serializer.fromJson<String?>(json['referenceNumber']),
+      amount: serializer.fromJson<double?>(json['amount']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'hash': serializer.toJson<String>(hash),
+      'date': serializer.toJson<DateTime>(date),
+      'sender': serializer.toJson<String>(sender),
+      'referenceNumber': serializer.toJson<String?>(referenceNumber),
+      'amount': serializer.toJson<double?>(amount),
+    };
+  }
+
+  ImportedSm copyWith({
+    String? hash,
+    DateTime? date,
+    String? sender,
+    Value<String?> referenceNumber = const Value.absent(),
+    Value<double?> amount = const Value.absent(),
+  }) => ImportedSm(
+    hash: hash ?? this.hash,
+    date: date ?? this.date,
+    sender: sender ?? this.sender,
+    referenceNumber: referenceNumber.present
+        ? referenceNumber.value
+        : this.referenceNumber,
+    amount: amount.present ? amount.value : this.amount,
+  );
+  ImportedSm copyWithCompanion(ImportedSmsCompanion data) {
+    return ImportedSm(
+      hash: data.hash.present ? data.hash.value : this.hash,
+      date: data.date.present ? data.date.value : this.date,
+      sender: data.sender.present ? data.sender.value : this.sender,
+      referenceNumber: data.referenceNumber.present
+          ? data.referenceNumber.value
+          : this.referenceNumber,
+      amount: data.amount.present ? data.amount.value : this.amount,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ImportedSm(')
+          ..write('hash: $hash, ')
+          ..write('date: $date, ')
+          ..write('sender: $sender, ')
+          ..write('referenceNumber: $referenceNumber, ')
+          ..write('amount: $amount')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(hash, date, sender, referenceNumber, amount);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is ImportedSm &&
+          other.hash == this.hash &&
+          other.date == this.date &&
+          other.sender == this.sender &&
+          other.referenceNumber == this.referenceNumber &&
+          other.amount == this.amount);
+}
+
+class ImportedSmsCompanion extends UpdateCompanion<ImportedSm> {
+  final Value<String> hash;
+  final Value<DateTime> date;
+  final Value<String> sender;
+  final Value<String?> referenceNumber;
+  final Value<double?> amount;
+  final Value<int> rowid;
+  const ImportedSmsCompanion({
+    this.hash = const Value.absent(),
+    this.date = const Value.absent(),
+    this.sender = const Value.absent(),
+    this.referenceNumber = const Value.absent(),
+    this.amount = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  ImportedSmsCompanion.insert({
+    required String hash,
+    required DateTime date,
+    required String sender,
+    this.referenceNumber = const Value.absent(),
+    this.amount = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : hash = Value(hash),
+       date = Value(date),
+       sender = Value(sender);
+  static Insertable<ImportedSm> custom({
+    Expression<String>? hash,
+    Expression<DateTime>? date,
+    Expression<String>? sender,
+    Expression<String>? referenceNumber,
+    Expression<double>? amount,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (hash != null) 'hash': hash,
+      if (date != null) 'date': date,
+      if (sender != null) 'sender': sender,
+      if (referenceNumber != null) 'reference_number': referenceNumber,
+      if (amount != null) 'amount': amount,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  ImportedSmsCompanion copyWith({
+    Value<String>? hash,
+    Value<DateTime>? date,
+    Value<String>? sender,
+    Value<String?>? referenceNumber,
+    Value<double?>? amount,
+    Value<int>? rowid,
+  }) {
+    return ImportedSmsCompanion(
+      hash: hash ?? this.hash,
+      date: date ?? this.date,
+      sender: sender ?? this.sender,
+      referenceNumber: referenceNumber ?? this.referenceNumber,
+      amount: amount ?? this.amount,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (hash.present) {
+      map['hash'] = Variable<String>(hash.value);
+    }
+    if (date.present) {
+      map['date'] = Variable<DateTime>(date.value);
+    }
+    if (sender.present) {
+      map['sender'] = Variable<String>(sender.value);
+    }
+    if (referenceNumber.present) {
+      map['reference_number'] = Variable<String>(referenceNumber.value);
+    }
+    if (amount.present) {
+      map['amount'] = Variable<double>(amount.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ImportedSmsCompanion(')
+          ..write('hash: $hash, ')
+          ..write('date: $date, ')
+          ..write('sender: $sender, ')
+          ..write('referenceNumber: $referenceNumber, ')
+          ..write('amount: $amount, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -7077,6 +7445,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $RecurringRulesTable recurringRules = $RecurringRulesTable(this);
   late final $DebtsTable debts = $DebtsTable(this);
   late final $InvestmentsTable investments = $InvestmentsTable(this);
+  late final $ImportedSmsTable importedSms = $ImportedSmsTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -7094,6 +7463,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     recurringRules,
     debts,
     investments,
+    importedSms,
   ];
 }
 
@@ -10541,6 +10911,208 @@ typedef $$InvestmentsTableProcessedTableManager =
       Investment,
       PrefetchHooks Function()
     >;
+typedef $$ImportedSmsTableCreateCompanionBuilder =
+    ImportedSmsCompanion Function({
+      required String hash,
+      required DateTime date,
+      required String sender,
+      Value<String?> referenceNumber,
+      Value<double?> amount,
+      Value<int> rowid,
+    });
+typedef $$ImportedSmsTableUpdateCompanionBuilder =
+    ImportedSmsCompanion Function({
+      Value<String> hash,
+      Value<DateTime> date,
+      Value<String> sender,
+      Value<String?> referenceNumber,
+      Value<double?> amount,
+      Value<int> rowid,
+    });
+
+class $$ImportedSmsTableFilterComposer
+    extends Composer<_$AppDatabase, $ImportedSmsTable> {
+  $$ImportedSmsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get hash => $composableBuilder(
+    column: $table.hash,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get date => $composableBuilder(
+    column: $table.date,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get sender => $composableBuilder(
+    column: $table.sender,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get referenceNumber => $composableBuilder(
+    column: $table.referenceNumber,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get amount => $composableBuilder(
+    column: $table.amount,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$ImportedSmsTableOrderingComposer
+    extends Composer<_$AppDatabase, $ImportedSmsTable> {
+  $$ImportedSmsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get hash => $composableBuilder(
+    column: $table.hash,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get date => $composableBuilder(
+    column: $table.date,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get sender => $composableBuilder(
+    column: $table.sender,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get referenceNumber => $composableBuilder(
+    column: $table.referenceNumber,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get amount => $composableBuilder(
+    column: $table.amount,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$ImportedSmsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $ImportedSmsTable> {
+  $$ImportedSmsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get hash =>
+      $composableBuilder(column: $table.hash, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get date =>
+      $composableBuilder(column: $table.date, builder: (column) => column);
+
+  GeneratedColumn<String> get sender =>
+      $composableBuilder(column: $table.sender, builder: (column) => column);
+
+  GeneratedColumn<String> get referenceNumber => $composableBuilder(
+    column: $table.referenceNumber,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<double> get amount =>
+      $composableBuilder(column: $table.amount, builder: (column) => column);
+}
+
+class $$ImportedSmsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $ImportedSmsTable,
+          ImportedSm,
+          $$ImportedSmsTableFilterComposer,
+          $$ImportedSmsTableOrderingComposer,
+          $$ImportedSmsTableAnnotationComposer,
+          $$ImportedSmsTableCreateCompanionBuilder,
+          $$ImportedSmsTableUpdateCompanionBuilder,
+          (
+            ImportedSm,
+            BaseReferences<_$AppDatabase, $ImportedSmsTable, ImportedSm>,
+          ),
+          ImportedSm,
+          PrefetchHooks Function()
+        > {
+  $$ImportedSmsTableTableManager(_$AppDatabase db, $ImportedSmsTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$ImportedSmsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$ImportedSmsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$ImportedSmsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> hash = const Value.absent(),
+                Value<DateTime> date = const Value.absent(),
+                Value<String> sender = const Value.absent(),
+                Value<String?> referenceNumber = const Value.absent(),
+                Value<double?> amount = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => ImportedSmsCompanion(
+                hash: hash,
+                date: date,
+                sender: sender,
+                referenceNumber: referenceNumber,
+                amount: amount,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String hash,
+                required DateTime date,
+                required String sender,
+                Value<String?> referenceNumber = const Value.absent(),
+                Value<double?> amount = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => ImportedSmsCompanion.insert(
+                hash: hash,
+                date: date,
+                sender: sender,
+                referenceNumber: referenceNumber,
+                amount: amount,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$ImportedSmsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $ImportedSmsTable,
+      ImportedSm,
+      $$ImportedSmsTableFilterComposer,
+      $$ImportedSmsTableOrderingComposer,
+      $$ImportedSmsTableAnnotationComposer,
+      $$ImportedSmsTableCreateCompanionBuilder,
+      $$ImportedSmsTableUpdateCompanionBuilder,
+      (
+        ImportedSm,
+        BaseReferences<_$AppDatabase, $ImportedSmsTable, ImportedSm>,
+      ),
+      ImportedSm,
+      PrefetchHooks Function()
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -10569,4 +11141,6 @@ class $AppDatabaseManager {
       $$DebtsTableTableManager(_db, _db.debts);
   $$InvestmentsTableTableManager get investments =>
       $$InvestmentsTableTableManager(_db, _db.investments);
+  $$ImportedSmsTableTableManager get importedSms =>
+      $$ImportedSmsTableTableManager(_db, _db.importedSms);
 }

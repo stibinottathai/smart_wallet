@@ -22,6 +22,7 @@ import 'package:smart_wallet/ui/providers.dart';
 import 'package:smart_wallet/ui/features/settings/views/help_view.dart';
 import 'package:smart_wallet/ui/features/dashboard/widgets/animated_section.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:smart_wallet/ui/features/settings/views/sms_settings_view.dart';
 import 'package:smart_wallet/domain/models/models.dart' as domain;
 import 'package:smart_wallet/data/services/csv_export_service.dart';
 import 'package:smart_wallet/data/services/csv_import_service.dart';
@@ -282,6 +283,39 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
                       const Expanded(
                         child: Text(
                           'See recurring merchants & your total monthly subscription cost',
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: AppColors.textSecondary,
+                            height: 1.4,
+                          ),
+                        ),
+                      ),
+                      const Icon(
+                        Icons.chevron_right_rounded,
+                        size: 20,
+                        color: AppColors.textSecondary,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            _SectionCard(
+              icon: Icons.sms_rounded,
+              title: 'SMS Transaction Import',
+              child: InkWell(
+                borderRadius: BorderRadius.circular(12),
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const SmsSettingsView()),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 4),
+                  child: Row(
+                    children: [
+                      const Expanded(
+                        child: Text(
+                          'Import income and expense transactions directly from SMS',
                           style: TextStyle(
                             fontSize: 13,
                             color: AppColors.textSecondary,

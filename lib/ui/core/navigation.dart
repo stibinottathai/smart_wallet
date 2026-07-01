@@ -11,6 +11,10 @@ import 'package:smart_wallet/ui/providers.dart';
 import 'package:smart_wallet/ui/core/currency_utils.dart';
 import 'package:smart_wallet/data/services/notification_coordinator.dart';
 import 'package:smart_wallet/data/services/app_update_service.dart';
+import 'package:smart_wallet/data/services/sms_parser.dart';
+import 'package:smart_wallet/data/services/category_predictor.dart';
+import 'package:smart_wallet/ui/features/settings/widgets/sms_import_dialog.dart';
+import 'package:smart_wallet/ui/features/settings/providers/sms_import_notifier.dart';
 
 class MainNavigationWrapper extends ConsumerStatefulWidget {
   const MainNavigationWrapper({super.key});
@@ -19,8 +23,9 @@ class MainNavigationWrapper extends ConsumerStatefulWidget {
   ConsumerState<MainNavigationWrapper> createState() => _MainNavigationWrapperState();
 }
 
-class _MainNavigationWrapperState extends ConsumerState<MainNavigationWrapper> with SingleTickerProviderStateMixin {
+class _MainNavigationWrapperState extends ConsumerState<MainNavigationWrapper> with SingleTickerProviderStateMixin, WidgetsBindingObserver {
   late final AnimationController _orbController;
+  bool _showingSmsImportSheet = false;
 
   @override
   void initState() {
@@ -29,6 +34,7 @@ class _MainNavigationWrapperState extends ConsumerState<MainNavigationWrapper> w
       vsync: this,
       duration: const Duration(seconds: 4),
     )..repeat();
+    WidgetsBinding.instance.addObserver(this);
     // Schedule reminders / budget alerts on launch, once initial data is ready,
     // post any due recurring transactions, and prompt for a Play Store update
     // if a newer version is available.
@@ -36,6 +42,7 @@ class _MainNavigationWrapperState extends ConsumerState<MainNavigationWrapper> w
       await _processRecurring();
       _syncNotifications();
       if (mounted) AppUpdateService.checkAndPrompt(context);
+      _checkAndShowSmsImport();
     });
   }
 
@@ -73,8 +80,65 @@ class _MainNavigationWrapperState extends ConsumerState<MainNavigationWrapper> w
   }
 
   @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      ref.read(pendingSmsImportsProvider.notifier).checkPendingImports();
+    }
+  }
+
+  void _checkAndShowSmsImport() {
+    final pending = ref.read(pendingSmsImportsProvider);
+    if (pending.isNotEmpty && !_showingSmsImportSheet) {
+      _showSmsImportBottomSheet(pending.first);
+    }
+  }
+
+  void _showSmsImportBottomSheet(ParsedSmsTransaction tx) async {
+    _showingSmsImportSheet = true;
+    final categories = ref.read(allCategoriesProvider).value ?? [];
+    
+    final predictedCatId = CategoryPredictor.predict(
+      tx.merchant,
+      categories,
+      tx.type == SmsTransactionType.debit,
+    );
+
+    final accounts = ref.read(allAccountsProvider).value ?? [];
+    final defaultAccId = ref.read(defaultAccountIdProvider);
+    final matchedAcc = accounts.where((a) {
+      final normName = a.name.toLowerCase();
+      final normBank = tx.bankName.toLowerCase();
+      return normName.contains(normBank) || (tx.accountOrCard.toLowerCase().contains(a.id.replaceAll('acc_', '')));
+    }).firstOrNull;
+    final accountId = matchedAcc?.id ?? defaultAccId;
+
+    if (!mounted) return;
+
+    await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => SmsImportDialog(
+        transaction: tx,
+        predictedCategoryId: predictedCatId,
+        initialAccountId: accountId,
+      ),
+    );
+
+    _showingSmsImportSheet = false;
+    ref.read(pendingSmsImportsProvider.notifier).removeFirst();
+    
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        _checkAndShowSmsImport();
+      }
+    });
+  }
+
+  @override
   void dispose() {
     _orbController.dispose();
+    WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
   final List<Widget> _screens = const [
@@ -98,6 +162,11 @@ class _MainNavigationWrapperState extends ConsumerState<MainNavigationWrapper> w
     ref.listen(allExpensesProvider, (_, __) => _syncNotifications());
     ref.listen(allCategoriesProvider, (_, __) => _syncNotifications());
     ref.listen(allIncomesProvider, (_, __) => _syncNotifications());
+    ref.listen<List<ParsedSmsTransaction>>(pendingSmsImportsProvider, (previous, next) {
+      if (next.isNotEmpty) {
+        _checkAndShowSmsImport();
+      }
+    });
     return Scaffold(
       body: IndexedStack(
         index: currentIndex,

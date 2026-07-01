@@ -215,6 +215,17 @@ class HealthScores extends Table {
   Set<Column> get primaryKey => {id};
 }
 
+class ImportedSms extends Table {
+  TextColumn get hash => text()();
+  DateTimeColumn get date => dateTime()();
+  TextColumn get sender => text()();
+  TextColumn get referenceNumber => text().nullable()();
+  RealColumn get amount => real().nullable()();
+
+  @override
+  Set<Column> get primaryKey => {hash};
+}
+
 /// Default accounts seeded on first install and back-filled during the v7
 /// migration. The 'acc_cash' account is the fallback every legacy transaction
 /// is attributed to, so it must always exist.
@@ -276,13 +287,14 @@ const AccountsCompanion _investmentSystemAccount = AccountsCompanion(
     RecurringRules,
     Debts,
     Investments,
+    ImportedSms,
   ],
 )
 class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(driftDatabase(name: 'smart_wallet'));
 
   @override
-  int get schemaVersion => 15;
+  int get schemaVersion => 16;
 
   @override
   MigrationStrategy get migration {
@@ -403,6 +415,9 @@ class AppDatabase extends _$AppDatabase {
         if (from < 15) {
           // Bills can now specify which account the payment is deducted from.
           await m.addColumn(bills, bills.accountId);
+        }
+        if (from < 16) {
+          await m.createTable(importedSms);
         }
       },
       beforeOpen: (details) async {

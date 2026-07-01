@@ -36,6 +36,11 @@ import '../domain/repositories/recurring_rule_repository.dart';
 import '../domain/repositories/debt_repository.dart';
 import '../domain/repositories/investment_repository.dart';
 import '../data/services/financial_health_service.dart';
+import '../data/services/sms_permission_service.dart';
+import '../data/services/sms_service.dart';
+import '../data/services/duplicate_detector.dart';
+import '../domain/repositories/sms_import_repository.dart';
+import '../data/repositories/sms_import_repository_impl.dart';
 
 // Database Provider
 final databaseProvider = Provider<AppDatabase>((ref) {
@@ -604,3 +609,35 @@ final refreshInsightsProvider = FutureProvider.autoDispose<void>((ref) async {
     repository: repo,
   );
 });
+
+// SMS Import Providers
+final smsPermissionServiceProvider = Provider<SmsPermissionService>((ref) {
+  return SmsPermissionService();
+});
+
+final smsImportRepositoryProvider = Provider<SmsImportRepository>((ref) {
+  final db = ref.watch(databaseProvider);
+  return SmsImportRepositoryImpl(db);
+});
+
+final duplicateDetectorProvider = Provider<DuplicateDetector>((ref) {
+  final smsImportRepo = ref.watch(smsImportRepositoryProvider);
+  return DuplicateDetector(smsImportRepo);
+});
+
+final smsServiceProvider = Provider<SmsService>((ref) {
+  final perm = ref.watch(smsPermissionServiceProvider);
+  final exp = ref.watch(expenseRepositoryProvider);
+  final inc = ref.watch(incomeRepositoryProvider);
+  final dup = ref.watch(duplicateDetectorProvider);
+  final currency = ref.watch(currencyCodeProvider);
+
+  return SmsService(
+    permissionService: perm,
+    expenseRepository: exp,
+    incomeRepository: inc,
+    duplicateDetector: dup,
+    baseCurrency: currency,
+  );
+});
+
