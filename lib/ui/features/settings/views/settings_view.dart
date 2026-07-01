@@ -19,6 +19,7 @@ import 'package:smart_wallet/ui/features/debts/views/debts_view.dart';
 import 'package:smart_wallet/ui/features/investments/views/investments_view.dart';
 import 'package:smart_wallet/ui/features/categories/views/categories_view.dart';
 import 'package:smart_wallet/ui/providers.dart';
+import 'package:smart_wallet/ui/features/settings/views/help_view.dart';
 import 'package:smart_wallet/ui/features/dashboard/widgets/animated_section.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:smart_wallet/domain/models/models.dart' as domain;
@@ -500,6 +501,39 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
                       const Icon(
                         Icons.open_in_new_rounded,
                         size: 18,
+                        color: AppColors.textSecondary,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            _SectionCard(
+              icon: Icons.help_outline_rounded,
+              title: 'Help & FAQ',
+              child: InkWell(
+                borderRadius: BorderRadius.circular(12),
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const HelpView()),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 4),
+                  child: Row(
+                    children: [
+                      const Expanded(
+                        child: Text(
+                          'Troubleshooting, setup guides, and tips to get the most out of the app',
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: AppColors.textSecondary,
+                            height: 1.4,
+                          ),
+                        ),
+                      ),
+                      const Icon(
+                        Icons.chevron_right_rounded,
+                        size: 20,
                         color: AppColors.textSecondary,
                       ),
                     ],
