@@ -79,7 +79,7 @@ class _MainNavigationWrapperState extends ConsumerState<MainNavigationWrapper> w
   }
   final List<Widget> _screens = const [
     DashboardView(),
-    AllTransactionsView(initialShowExpenses: true),
+    AllTransactionsView(initialShowExpenses: true, animateTabIndex: 1),
     InsightsView(),
     AnalysisView(),
     SettingsView(),

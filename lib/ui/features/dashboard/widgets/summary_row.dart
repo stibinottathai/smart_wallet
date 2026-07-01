@@ -7,12 +7,16 @@ class SummaryRow extends StatelessWidget {
   final double income;
   final double expense;
   final String symbol;
+  final VoidCallback? onIncomeTap;
+  final VoidCallback? onExpenseTap;
 
   const SummaryRow({
     super.key,
     required this.income,
     required this.expense,
     required this.symbol,
+    this.onIncomeTap,
+    this.onExpenseTap,
   });
 
   @override
@@ -29,6 +33,7 @@ class SummaryRow extends StatelessWidget {
               icon: Icons.south_west_rounded,
               prefix: '+',
               symbol: symbol,
+              onTap: onIncomeTap,
             ),
           ),
           const SizedBox(width: 14),
@@ -40,6 +45,7 @@ class SummaryRow extends StatelessWidget {
               icon: Icons.north_east_rounded,
               prefix: '-',
               symbol: symbol,
+              onTap: onExpenseTap,
             ),
           ),
         ],
@@ -55,6 +61,7 @@ class SummaryCard extends StatelessWidget {
   final IconData icon;
   final String prefix;
   final String symbol;
+  final VoidCallback? onTap;
 
   const SummaryCard({
     super.key,
@@ -64,6 +71,7 @@ class SummaryCard extends StatelessWidget {
     required this.icon,
     required this.prefix,
     required this.symbol,
+    this.onTap,
   });
 
   @override
@@ -80,48 +88,55 @@ class SummaryCard extends StatelessWidget {
           ),
         ],
       ),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
+      clipBehavior: Clip.antiAlias,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Container(
-                  width: 30,
-                  height: 30,
-                  decoration: BoxDecoration(
-                    color: color.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(9),
-                  ),
-                  child: Icon(icon, size: 16, color: color),
+                Row(
+                  children: [
+                    Container(
+                      width: 30,
+                      height: 30,
+                      decoration: BoxDecoration(
+                        color: color.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(9),
+                      ),
+                      child: Icon(icon, size: 16, color: color),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      label,
+                      style: GoogleFonts.inter(
+                        fontSize: 12.5,
+                        color: AppColors.textSecondary,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(width: 8),
-                Text(
-                  label,
-                  style: GoogleFonts.inter(
-                    fontSize: 12.5,
-                    color: AppColors.textSecondary,
-                    fontWeight: FontWeight.w500,
+                const SizedBox(height: 12),
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    '$prefix$symbol${amount.toStringAsFixed(2)}',
+                    style: GoogleFonts.inter(
+                      fontSize: 17,
+                      fontWeight: FontWeight.w800,
+                      color: color,
+                      letterSpacing: -0.5,
+                    ),
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 12),
-            FittedBox(
-              fit: BoxFit.scaleDown,
-              alignment: Alignment.centerLeft,
-              child: Text(
-                '$prefix$symbol${amount.toStringAsFixed(2)}',
-                style: GoogleFonts.inter(
-                  fontSize: 17,
-                  fontWeight: FontWeight.w800,
-                  color: color,
-                  letterSpacing: -0.5,
-                ),
-              ),
-            ),
-          ],
+          ),
         ),
       ),
     );

@@ -43,9 +43,8 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
   void _replayOnboarding() {
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (ctx) => OnboardingView(
-          onComplete: () => Navigator.of(ctx).pop(),
-        ),
+        builder: (ctx) =>
+            OnboardingView(onComplete: () => Navigator.of(ctx).pop()),
       ),
     );
   }
@@ -75,16 +74,17 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
     );
   }
 
-
   /// Wraps each card with a staggered entrance animation while leaving the
   /// [SizedBox] spacers static. The cascade replays each time the Settings tab
   /// becomes active.
   List<Widget> _staggerCards(List<Widget> children, int tabIndex) {
     var i = 0;
     return children
-        .map((w) => w is SizedBox
-            ? w
-            : AnimatedSection(index: i++, tabIndex: tabIndex, child: w))
+        .map(
+          (w) => w is SizedBox
+              ? w
+              : AnimatedSection(index: i++, tabIndex: tabIndex, child: w),
+        )
         .toList();
   }
 
@@ -116,6 +116,39 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
                       const Expanded(
                         child: Text(
                           'Manage cash, bank, card & UPI accounts and transfers',
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: AppColors.textSecondary,
+                            height: 1.4,
+                          ),
+                        ),
+                      ),
+                      const Icon(
+                        Icons.chevron_right_rounded,
+                        size: 20,
+                        color: AppColors.textSecondary,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            _SectionCard(
+              icon: Icons.repeat_rounded,
+              title: 'Recurring Transactions',
+              child: InkWell(
+                borderRadius: BorderRadius.circular(12),
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const RecurringView()),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 4),
+                  child: Row(
+                    children: [
+                      const Expanded(
+                        child: Text(
+                          'Auto-add rent, subscriptions & salary on a schedule',
                           style: TextStyle(
                             fontSize: 13,
                             color: AppColors.textSecondary,
@@ -168,46 +201,13 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
             ),
             const SizedBox(height: 12),
             _SectionCard(
-              icon: Icons.repeat_rounded,
-              title: 'Recurring Transactions',
-              child: InkWell(
-                borderRadius: BorderRadius.circular(12),
-                onTap: () => Navigator.of(
-                  context,
-                ).push(MaterialPageRoute(builder: (_) => const RecurringView())),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 4),
-                  child: Row(
-                    children: [
-                      const Expanded(
-                        child: Text(
-                          'Auto-add rent, subscriptions & salary on a schedule',
-                          style: TextStyle(
-                            fontSize: 13,
-                            color: AppColors.textSecondary,
-                            height: 1.4,
-                          ),
-                        ),
-                      ),
-                      const Icon(
-                        Icons.chevron_right_rounded,
-                        size: 20,
-                        color: AppColors.textSecondary,
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(height: 12),
-            _SectionCard(
               icon: Icons.trending_up_rounded,
               title: 'Investments',
               child: InkWell(
                 borderRadius: BorderRadius.circular(12),
-                onTap: () => Navigator.of(
-                  context,
-                ).push(MaterialPageRoute(builder: (_) => const InvestmentsView())),
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const InvestmentsView()),
+                ),
                 child: Padding(
                   padding: const EdgeInsets.symmetric(vertical: 4),
                   child: Row(
@@ -271,9 +271,9 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
               title: 'Subscriptions',
               child: InkWell(
                 borderRadius: BorderRadius.circular(12),
-                onTap: () => Navigator.of(
-                  context,
-                ).push(MaterialPageRoute(builder: (_) => const SubscriptionsView())),
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const SubscriptionsView()),
+                ),
                 child: Padding(
                   padding: const EdgeInsets.symmetric(vertical: 4),
                   child: Row(
@@ -337,9 +337,9 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
               title: 'Cash Flow Forecast',
               child: InkWell(
                 borderRadius: BorderRadius.circular(12),
-                onTap: () => Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => const ForecastView()),
-                ),
+                onTap: () => Navigator.of(
+                  context,
+                ).push(MaterialPageRoute(builder: (_) => const ForecastView())),
                 child: Padding(
                   padding: const EdgeInsets.symmetric(vertical: 4),
                   child: Row(
@@ -370,9 +370,9 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
               title: 'Net Worth Overview',
               child: InkWell(
                 borderRadius: BorderRadius.circular(12),
-                onTap: () => Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => const NetWorthView()),
-                ),
+                onTap: () => Navigator.of(
+                  context,
+                ).push(MaterialPageRoute(builder: (_) => const NetWorthView())),
                 child: const Padding(
                   padding: EdgeInsets.symmetric(vertical: 4),
                   child: Row(
@@ -442,9 +442,11 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
               title: 'Notifications & Battery',
               child: InkWell(
                 borderRadius: BorderRadius.circular(12),
-                onTap: () => Navigator.of(
-                  context,
-                ).push(MaterialPageRoute(builder: (_) => const NotificationSettingsView())),
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => const NotificationSettingsView(),
+                  ),
+                ),
                 child: Padding(
                   padding: const EdgeInsets.symmetric(vertical: 4),
                   child: Row(
@@ -476,7 +478,9 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
               child: InkWell(
                 borderRadius: BorderRadius.circular(12),
                 onTap: () => launchUrl(
-                  Uri.parse('https://stibinottathai.github.io/smart-wallet-privacy-policy/'),
+                  Uri.parse(
+                    'https://stibinottathai.github.io/smart-wallet-privacy-policy/',
+                  ),
                   mode: LaunchMode.externalApplication,
                 ),
                 child: Padding(
@@ -830,8 +834,10 @@ class _BackgroundDeliverySectionState
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
-        content: Text('If a system screen opened, allow the app to run '
-            'unrestricted, then return here.'),
+        content: Text(
+          'If a system screen opened, allow the app to run '
+          'unrestricted, then return here.',
+        ),
       ),
     );
   }
@@ -994,7 +1000,10 @@ class _AiSettingsSectionState extends ConsumerState<_AiSettingsSection> {
                 style: TextStyle(fontSize: 14),
               ),
               SizedBox(height: 16),
-              Text('1. OpenRouter (Recommended - Free models available)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+              Text(
+                '1. OpenRouter (Recommended - Free models available)',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+              ),
               Text(
                 '• Go to openrouter.ai and sign up.\n'
                 '• Navigate to "Keys" and click "Create Key".\n'
@@ -1002,14 +1011,20 @@ class _AiSettingsSectionState extends ConsumerState<_AiSettingsSection> {
                 style: TextStyle(fontSize: 13, height: 1.5),
               ),
               SizedBox(height: 16),
-              Text('2. Anthropic', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+              Text(
+                '2. Anthropic',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+              ),
               Text(
                 '• Go to console.anthropic.com and sign up.\n'
                 '• Navigate to Settings > API Keys and create a new key.',
                 style: TextStyle(fontSize: 13, height: 1.5),
               ),
               SizedBox(height: 16),
-              Text('3. OpenAI', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+              Text(
+                '3. OpenAI',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+              ),
               Text(
                 '• Go to platform.openai.com and sign up.\n'
                 '• Navigate to API Keys in the dashboard and create a new secret key.',
@@ -1114,8 +1129,12 @@ class _AiSettingsSectionState extends ConsumerState<_AiSettingsSection> {
               onPressed: _editSettings,
               style: OutlinedButton.styleFrom(
                 foregroundColor: AppColors.primary,
-                side: BorderSide(color: AppColors.primary.withValues(alpha: 0.5)),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                side: BorderSide(
+                  color: AppColors.primary.withValues(alpha: 0.5),
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
               ),
               child: const Text('Configure AI Settings'),
             ),
@@ -1155,7 +1174,7 @@ class _AiSettingsDialogState extends ConsumerState<_AiSettingsDialog> {
     super.initState();
     _selectedProvider = ref.read(aiProviderProvider);
     _keyCtrl = TextEditingController(text: ref.read(aiApiKeyProvider));
-    
+
     final currentModel = ref.read(aiModelProvider);
     if (_selectedProvider.commonModels.contains(currentModel)) {
       _selectedModel = currentModel;
@@ -1168,7 +1187,9 @@ class _AiSettingsDialogState extends ConsumerState<_AiSettingsDialog> {
       _selectedModel = 'Other (Custom)';
       _isCustomModel = true;
     }
-    _customModelCtrl = TextEditingController(text: _isCustomModel ? currentModel : '');
+    _customModelCtrl = TextEditingController(
+      text: _isCustomModel ? currentModel : '',
+    );
   }
 
   @override
@@ -1180,23 +1201,30 @@ class _AiSettingsDialogState extends ConsumerState<_AiSettingsDialog> {
 
   void _save() {
     final key = _keyCtrl.text.trim();
-    final model = _isCustomModel ? _customModelCtrl.text.trim() : (_selectedModel ?? '');
-    
+    final model = _isCustomModel
+        ? _customModelCtrl.text.trim()
+        : (_selectedModel ?? '');
+
     ref.read(aiProviderProvider.notifier).state = _selectedProvider;
     ref.read(aiApiKeyProvider.notifier).state = key;
     ref.read(aiModelProvider.notifier).state = model;
-    
+
     saveAiProvider(_selectedProvider);
     saveAiApiKey(key);
     saveAiModel(model);
-    
+
     Navigator.of(context).pop();
   }
 
   @override
   Widget build(BuildContext context) {
-    final availableModels = [..._selectedProvider.commonModels, 'Other (Custom)'];
-    if (!_isCustomModel && _selectedModel != null && !availableModels.contains(_selectedModel)) {
+    final availableModels = [
+      ..._selectedProvider.commonModels,
+      'Other (Custom)',
+    ];
+    if (!_isCustomModel &&
+        _selectedModel != null &&
+        !availableModels.contains(_selectedModel)) {
       _selectedModel = availableModels.first;
     }
 
@@ -1230,7 +1258,9 @@ class _AiSettingsDialogState extends ConsumerState<_AiSettingsDialog> {
                 if (val != null) {
                   setState(() {
                     _selectedProvider = val;
-                    _selectedModel = val.commonModels.isNotEmpty ? val.commonModels.first : 'Other (Custom)';
+                    _selectedModel = val.commonModels.isNotEmpty
+                        ? val.commonModels.first
+                        : 'Other (Custom)';
                     _isCustomModel = _selectedModel == 'Other (Custom)';
                   });
                 }
@@ -1239,7 +1269,9 @@ class _AiSettingsDialogState extends ConsumerState<_AiSettingsDialog> {
             const SizedBox(height: 16),
             DropdownButtonFormField<String>(
               isExpanded: true,
-              initialValue: availableModels.contains(_selectedModel) ? _selectedModel : availableModels.first,
+              initialValue: availableModels.contains(_selectedModel)
+                  ? _selectedModel
+                  : availableModels.first,
               decoration: const InputDecoration(
                 labelText: 'Model',
                 border: OutlineInputBorder(),
@@ -1285,7 +1317,10 @@ class _AiSettingsDialogState extends ConsumerState<_AiSettingsDialog> {
       actions: [
         TextButton(
           onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Cancel', style: TextStyle(color: AppColors.textSecondary)),
+          child: const Text(
+            'Cancel',
+            style: TextStyle(color: AppColors.textSecondary),
+          ),
         ),
         ElevatedButton(
           onPressed: _save,
@@ -1492,19 +1527,22 @@ class _CsvImportExportSectionState
     extends ConsumerState<_CsvImportExportSection> {
   bool _isProcessing = false;
 
-  Future<({
-    List<domain.Income> incomes,
-    List<domain.Expense> expenses,
-    List<domain.Category> categories,
-    List<domain.SavingsGoal> goals,
-    List<domain.Bill> bills,
-    List<domain.RecurringRule> recurringRules,
-    List<domain.Debt> debts,
-    List<domain.Account> accounts,
-    List<domain.Transfer> transfers,
-    List<domain.Investment> investments,
-    List<domain.Category> incomeSources,
-  })> _collectData() async {
+  Future<
+    ({
+      List<domain.Income> incomes,
+      List<domain.Expense> expenses,
+      List<domain.Category> categories,
+      List<domain.SavingsGoal> goals,
+      List<domain.Bill> bills,
+      List<domain.RecurringRule> recurringRules,
+      List<domain.Debt> debts,
+      List<domain.Account> accounts,
+      List<domain.Transfer> transfers,
+      List<domain.Investment> investments,
+      List<domain.Category> incomeSources,
+    })
+  >
+  _collectData() async {
     List<domain.Income> incomes = [];
     List<domain.Expense> expenses = [];
     List<domain.Category> categories = [];
@@ -1522,11 +1560,15 @@ class _CsvImportExportSectionState
       categories = await ref.read(expenseRepositoryProvider).getAllCategories();
       goals = await ref.read(savingsGoalRepositoryProvider).getAllGoals();
       bills = await ref.read(billRepositoryProvider).getAllBills();
-      recurringRules = await ref.read(recurringRuleRepositoryProvider).getAllRules();
+      recurringRules = await ref
+          .read(recurringRuleRepositoryProvider)
+          .getAllRules();
       debts = await ref.read(debtRepositoryProvider).getAllDebts();
       accounts = await ref.read(accountRepositoryProvider).getAllAccounts();
       transfers = await ref.read(transferRepositoryProvider).getAllTransfers();
-      investments = await ref.read(investmentRepositoryProvider).getAllInvestments();
+      investments = await ref
+          .read(investmentRepositoryProvider)
+          .getAllInvestments();
     } catch (_) {
       incomes = ref.read(allIncomesProvider).value ?? [];
       expenses = ref.read(allExpensesProvider).value ?? [];
@@ -1575,10 +1617,13 @@ class _CsvImportExportSectionState
       investments: data.investments,
       incomeSources: data.incomeSources,
     );
-    final imagePaths =
-        data.expenses.map((e) => e.receiptImagePath).whereType<String>();
-    return BackupService()
-        .buildBackupZip(csvContent: csvContent, imagePaths: imagePaths);
+    final imagePaths = data.expenses
+        .map((e) => e.receiptImagePath)
+        .whereType<String>();
+    return BackupService().buildBackupZip(
+      csvContent: csvContent,
+      imagePaths: imagePaths,
+    );
   }
 
   Future<void> _downloadCsv() async {

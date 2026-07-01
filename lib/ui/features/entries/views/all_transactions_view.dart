@@ -17,9 +17,16 @@ import 'package:smart_wallet/ui/features/dashboard/widgets/animated_section.dart
 class AllTransactionsView extends ConsumerStatefulWidget {
   final bool initialShowExpenses;
 
+  /// Bottom-nav tab index whose activation replays this screen's entrance
+  /// animation. Pass null when pushed as a standalone route (e.g. from the
+  /// dashboard) so the content animates in immediately instead of waiting
+  /// for a tab switch that will never happen.
+  final int? animateTabIndex;
+
   const AllTransactionsView({
     super.key,
     this.initialShowExpenses = true,
+    this.animateTabIndex = 1,
   });
 
   @override
@@ -114,7 +121,9 @@ class _AllTransactionsViewState extends ConsumerState<AllTransactionsView> {
             heroTag: 'transactions_fab',
             onPressed: () {
               Navigator.of(context).push(
-                MaterialPageRoute(builder: (context) => const EntryFormView()),
+                MaterialPageRoute(
+                  builder: (context) => EntryFormView(initialIsExpense: _showExpenses),
+                ),
               );
             },
             child: const Icon(Icons.add, size: 26),
@@ -124,8 +133,8 @@ class _AllTransactionsViewState extends ConsumerState<AllTransactionsView> {
       body: SafeArea(
         child: Column(
           children: [
-            AnimatedSection(index: 0, tabIndex: 1, child: _buildTypeToggle()),
-            AnimatedSection(index: 1, tabIndex: 1, child: _buildSearchField()),
+            AnimatedSection(index: 0, tabIndex: widget.animateTabIndex, child: _buildTypeToggle()),
+            AnimatedSection(index: 1, tabIndex: widget.animateTabIndex, child: _buildSearchField()),
             if (_filtersExpanded) _buildFilterPanel(),
             Expanded(
               child: incomesAsync.when(
@@ -655,7 +664,7 @@ class _AllTransactionsViewState extends ConsumerState<AllTransactionsView> {
             );
           }
         }
-        return AnimatedSection(index: 2 + index, tabIndex: 1, child: child);
+        return AnimatedSection(index: 2 + index, tabIndex: widget.animateTabIndex, child: child);
       },
     );
   }
@@ -754,7 +763,7 @@ class _AllTransactionsViewState extends ConsumerState<AllTransactionsView> {
             );
           }
         }
-        return AnimatedSection(index: 2 + index, tabIndex: 1, child: child);
+        return AnimatedSection(index: 2 + index, tabIndex: widget.animateTabIndex, child: child);
       },
     );
   }

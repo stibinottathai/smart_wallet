@@ -2421,6 +2421,17 @@ class $BillsTable extends Bills with TableInfo<$BillsTable, Bill> {
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _accountIdMeta = const VerificationMeta(
+    'accountId',
+  );
+  @override
+  late final GeneratedColumn<String> accountId = GeneratedColumn<String>(
+    'account_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -2430,6 +2441,7 @@ class $BillsTable extends Bills with TableInfo<$BillsTable, Bill> {
     isPaid,
     frequency,
     categoryId,
+    accountId,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -2492,6 +2504,12 @@ class $BillsTable extends Bills with TableInfo<$BillsTable, Bill> {
         categoryId.isAcceptableOrUnknown(data['category_id']!, _categoryIdMeta),
       );
     }
+    if (data.containsKey('account_id')) {
+      context.handle(
+        _accountIdMeta,
+        accountId.isAcceptableOrUnknown(data['account_id']!, _accountIdMeta),
+      );
+    }
     return context;
   }
 
@@ -2529,6 +2547,10 @@ class $BillsTable extends Bills with TableInfo<$BillsTable, Bill> {
         DriftSqlType.string,
         data['${effectivePrefix}category_id'],
       ),
+      accountId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}account_id'],
+      ),
     );
   }
 
@@ -2546,6 +2568,7 @@ class Bill extends DataClass implements Insertable<Bill> {
   final bool isPaid;
   final String frequency;
   final String? categoryId;
+  final String? accountId;
   const Bill({
     required this.id,
     required this.name,
@@ -2554,6 +2577,7 @@ class Bill extends DataClass implements Insertable<Bill> {
     required this.isPaid,
     required this.frequency,
     this.categoryId,
+    this.accountId,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -2566,6 +2590,9 @@ class Bill extends DataClass implements Insertable<Bill> {
     map['frequency'] = Variable<String>(frequency);
     if (!nullToAbsent || categoryId != null) {
       map['category_id'] = Variable<String>(categoryId);
+    }
+    if (!nullToAbsent || accountId != null) {
+      map['account_id'] = Variable<String>(accountId);
     }
     return map;
   }
@@ -2581,6 +2608,9 @@ class Bill extends DataClass implements Insertable<Bill> {
       categoryId: categoryId == null && nullToAbsent
           ? const Value.absent()
           : Value(categoryId),
+      accountId: accountId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(accountId),
     );
   }
 
@@ -2597,6 +2627,7 @@ class Bill extends DataClass implements Insertable<Bill> {
       isPaid: serializer.fromJson<bool>(json['isPaid']),
       frequency: serializer.fromJson<String>(json['frequency']),
       categoryId: serializer.fromJson<String?>(json['categoryId']),
+      accountId: serializer.fromJson<String?>(json['accountId']),
     );
   }
   @override
@@ -2610,6 +2641,7 @@ class Bill extends DataClass implements Insertable<Bill> {
       'isPaid': serializer.toJson<bool>(isPaid),
       'frequency': serializer.toJson<String>(frequency),
       'categoryId': serializer.toJson<String?>(categoryId),
+      'accountId': serializer.toJson<String?>(accountId),
     };
   }
 
@@ -2621,6 +2653,7 @@ class Bill extends DataClass implements Insertable<Bill> {
     bool? isPaid,
     String? frequency,
     Value<String?> categoryId = const Value.absent(),
+    Value<String?> accountId = const Value.absent(),
   }) => Bill(
     id: id ?? this.id,
     name: name ?? this.name,
@@ -2629,6 +2662,7 @@ class Bill extends DataClass implements Insertable<Bill> {
     isPaid: isPaid ?? this.isPaid,
     frequency: frequency ?? this.frequency,
     categoryId: categoryId.present ? categoryId.value : this.categoryId,
+    accountId: accountId.present ? accountId.value : this.accountId,
   );
   Bill copyWithCompanion(BillsCompanion data) {
     return Bill(
@@ -2641,6 +2675,7 @@ class Bill extends DataClass implements Insertable<Bill> {
       categoryId: data.categoryId.present
           ? data.categoryId.value
           : this.categoryId,
+      accountId: data.accountId.present ? data.accountId.value : this.accountId,
     );
   }
 
@@ -2653,14 +2688,23 @@ class Bill extends DataClass implements Insertable<Bill> {
           ..write('dueDate: $dueDate, ')
           ..write('isPaid: $isPaid, ')
           ..write('frequency: $frequency, ')
-          ..write('categoryId: $categoryId')
+          ..write('categoryId: $categoryId, ')
+          ..write('accountId: $accountId')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode =>
-      Object.hash(id, name, amount, dueDate, isPaid, frequency, categoryId);
+  int get hashCode => Object.hash(
+    id,
+    name,
+    amount,
+    dueDate,
+    isPaid,
+    frequency,
+    categoryId,
+    accountId,
+  );
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -2671,7 +2715,8 @@ class Bill extends DataClass implements Insertable<Bill> {
           other.dueDate == this.dueDate &&
           other.isPaid == this.isPaid &&
           other.frequency == this.frequency &&
-          other.categoryId == this.categoryId);
+          other.categoryId == this.categoryId &&
+          other.accountId == this.accountId);
 }
 
 class BillsCompanion extends UpdateCompanion<Bill> {
@@ -2682,6 +2727,7 @@ class BillsCompanion extends UpdateCompanion<Bill> {
   final Value<bool> isPaid;
   final Value<String> frequency;
   final Value<String?> categoryId;
+  final Value<String?> accountId;
   final Value<int> rowid;
   const BillsCompanion({
     this.id = const Value.absent(),
@@ -2691,6 +2737,7 @@ class BillsCompanion extends UpdateCompanion<Bill> {
     this.isPaid = const Value.absent(),
     this.frequency = const Value.absent(),
     this.categoryId = const Value.absent(),
+    this.accountId = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   BillsCompanion.insert({
@@ -2701,6 +2748,7 @@ class BillsCompanion extends UpdateCompanion<Bill> {
     this.isPaid = const Value.absent(),
     required String frequency,
     this.categoryId = const Value.absent(),
+    this.accountId = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        name = Value(name),
@@ -2715,6 +2763,7 @@ class BillsCompanion extends UpdateCompanion<Bill> {
     Expression<bool>? isPaid,
     Expression<String>? frequency,
     Expression<String>? categoryId,
+    Expression<String>? accountId,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -2725,6 +2774,7 @@ class BillsCompanion extends UpdateCompanion<Bill> {
       if (isPaid != null) 'is_paid': isPaid,
       if (frequency != null) 'frequency': frequency,
       if (categoryId != null) 'category_id': categoryId,
+      if (accountId != null) 'account_id': accountId,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -2737,6 +2787,7 @@ class BillsCompanion extends UpdateCompanion<Bill> {
     Value<bool>? isPaid,
     Value<String>? frequency,
     Value<String?>? categoryId,
+    Value<String?>? accountId,
     Value<int>? rowid,
   }) {
     return BillsCompanion(
@@ -2747,6 +2798,7 @@ class BillsCompanion extends UpdateCompanion<Bill> {
       isPaid: isPaid ?? this.isPaid,
       frequency: frequency ?? this.frequency,
       categoryId: categoryId ?? this.categoryId,
+      accountId: accountId ?? this.accountId,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -2775,6 +2827,9 @@ class BillsCompanion extends UpdateCompanion<Bill> {
     if (categoryId.present) {
       map['category_id'] = Variable<String>(categoryId.value);
     }
+    if (accountId.present) {
+      map['account_id'] = Variable<String>(accountId.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -2791,6 +2846,7 @@ class BillsCompanion extends UpdateCompanion<Bill> {
           ..write('isPaid: $isPaid, ')
           ..write('frequency: $frequency, ')
           ..write('categoryId: $categoryId, ')
+          ..write('accountId: $accountId, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -8181,6 +8237,7 @@ typedef $$BillsTableCreateCompanionBuilder =
       Value<bool> isPaid,
       required String frequency,
       Value<String?> categoryId,
+      Value<String?> accountId,
       Value<int> rowid,
     });
 typedef $$BillsTableUpdateCompanionBuilder =
@@ -8192,6 +8249,7 @@ typedef $$BillsTableUpdateCompanionBuilder =
       Value<bool> isPaid,
       Value<String> frequency,
       Value<String?> categoryId,
+      Value<String?> accountId,
       Value<int> rowid,
     });
 
@@ -8235,6 +8293,11 @@ class $$BillsTableFilterComposer extends Composer<_$AppDatabase, $BillsTable> {
 
   ColumnFilters<String> get categoryId => $composableBuilder(
     column: $table.categoryId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get accountId => $composableBuilder(
+    column: $table.accountId,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -8282,6 +8345,11 @@ class $$BillsTableOrderingComposer
     column: $table.categoryId,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<String> get accountId => $composableBuilder(
+    column: $table.accountId,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$BillsTableAnnotationComposer
@@ -8315,6 +8383,9 @@ class $$BillsTableAnnotationComposer
     column: $table.categoryId,
     builder: (column) => column,
   );
+
+  GeneratedColumn<String> get accountId =>
+      $composableBuilder(column: $table.accountId, builder: (column) => column);
 }
 
 class $$BillsTableTableManager
@@ -8352,6 +8423,7 @@ class $$BillsTableTableManager
                 Value<bool> isPaid = const Value.absent(),
                 Value<String> frequency = const Value.absent(),
                 Value<String?> categoryId = const Value.absent(),
+                Value<String?> accountId = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => BillsCompanion(
                 id: id,
@@ -8361,6 +8433,7 @@ class $$BillsTableTableManager
                 isPaid: isPaid,
                 frequency: frequency,
                 categoryId: categoryId,
+                accountId: accountId,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -8372,6 +8445,7 @@ class $$BillsTableTableManager
                 Value<bool> isPaid = const Value.absent(),
                 required String frequency,
                 Value<String?> categoryId = const Value.absent(),
+                Value<String?> accountId = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => BillsCompanion.insert(
                 id: id,
@@ -8381,6 +8455,7 @@ class $$BillsTableTableManager
                 isPaid: isPaid,
                 frequency: frequency,
                 categoryId: categoryId,
+                accountId: accountId,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0

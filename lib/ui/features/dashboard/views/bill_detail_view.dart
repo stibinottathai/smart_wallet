@@ -37,9 +37,9 @@ class BillDetailView extends ConsumerWidget {
     final bill = bills == null
         ? initialBill
         : bills.cast<domain.Bill?>().firstWhere(
-              (b) => b?.id == initialBill.id,
-              orElse: () => null,
-            );
+            (b) => b?.id == initialBill.id,
+            orElse: () => null,
+          );
     if (bill == null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (Navigator.of(context).canPop()) Navigator.of(context).pop();
@@ -53,11 +53,19 @@ class BillDetailView extends ConsumerWidget {
     final symbol = currencySymbol(ref.watch(currencyCodeProvider));
     final categories = ref.watch(allCategoriesProvider).value ?? const [];
     final category = categories.cast<domain.Category?>().firstWhere(
-          (c) => c?.id == bill.categoryId,
-          orElse: () => null,
-        );
-    final catColor = Color(int.parse((category?.color ?? '#9E9E9E').replaceAll('#', '0xFF')));
-    final isOverdue = bill.dueDate.isBefore(DateTime.now()) &&
+      (c) => c?.id == bill.categoryId,
+      orElse: () => null,
+    );
+    final accounts = ref.watch(allAccountsProvider).value ?? const [];
+    final account = accounts.cast<domain.Account?>().firstWhere(
+      (a) => a?.id == bill.accountId,
+      orElse: () => null,
+    );
+    final catColor = Color(
+      int.parse((category?.color ?? '#9E9E9E').replaceAll('#', '0xFF')),
+    );
+    final isOverdue =
+        bill.dueDate.isBefore(DateTime.now()) &&
         !DateUtils.isSameDay(bill.dueDate, DateTime.now()) &&
         !bill.isPaid;
 
@@ -79,9 +87,9 @@ class BillDetailView extends ConsumerWidget {
       await ref.read(billRepositoryProvider).deleteBill(bill.id);
       if (context.mounted) {
         Navigator.of(context).pop();
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Bill deleted.')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Bill deleted.')));
       }
     }
 
@@ -92,7 +100,11 @@ class BillDetailView extends ConsumerWidget {
         elevation: 0,
         title: const Text(
           'Bill Details',
-          style: TextStyle(color: AppColors.text, fontSize: 17, fontWeight: FontWeight.w600),
+          style: TextStyle(
+            color: AppColors.text,
+            fontSize: 17,
+            fontWeight: FontWeight.w600,
+          ),
         ),
         actions: [
           IconButton(
@@ -102,7 +114,10 @@ class BillDetailView extends ConsumerWidget {
           ),
           IconButton(
             tooltip: 'Delete',
-            icon: const Icon(Icons.delete_outline_rounded, color: AppColors.secondary),
+            icon: const Icon(
+              Icons.delete_outline_rounded,
+              color: AppColors.secondary,
+            ),
             onPressed: onDelete,
           ),
         ],
@@ -118,7 +133,9 @@ class BillDetailView extends ConsumerWidget {
               decoration: BoxDecoration(
                 color: AppColors.card,
                 borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: AppColors.divider.withValues(alpha: 0.5)),
+                border: Border.all(
+                  color: AppColors.divider.withValues(alpha: 0.5),
+                ),
               ),
               child: Column(
                 children: [
@@ -129,23 +146,39 @@ class BillDetailView extends ConsumerWidget {
                       color: catColor.withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(18),
                     ),
-                    child: Icon(getCategoryIcon(category?.icon), color: catColor, size: 32),
+                    child: Icon(
+                      getCategoryIcon(category?.icon),
+                      color: catColor,
+                      size: 32,
+                    ),
                   ),
                   const SizedBox(height: 14),
                   Text(
                     bill.name,
                     textAlign: TextAlign.center,
-                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: AppColors.text),
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.text,
+                    ),
                   ),
                   const SizedBox(height: 6),
                   Text(
                     '$symbol${bill.amount.toStringAsFixed(2)}',
-                    style: GoogleFonts.fraunces(fontSize: 32, fontWeight: FontWeight.w700, color: AppColors.text),
+                    style: GoogleFonts.fraunces(
+                      fontSize: 32,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.text,
+                    ),
                   ),
                   const SizedBox(height: 4),
                   Text(
                     bill.frequency.displayName,
-                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: AppColors.textSecondary),
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                      color: AppColors.textSecondary,
+                    ),
                   ),
                 ],
               ),
@@ -155,7 +188,9 @@ class BillDetailView extends ConsumerWidget {
               decoration: BoxDecoration(
                 color: AppColors.card,
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: AppColors.divider.withValues(alpha: 0.5)),
+                border: Border.all(
+                  color: AppColors.divider.withValues(alpha: 0.5),
+                ),
               ),
               child: Column(
                 children: [
@@ -185,32 +220,13 @@ class BillDetailView extends ConsumerWidget {
                     label: 'Category',
                     value: category?.name ?? 'Uncategorized',
                   ),
+                  _divider(),
+                  _DetailRow(
+                    icon: Icons.account_balance_wallet_rounded,
+                    label: 'Account',
+                    value: account?.name ?? 'Default account',
+                  ),
                 ],
-              ),
-            ),
-            const SizedBox(height: 24),
-            ElevatedButton.icon(
-              onPressed: onEdit,
-              icon: const Icon(Icons.edit_rounded, size: 18),
-              label: const Text('Edit Bill', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primary,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                elevation: 0,
-              ),
-            ),
-            const SizedBox(height: 10),
-            OutlinedButton.icon(
-              onPressed: onDelete,
-              icon: const Icon(Icons.delete_outline_rounded, size: 18),
-              label: const Text('Delete Bill', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: AppColors.secondary,
-                side: BorderSide(color: AppColors.secondary.withValues(alpha: 0.5)),
-                padding: const EdgeInsets.symmetric(vertical: 14),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               ),
             ),
           ],
@@ -219,7 +235,8 @@ class BillDetailView extends ConsumerWidget {
     );
   }
 
-  Widget _divider() => Divider(height: 1, color: AppColors.divider.withValues(alpha: 0.5));
+  Widget _divider() =>
+      Divider(height: 1, color: AppColors.divider.withValues(alpha: 0.5));
 }
 
 class _DetailRow extends StatelessWidget {
@@ -243,7 +260,13 @@ class _DetailRow extends StatelessWidget {
         children: [
           Icon(icon, size: 18, color: AppColors.textSecondary),
           const SizedBox(width: 14),
-          Text(label, style: const TextStyle(fontSize: 13, color: AppColors.textSecondary)),
+          Text(
+            label,
+            style: const TextStyle(
+              fontSize: 13,
+              color: AppColors.textSecondary,
+            ),
+          ),
           const Spacer(),
           Flexible(
             child: Text(

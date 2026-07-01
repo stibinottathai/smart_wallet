@@ -22,10 +22,16 @@ class EntryFormView extends ConsumerStatefulWidget {
   final domain.Income? initialIncome;
   final domain.Expense? initialExpense;
 
+  /// Which toggle (Expense/Income) the form opens on when creating a brand
+  /// new entry. Ignored when [initialIncome] or [initialExpense] is set, since
+  /// editing an existing entry always determines its own type.
+  final bool initialIsExpense;
+
   const EntryFormView({
     super.key,
     this.initialIncome,
     this.initialExpense,
+    this.initialIsExpense = true,
   });
 
   @override
@@ -35,7 +41,7 @@ class EntryFormView extends ConsumerStatefulWidget {
 class _EntryFormViewState extends ConsumerState<EntryFormView> {
   final _formKey = GlobalKey<FormState>();
 
-  bool _isExpense = true;
+  late bool _isExpense;
   final _amountController = TextEditingController();
   DateTime _selectedDate = DateTime.now();
 
@@ -63,6 +69,7 @@ class _EntryFormViewState extends ConsumerState<EntryFormView> {
   @override
   void initState() {
     super.initState();
+    _isExpense = widget.initialIsExpense;
     _currencyCode = ref.read(currencyCodeProvider);
     final managedSources = ref.read(incomeSourcesProvider);
     _selectedSource = managedSources.isNotEmpty ? managedSources.first.name : 'Salary';

@@ -9,7 +9,8 @@ class CsvExportService {
   String _q(String? value) => '"${(value ?? '').replaceAll('"', '""')}"';
 
   /// Formats a nullable date as an ISO date (yyyy-MM-dd), or '' when null.
-  String _date(DateTime? d) => d == null ? '' : d.toIso8601String().substring(0, 10);
+  String _date(DateTime? d) =>
+      d == null ? '' : d.toIso8601String().substring(0, 10);
 
   /// Formats a nullable number, or '' when null.
   String _num(num? v) => v == null ? '' : '$v';
@@ -46,7 +47,8 @@ class CsvExportService {
     for (final cat in categories) {
       final budget = cat.budgetLimit != null ? '${cat.budgetLimit}' : '';
       buffer.writeln(
-          '${cat.id},${_q(cat.name)},${cat.icon},${cat.color},$budget,${cat.rolloverEnabled ? "Yes" : "No"}');
+        '${cat.id},${_q(cat.name)},${cat.icon},${cat.color},$budget,${cat.rolloverEnabled ? "Yes" : "No"}',
+      );
     }
 
     buffer.writeln();
@@ -58,7 +60,8 @@ class CsvExportService {
     buffer.writeln('ID,Name,Type,Color,OpeningBalance,Archived,SortOrder');
     for (final acc in accounts) {
       buffer.writeln(
-          '${acc.id},${_q(acc.name)},${acc.type.name},${acc.color},${acc.openingBalance},${acc.archived ? "Yes" : "No"},${acc.sortOrder}');
+        '${acc.id},${_q(acc.name)},${acc.type.name},${acc.color},${acc.openingBalance},${acc.archived ? "Yes" : "No"},${acc.sortOrder}',
+      );
     }
 
     buffer.writeln();
@@ -67,9 +70,13 @@ class CsvExportService {
     // Export Incomes. AccountId + original-currency columns are appended after
     // the legacy columns so older exports remain importable.
     buffer.writeln('--- INCOMES ---');
-    buffer.writeln('ID,Date,Source,Amount,Recurring,Frequency,AccountId,OriginalCurrency,OriginalAmount');
+    buffer.writeln(
+      'ID,Date,Source,Amount,Recurring,Frequency,AccountId,OriginalCurrency,OriginalAmount',
+    );
     for (final inc in incomes) {
-      buffer.writeln('${inc.id},${inc.date.toIso8601String().substring(0, 10)},${_q(inc.source)},${inc.amount},${inc.isRecurring ? "Yes" : "No"},${inc.frequency.displayName},${_q(inc.accountId)},${_q(inc.originalCurrency)},${_num(inc.originalAmount)}');
+      buffer.writeln(
+        '${inc.id},${inc.date.toIso8601String().substring(0, 10)},${_q(inc.source)},${inc.amount},${inc.isRecurring ? "Yes" : "No"},${inc.frequency.displayName},${_q(inc.accountId)},${_q(inc.originalCurrency)},${_num(inc.originalAmount)}',
+      );
     }
 
     buffer.writeln();
@@ -79,10 +86,14 @@ class CsvExportService {
     // confidence) and original-currency columns are appended so scanned
     // expenses keep their classification and older exports still import.
     buffer.writeln('--- EXPENSES ---');
-    buffer.writeln('ID,Date,Category,Amount,Note,Source,AccountId,ReceiptImagePath,AiConfidence,OriginalCurrency,OriginalAmount');
+    buffer.writeln(
+      'ID,Date,Category,Amount,Note,Source,AccountId,ReceiptImagePath,AiConfidence,OriginalCurrency,OriginalAmount',
+    );
     for (final exp in expenses) {
       final catName = categoryMap[exp.categoryId] ?? 'Uncategorized';
-      buffer.writeln('${exp.id},${exp.date.toIso8601String().substring(0, 10)},${_q(catName)},${exp.amount},${_q(exp.note)},${exp.source.name},${_q(exp.accountId)},${_q(_basename(exp.receiptImagePath))},${_num(exp.aiConfidence)},${_q(exp.originalCurrency)},${_num(exp.originalAmount)}');
+      buffer.writeln(
+        '${exp.id},${exp.date.toIso8601String().substring(0, 10)},${_q(catName)},${exp.amount},${_q(exp.note)},${exp.source.name},${_q(exp.accountId)},${_q(_basename(exp.receiptImagePath))},${_num(exp.aiConfidence)},${_q(exp.originalCurrency)},${_num(exp.originalAmount)}',
+      );
     }
 
     buffer.writeln();
@@ -93,7 +104,8 @@ class CsvExportService {
     buffer.writeln('ID,Name,TargetAmount,CurrentAmount,TargetDate,Color');
     for (final goal in goals) {
       buffer.writeln(
-          '${goal.id},"${goal.name}",${goal.targetAmount},${goal.currentAmount},${goal.targetDate.toIso8601String().substring(0, 10)},${goal.color}');
+        '${goal.id},"${goal.name}",${goal.targetAmount},${goal.currentAmount},${goal.targetDate.toIso8601String().substring(0, 10)},${goal.color}',
+      );
     }
 
     buffer.writeln();
@@ -101,13 +113,16 @@ class CsvExportService {
 
     // Export Upcoming Bills & Subscriptions
     buffer.writeln('--- BILLS ---');
-    buffer.writeln('ID,Name,Amount,DueDate,IsPaid,Frequency,Category');
+    buffer.writeln(
+      'ID,Name,Amount,DueDate,IsPaid,Frequency,Category,AccountId',
+    );
     for (final bill in bills) {
       final catName = bill.categoryId != null
           ? (categoryMap[bill.categoryId] ?? '')
           : '';
       buffer.writeln(
-          '${bill.id},"${bill.name}",${bill.amount},${bill.dueDate.toIso8601String().substring(0, 10)},${bill.isPaid ? "Yes" : "No"},${bill.frequency.displayName},"$catName"');
+        '${bill.id},"${bill.name}",${bill.amount},${bill.dueDate.toIso8601String().substring(0, 10)},${bill.isPaid ? "Yes" : "No"},${bill.frequency.displayName},"$catName",${_q(bill.accountId)}',
+      );
     }
 
     buffer.writeln();
@@ -118,10 +133,12 @@ class CsvExportService {
     // ids preserved) and the default accounts keep stable ids across reinstall.
     buffer.writeln('--- RECURRING RULES ---');
     buffer.writeln(
-        'ID,Type,Title,Amount,CategoryId,Source,AccountId,Note,Frequency,IntervalCount,NextDueDate,EndDate,LastPostedDate,IsActive');
+      'ID,Type,Title,Amount,CategoryId,Source,AccountId,Note,Frequency,IntervalCount,NextDueDate,EndDate,LastPostedDate,IsActive',
+    );
     for (final r in recurringRules) {
       buffer.writeln(
-          '${r.id},${r.type.name},${_q(r.title)},${r.amount},${_q(r.categoryId)},${_q(r.source)},${_q(r.accountId)},${_q(r.note)},${r.frequency.name},${r.intervalCount},${_date(r.nextDueDate)},${_date(r.endDate)},${_date(r.lastPostedDate)},${r.isActive ? "Yes" : "No"}');
+        '${r.id},${r.type.name},${_q(r.title)},${r.amount},${_q(r.categoryId)},${_q(r.source)},${_q(r.accountId)},${_q(r.note)},${r.frequency.name},${r.intervalCount},${_date(r.nextDueDate)},${_date(r.endDate)},${_date(r.lastPostedDate)},${r.isActive ? "Yes" : "No"}',
+      );
     }
 
     buffer.writeln();
@@ -130,10 +147,12 @@ class CsvExportService {
     // Export Debts & Loans (money borrowed or lent, with repayment progress).
     buffer.writeln('--- DEBTS ---');
     buffer.writeln(
-        'ID,Name,Type,Counterparty,PrincipalAmount,PaidAmount,InterestRate,EmiAmount,StartDate,DueDate,Color,IsClosed,Note');
+      'ID,Name,Type,Counterparty,PrincipalAmount,PaidAmount,InterestRate,EmiAmount,StartDate,DueDate,Color,IsClosed,Note',
+    );
     for (final d in debts) {
       buffer.writeln(
-          '${d.id},${_q(d.name)},${d.type.name},${_q(d.counterparty)},${d.principalAmount},${d.paidAmount},${_num(d.interestRate)},${_num(d.emiAmount)},${_date(d.startDate)},${_date(d.dueDate)},${d.color},${d.isClosed ? "Yes" : "No"},${_q(d.note)}');
+        '${d.id},${_q(d.name)},${d.type.name},${_q(d.counterparty)},${d.principalAmount},${d.paidAmount},${_num(d.interestRate)},${_num(d.emiAmount)},${_date(d.startDate)},${_date(d.dueDate)},${d.color},${d.isClosed ? "Yes" : "No"},${_q(d.note)}',
+      );
     }
 
     buffer.writeln();
@@ -145,7 +164,8 @@ class CsvExportService {
     buffer.writeln('ID,FromAccountId,ToAccountId,Amount,Date,Note');
     for (final t in transfers) {
       buffer.writeln(
-          '${t.id},${t.fromAccountId},${t.toAccountId},${t.amount},${_date(t.date)},${_q(t.note)}');
+        '${t.id},${t.fromAccountId},${t.toAccountId},${t.amount},${_date(t.date)},${_q(t.note)}',
+      );
     }
 
     buffer.writeln();
@@ -154,10 +174,12 @@ class CsvExportService {
     // Export Investments (holdings tracked by cost basis vs current value).
     buffer.writeln('--- INVESTMENTS ---');
     buffer.writeln(
-        'ID,Name,Type,InvestedAmount,CurrentValue,Units,PurchaseDate,LastValueUpdate,Platform,AccountId,Color,IsClosed,Note');
+      'ID,Name,Type,InvestedAmount,CurrentValue,Units,PurchaseDate,LastValueUpdate,Platform,AccountId,Color,IsClosed,Note',
+    );
     for (final inv in investments) {
       buffer.writeln(
-          '${inv.id},${_q(inv.name)},${inv.type.name},${inv.investedAmount},${inv.currentValue},${_num(inv.units)},${_date(inv.purchaseDate)},${_date(inv.lastValueUpdate)},${_q(inv.platform)},${_q(inv.accountId)},${inv.color},${inv.isClosed ? "Yes" : "No"},${_q(inv.note)}');
+        '${inv.id},${_q(inv.name)},${inv.type.name},${inv.investedAmount},${inv.currentValue},${_num(inv.units)},${_date(inv.purchaseDate)},${_date(inv.lastValueUpdate)},${_q(inv.platform)},${_q(inv.accountId)},${inv.color},${inv.isClosed ? "Yes" : "No"},${_q(inv.note)}',
+      );
     }
 
     buffer.writeln();
@@ -207,10 +229,7 @@ class CsvExportService {
     await file.writeAsString(csvContent);
 
     await SharePlus.instance.share(
-      ShareParams(
-        files: [XFile(file.path)],
-        text: 'Smart Wallet Data Export',
-      ),
+      ShareParams(files: [XFile(file.path)], text: 'Smart Wallet Data Export'),
     );
   }
 }

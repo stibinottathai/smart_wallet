@@ -133,8 +133,12 @@ class Income {
       isRecurring: isRecurring ?? this.isRecurring,
       frequency: frequency ?? this.frequency,
       accountId: accountId ?? this.accountId,
-      originalCurrency: clearOriginalCurrency ? null : (originalCurrency ?? this.originalCurrency),
-      originalAmount: clearOriginalCurrency ? null : (originalAmount ?? this.originalAmount),
+      originalCurrency: clearOriginalCurrency
+          ? null
+          : (originalCurrency ?? this.originalCurrency),
+      originalAmount: clearOriginalCurrency
+          ? null
+          : (originalAmount ?? this.originalAmount),
       isSynced: isSynced ?? this.isSynced,
       remoteId: remoteId ?? this.remoteId,
     );
@@ -201,8 +205,12 @@ class Expense {
       source: source ?? this.source,
       aiConfidence: aiConfidence ?? this.aiConfidence,
       accountId: accountId ?? this.accountId,
-      originalCurrency: clearOriginalCurrency ? null : (originalCurrency ?? this.originalCurrency),
-      originalAmount: clearOriginalCurrency ? null : (originalAmount ?? this.originalAmount),
+      originalCurrency: clearOriginalCurrency
+          ? null
+          : (originalCurrency ?? this.originalCurrency),
+      originalAmount: clearOriginalCurrency
+          ? null
+          : (originalAmount ?? this.originalAmount),
       isSynced: isSynced ?? this.isSynced,
       remoteId: remoteId ?? this.remoteId,
     );
@@ -344,8 +352,9 @@ class Debt {
   }
 
   /// Repayment progress 0..1.
-  double get progress =>
-      principalAmount > 0 ? (paidAmount / principalAmount).clamp(0.0, 1.0) : 0.0;
+  double get progress => principalAmount > 0
+      ? (paidAmount / principalAmount).clamp(0.0, 1.0)
+      : 0.0;
 
   bool get isSettled => isClosed || paidAmount >= principalAmount;
 
@@ -373,10 +382,14 @@ class Debt {
       id: id ?? this.id,
       name: name ?? this.name,
       type: type ?? this.type,
-      counterparty: clearCounterparty ? null : (counterparty ?? this.counterparty),
+      counterparty: clearCounterparty
+          ? null
+          : (counterparty ?? this.counterparty),
       principalAmount: principalAmount ?? this.principalAmount,
       paidAmount: paidAmount ?? this.paidAmount,
-      interestRate: clearInterestRate ? null : (interestRate ?? this.interestRate),
+      interestRate: clearInterestRate
+          ? null
+          : (interestRate ?? this.interestRate),
       emiAmount: clearEmiAmount ? null : (emiAmount ?? this.emiAmount),
       startDate: startDate ?? this.startDate,
       dueDate: clearDueDate ? null : (dueDate ?? this.dueDate),
@@ -614,6 +627,7 @@ class Bill {
   final bool isPaid;
   final BillFrequency frequency;
   final String? categoryId;
+  final String? accountId;
 
   const Bill({
     required this.id,
@@ -623,6 +637,7 @@ class Bill {
     required this.isPaid,
     required this.frequency,
     this.categoryId,
+    this.accountId,
   });
 
   Bill copyWith({
@@ -633,6 +648,7 @@ class Bill {
     bool? isPaid,
     BillFrequency? frequency,
     String? categoryId,
+    String? accountId,
   }) {
     return Bill(
       id: id ?? this.id,
@@ -642,6 +658,7 @@ class Bill {
       isPaid: isPaid ?? this.isPaid,
       frequency: frequency ?? this.frequency,
       categoryId: categoryId ?? this.categoryId,
+      accountId: accountId ?? this.accountId,
     );
   }
 }
@@ -739,8 +756,9 @@ class Investment {
   double get gainLoss => currentValue - investedAmount;
 
   /// Return as a fraction (0.12 = +12%). Returns 0 when [investedAmount] is 0.
-  double get returnRatio =>
-      investedAmount > 0 ? (currentValue - investedAmount) / investedAmount : 0.0;
+  double get returnRatio => investedAmount > 0
+      ? (currentValue - investedAmount) / investedAmount
+      : 0.0;
 
   Investment copyWith({
     String? id,
@@ -770,7 +788,9 @@ class Investment {
       currentValue: currentValue ?? this.currentValue,
       units: clearUnits ? null : (units ?? this.units),
       purchaseDate: purchaseDate ?? this.purchaseDate,
-      lastValueUpdate: clearLastValueUpdate ? null : (lastValueUpdate ?? this.lastValueUpdate),
+      lastValueUpdate: clearLastValueUpdate
+          ? null
+          : (lastValueUpdate ?? this.lastValueUpdate),
       platform: clearPlatform ? null : (platform ?? this.platform),
       accountId: clearAccountId ? null : (accountId ?? this.accountId),
       color: color ?? this.color,
@@ -813,7 +833,11 @@ class HealthScoreFactor {
     );
   }
 
-  HealthScoreFactor copyWith({double? score, double? weight, String? description}) {
+  HealthScoreFactor copyWith({
+    double? score,
+    double? weight,
+    String? description,
+  }) {
     return HealthScoreFactor(
       key: key,
       label: label,
@@ -849,7 +873,9 @@ class FinancialHealthScore {
     return FinancialHealthScore(
       totalScore: (json['totalScore'] as num).toDouble(),
       label: json['label'] as String,
-      factors: (json['factors'] as List).map((f) => HealthScoreFactor.fromJson(f as Map<String, dynamic>)).toList(),
+      factors: (json['factors'] as List)
+          .map((f) => HealthScoreFactor.fromJson(f as Map<String, dynamic>))
+          .toList(),
     );
   }
 

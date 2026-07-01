@@ -17,6 +17,7 @@ class BillRepositoryImpl implements BillRepository {
       isPaid: dbBill.isPaid,
       frequency: domain.BillFrequency.fromJson(dbBill.frequency),
       categoryId: dbBill.categoryId,
+      accountId: dbBill.accountId,
     );
   }
 
@@ -29,14 +30,16 @@ class BillRepositoryImpl implements BillRepository {
       isPaid: Value(bill.isPaid),
       frequency: Value(bill.frequency.toJson()),
       categoryId: Value(bill.categoryId),
+      accountId: Value(bill.accountId),
     );
   }
 
   @override
   Stream<List<domain.Bill>> watchAllBills() {
-    return _db.select(_db.bills).watch().map(
-      (list) => list.map(_mapBillToDomain).toList(),
-    );
+    return _db
+        .select(_db.bills)
+        .watch()
+        .map((list) => list.map(_mapBillToDomain).toList());
   }
 
   @override

@@ -27,6 +27,11 @@ const Map<String, IconData> kAllCategoryIcons = {
   'brush': Icons.brush,
   'wifi': Icons.wifi,
   'help_outline': Icons.help_outline,
+  'payments': Icons.payments,
+  'computer': Icons.computer,
+  'business': Icons.business,
+  'shopping_bag': Icons.shopping_bag,
+  'trending_up': Icons.trending_up,
 };
 
 /// Maps a stored category icon name to its [IconData].

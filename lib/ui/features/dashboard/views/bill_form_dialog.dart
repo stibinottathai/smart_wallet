@@ -7,6 +7,7 @@ import '../../../../domain/models/models.dart' as domain;
 import '../../../core/theme.dart';
 import '../../../core/dialogs.dart';
 import '../../../core/currency_utils.dart';
+import '../../../core/account_icons.dart';
 import '../../../providers.dart';
 
 class BillFormDialog extends ConsumerStatefulWidget {
@@ -25,6 +26,7 @@ class _BillFormDialogState extends ConsumerState<BillFormDialog> {
   DateTime _dueDate = DateTime.now();
   domain.BillFrequency _frequency = domain.BillFrequency.monthly;
   String? _selectedCategoryId;
+  String? _selectedAccountId;
 
   @override
   void initState() {
@@ -36,6 +38,7 @@ class _BillFormDialogState extends ConsumerState<BillFormDialog> {
       _dueDate = b.dueDate;
       _frequency = b.frequency;
       _selectedCategoryId = b.categoryId;
+      _selectedAccountId = b.accountId;
     }
   }
 
@@ -93,6 +96,7 @@ class _BillFormDialogState extends ConsumerState<BillFormDialog> {
       isPaid: isEdit ? widget.initialBill!.isPaid : false,
       frequency: _frequency,
       categoryId: _selectedCategoryId,
+      accountId: _selectedAccountId,
     );
 
     if (isEdit) {
@@ -104,7 +108,9 @@ class _BillFormDialogState extends ConsumerState<BillFormDialog> {
     if (mounted) {
       Navigator.of(context).pop();
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Bill/Subscription ${isEdit ? "updated" : "added"}.')),
+        SnackBar(
+          content: Text('Bill/Subscription ${isEdit ? "updated" : "added"}.'),
+        ),
       );
     }
   }
@@ -126,6 +132,65 @@ class _BillFormDialogState extends ConsumerState<BillFormDialog> {
         );
       }
     }
+  }
+
+  Widget _buildAccountField() {
+    final accountsAsync = ref.watch(allAccountsProvider);
+    return accountsAsync.when(
+      loading: () => const SizedBox(
+        height: 56,
+        child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+      ),
+      error: (err, _) =>
+          Text('$err', style: const TextStyle(color: AppColors.error)),
+      data: (allAccounts) {
+        final accounts = allAccounts
+            .where((a) => !a.archived && a.id != 'acc_investments')
+            .toList();
+        if (accounts.isEmpty) {
+          return const SizedBox.shrink();
+        }
+        // Prefer the user-designated default account; fall back to first available.
+        if (_selectedAccountId == null ||
+            !accounts.any((a) => a.id == _selectedAccountId)) {
+          final defaultId = ref.read(defaultAccountIdProvider);
+          _selectedAccountId = accounts.any((a) => a.id == defaultId)
+              ? defaultId
+              : accounts.first.id;
+        }
+        return DropdownButtonFormField<String>(
+          initialValue: _selectedAccountId,
+          isExpanded: true,
+          decoration: const InputDecoration(
+            labelText: 'Account',
+            hintText: 'Deduct payment from',
+            prefixIcon: Icon(
+              Icons.account_balance_wallet_rounded,
+              size: 18,
+              color: AppColors.primary,
+            ),
+          ),
+          items: accounts.map((acc) {
+            final accColor = Color(
+              int.parse(acc.color.replaceAll('#', '0xFF')),
+            );
+            return DropdownMenuItem(
+              value: acc.id,
+              child: Row(
+                children: [
+                  Icon(getAccountIcon(acc.type), size: 18, color: accColor),
+                  const SizedBox(width: 10),
+                  Flexible(
+                    child: Text(acc.name, overflow: TextOverflow.ellipsis),
+                  ),
+                ],
+              ),
+            );
+          }).toList(),
+          onChanged: (v) => setState(() => _selectedAccountId = v),
+        );
+      },
+    );
   }
 
   Widget _dragHandle() {
@@ -157,142 +222,183 @@ class _BillFormDialogState extends ConsumerState<BillFormDialog> {
         ),
         child: SingleChildScrollView(
           padding: const EdgeInsets.fromLTRB(24, 12, 24, 24),
-              child: Form(
-                key: _formKey,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
+          child: Form(
+            key: _formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _dragHandle(),
+                const SizedBox(height: 16),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    _dragHandle(),
-                    const SizedBox(height: 16),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          isEdit ? 'Edit Bill / Sub' : 'New Bill / Sub',
-                          style: GoogleFonts.inter(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.text,
-                          ),
+                    Text(
+                      isEdit ? 'Edit Bill / Sub' : 'New Bill / Sub',
+                      style: GoogleFonts.inter(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.text,
+                      ),
+                    ),
+                    if (isEdit)
+                      IconButton(
+                        icon: const Icon(
+                          Icons.delete_outline_rounded,
+                          color: AppColors.secondary,
                         ),
-                        if (isEdit)
-                          IconButton(
-                            icon: const Icon(Icons.delete_outline_rounded, color: AppColors.secondary),
-                            onPressed: _delete,
-                          )
-                        else
-                          IconButton(
-                            icon: const Icon(Icons.close_rounded),
-                            onPressed: () => Navigator.of(context).pop(),
-                          ),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-                    TextFormField(
-                      controller: _nameCtrl,
-                      decoration: const InputDecoration(
-                        labelText: 'Name',
-                        hintText: 'e.g. Netflix, Rent, Electricity',
+                        onPressed: _delete,
+                      )
+                    else
+                      IconButton(
+                        icon: const Icon(Icons.close_rounded),
+                        onPressed: () => Navigator.of(context).pop(),
                       ),
-                      validator: (v) => v == null || v.trim().isEmpty ? 'Enter a name' : null,
-                    ),
-                    const SizedBox(height: 12),
-                    TextFormField(
-                      controller: _amountCtrl,
-                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                      decoration: InputDecoration(
-                        labelText: 'Amount',
-                        hintText: '0.00',
-                        prefixText: currencySym,
-                      ),
-                      validator: (v) {
-                        if (v == null || v.trim().isEmpty) return 'Enter amount';
-                        if (double.tryParse(v) == null) return 'Invalid number';
-                        return null;
-                      },
-                    ),
-                    const SizedBox(height: 12),
-                    InkWell(
-                      onTap: _selectDate,
-                      borderRadius: BorderRadius.circular(12),
-                      child: InputDecorator(
-                        decoration: const InputDecoration(
-                          labelText: 'Due Date',
-                          prefixIcon: Icon(Icons.calendar_today_rounded, size: 18, color: AppColors.primary),
-                        ),
-                        child: Text(
-                          DateFormat('EEE, MMM d, yyyy').format(_dueDate),
-                          style: const TextStyle(fontSize: 14),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    DropdownButtonFormField<domain.BillFrequency>(
-                      initialValue: _frequency,
-                      decoration: const InputDecoration(
-                        labelText: 'Frequency',
-                        prefixIcon: Icon(Icons.repeat_rounded, size: 18, color: AppColors.primary),
-                      ),
-                      items: domain.BillFrequency.values.map((f) {
-                        return DropdownMenuItem(value: f, child: Text(f.displayName));
-                      }).toList(),
-                      onChanged: (v) {
-                        if (v != null) setState(() => _frequency = v);
-                      },
-                    ),
-                    const SizedBox(height: 12),
-                    categoriesAsync.when(
-                      loading: () => const SizedBox(height: 56, child: Center(child: CircularProgressIndicator(strokeWidth: 2))),
-                      error: (err, _) => Text('$err', style: const TextStyle(color: AppColors.error)),
-                      data: (categories) {
-                        final expenseCategories = categories.where((c) => c.id != 'cat_income').toList();
-                        if (_selectedCategoryId == null && expenseCategories.isNotEmpty) {
-                          _selectedCategoryId = expenseCategories.first.id;
-                        }
-                        return DropdownButtonFormField<String>(
-                          initialValue: _selectedCategoryId,
-                          decoration: const InputDecoration(
-                            labelText: 'Category',
-                            prefixIcon: Icon(Icons.category_rounded, size: 18, color: AppColors.primary),
-                          ),
-                          items: expenseCategories.map((cat) {
-                            final catColor = Color(int.parse(cat.color.replaceAll('#', '0xFF')));
-                            return DropdownMenuItem(
-                              value: cat.id,
-                              child: Row(
-                                children: [
-                                  Container(
-                                    width: 8,
-                                    height: 8,
-                                    decoration: BoxDecoration(color: catColor, shape: BoxShape.circle),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Text(cat.name),
-                                ],
-                              ),
-                            );
-                          }).toList(),
-                          onChanged: (v) => setState(() => _selectedCategoryId = v),
-                        );
-                      },
-                    ),
-                    const SizedBox(height: 24),
-                    ElevatedButton(
-                      onPressed: _save,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.primary,
-                        foregroundColor: Colors.white,
-                        minimumSize: const Size(double.infinity, 50),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                      ),
-                      child: Text(isEdit ? 'Save Changes' : 'Create Bill'),
-                    ),
                   ],
                 ),
-              ),
+                const SizedBox(height: 16),
+                TextFormField(
+                  controller: _nameCtrl,
+                  decoration: const InputDecoration(
+                    labelText: 'Name',
+                    hintText: 'e.g. Netflix, Rent, Electricity',
+                  ),
+                  validator: (v) =>
+                      v == null || v.trim().isEmpty ? 'Enter a name' : null,
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: _amountCtrl,
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
+                  decoration: InputDecoration(
+                    labelText: 'Amount',
+                    hintText: '0.00',
+                    prefixText: currencySym,
+                  ),
+                  validator: (v) {
+                    if (v == null || v.trim().isEmpty) return 'Enter amount';
+                    if (double.tryParse(v) == null) return 'Invalid number';
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 12),
+                InkWell(
+                  onTap: _selectDate,
+                  borderRadius: BorderRadius.circular(12),
+                  child: InputDecorator(
+                    decoration: const InputDecoration(
+                      labelText: 'Due Date',
+                      prefixIcon: Icon(
+                        Icons.calendar_today_rounded,
+                        size: 18,
+                        color: AppColors.primary,
+                      ),
+                    ),
+                    child: Text(
+                      DateFormat('EEE, MMM d, yyyy').format(_dueDate),
+                      style: const TextStyle(fontSize: 14),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<domain.BillFrequency>(
+                  initialValue: _frequency,
+                  decoration: const InputDecoration(
+                    labelText: 'Frequency',
+                    prefixIcon: Icon(
+                      Icons.repeat_rounded,
+                      size: 18,
+                      color: AppColors.primary,
+                    ),
+                  ),
+                  items: domain.BillFrequency.values.map((f) {
+                    return DropdownMenuItem(
+                      value: f,
+                      child: Text(f.displayName),
+                    );
+                  }).toList(),
+                  onChanged: (v) {
+                    if (v != null) setState(() => _frequency = v);
+                  },
+                ),
+                const SizedBox(height: 12),
+                categoriesAsync.when(
+                  loading: () => const SizedBox(
+                    height: 56,
+                    child: Center(
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                  ),
+                  error: (err, _) => Text(
+                    '$err',
+                    style: const TextStyle(color: AppColors.error),
+                  ),
+                  data: (categories) {
+                    final expenseCategories = categories
+                        .where((c) => c.id != 'cat_income')
+                        .toList();
+                    if (_selectedCategoryId == null &&
+                        expenseCategories.isNotEmpty) {
+                      _selectedCategoryId = expenseCategories.first.id;
+                    }
+                    return DropdownButtonFormField<String>(
+                      initialValue: _selectedCategoryId,
+                      decoration: const InputDecoration(
+                        labelText: 'Category',
+                        prefixIcon: Icon(
+                          Icons.category_rounded,
+                          size: 18,
+                          color: AppColors.primary,
+                        ),
+                      ),
+                      items: expenseCategories.map((cat) {
+                        final catColor = Color(
+                          int.parse(cat.color.replaceAll('#', '0xFF')),
+                        );
+                        return DropdownMenuItem(
+                          value: cat.id,
+                          child: Row(
+                            children: [
+                              Container(
+                                width: 8,
+                                height: 8,
+                                decoration: BoxDecoration(
+                                  color: catColor,
+                                  shape: BoxShape.circle,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Text(cat.name),
+                            ],
+                          ),
+                        );
+                      }).toList(),
+                      onChanged: (v) => setState(() => _selectedCategoryId = v),
+                    );
+                  },
+                ),
+                const SizedBox(height: 12),
+                _buildAccountField(),
+                const SizedBox(height: 24),
+                ElevatedButton(
+                  onPressed: _save,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: Colors.white,
+                    minimumSize: const Size(double.infinity, 50),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child: Text(isEdit ? 'Save Changes' : 'Create Bill'),
+                ),
+              ],
             ),
           ),
-        );
+        ),
+      ),
+    );
   }
 }

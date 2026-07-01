@@ -6,6 +6,7 @@ import 'package:smart_wallet/ui/providers.dart';
 import 'package:smart_wallet/ui/core/currency_utils.dart';
 import 'package:smart_wallet/ui/features/entries/views/entry_form_view.dart';
 import 'package:smart_wallet/ui/features/dashboard/views/balance_detail_view.dart';
+import 'package:smart_wallet/ui/features/entries/views/all_transactions_view.dart';
 import 'package:smart_wallet/ui/features/dashboard/widgets/animated_section.dart';
 import 'package:smart_wallet/ui/features/dashboard/widgets/balance_header_card.dart';
 import 'package:smart_wallet/ui/features/dashboard/widgets/budget_limits_section.dart';
@@ -193,7 +194,31 @@ class _DashboardContent extends StatelessWidget {
             index: 2,
             tabIndex: 0,
             child: RepaintBoundary(
-              child: SummaryRow(income: totalIncome, expense: totalExpense, symbol: symbol),
+              child: SummaryRow(
+                income: totalIncome,
+                expense: totalExpense,
+                symbol: symbol,
+                onIncomeTap: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => const AllTransactionsView(
+                        initialShowExpenses: false,
+                        animateTabIndex: null,
+                      ),
+                    ),
+                  );
+                },
+                onExpenseTap: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => const AllTransactionsView(
+                        initialShowExpenses: true,
+                        animateTabIndex: null,
+                      ),
+                    ),
+                  );
+                },
+              ),
             ),
           ),
           const SizedBox(height: 4),

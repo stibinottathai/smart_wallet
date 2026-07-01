@@ -120,12 +120,13 @@ class CsvImportService {
       final existingRules = await recurringRuleRepository?.getAllRules() ?? [];
       final existingDebts = await debtRepository?.getAllDebts() ?? [];
       final existingAccounts = await accountRepository?.getAllAccounts() ?? [];
-      final existingTransfers = await transferRepository?.getAllTransfers() ?? [];
+      final existingTransfers =
+          await transferRepository?.getAllTransfers() ?? [];
       final existingInvestments =
           await investmentRepository?.getAllInvestments() ?? [];
 
       final categoryNameMap = {
-        for (var c in existingCategories) c.name.trim().toLowerCase(): c
+        for (var c in existingCategories) c.name.trim().toLowerCase(): c,
       };
       final categoryIdMap = {for (var c in existingCategories) c.id: c};
       final incomeIdSet = {for (var inc in existingIncomes) inc.id};
@@ -185,9 +186,15 @@ class CsvImportService {
         if (line.startsWith('ID,Date,Source,Amount,Recurring,Frequency') ||
             line.startsWith('ID,Date,Category,Amount,Note,Source') ||
             line.startsWith('ID,Name,Icon,Color,BudgetLimit') ||
-            line.startsWith('ID,Name,TargetAmount,CurrentAmount,TargetDate,Color') ||
-            line.startsWith('ID,Name,Amount,DueDate,IsPaid,Frequency,Category') ||
-            line.startsWith('ID,Type,Title,Amount,CategoryId,Source,AccountId') ||
+            line.startsWith(
+              'ID,Name,TargetAmount,CurrentAmount,TargetDate,Color',
+            ) ||
+            line.startsWith(
+              'ID,Name,Amount,DueDate,IsPaid,Frequency,Category',
+            ) ||
+            line.startsWith(
+              'ID,Type,Title,Amount,CategoryId,Source,AccountId',
+            ) ||
             line.startsWith('ID,Name,Type,Counterparty,PrincipalAmount') ||
             line.startsWith('ID,Name,Type,Color,OpeningBalance') ||
             line.startsWith('ID,FromAccountId,ToAccountId,Amount') ||
@@ -209,11 +216,13 @@ class CsvImportService {
           final icon = row[2].trim();
           final color = row[3].trim();
           final budgetStr = row.length > 4 ? row[4].trim() : '';
-          final rollover = row.length > 5 && row[5].trim().toLowerCase() == 'yes';
+          final rollover =
+              row.length > 5 && row[5].trim().toLowerCase() == 'yes';
           if (id.isEmpty || name.isEmpty) continue;
 
-          final budgetLimit =
-              budgetStr.isNotEmpty ? double.tryParse(budgetStr) : null;
+          final budgetLimit = budgetStr.isNotEmpty
+              ? double.tryParse(budgetStr)
+              : null;
           final hasBudget = budgetLimit != null;
 
           final existing = categoryIdMap[id];
@@ -264,7 +273,9 @@ class CsvImportService {
           final isRecurring = isRecurringStr.toLowerCase() == 'yes';
 
           final frequency = domain.IncomeFrequency.values.firstWhere(
-            (f) => f.displayName.toLowerCase() == frequencyStr.toLowerCase() || f.name.toLowerCase() == frequencyStr.toLowerCase(),
+            (f) =>
+                f.displayName.toLowerCase() == frequencyStr.toLowerCase() ||
+                f.name.toLowerCase() == frequencyStr.toLowerCase(),
             orElse: () => domain.IncomeFrequency.oneOff,
           );
 
@@ -277,7 +288,9 @@ class CsvImportService {
             frequency: frequency,
             accountId: accountId.isNotEmpty ? accountId : null,
             originalCurrency: origCurrency.isNotEmpty ? origCurrency : null,
-            originalAmount: origAmount.isNotEmpty ? double.tryParse(origAmount) : null,
+            originalAmount: origAmount.isNotEmpty
+                ? double.tryParse(origAmount)
+                : null,
             isSynced: false,
           );
 
@@ -288,7 +301,6 @@ class CsvImportService {
             incomeIdSet.add(income.id);
           }
           incomesImported++;
-
         } else if (currentSection == 'expenses') {
           if (row.length < 6) continue;
 
@@ -304,7 +316,9 @@ class CsvImportService {
           // to (ZIP backup). Without an image dir (plain CSV) keep the bare name.
           final receiptPath = receiptName.isEmpty
               ? ''
-              : (receiptImageDir != null ? '$receiptImageDir/$receiptName' : receiptName);
+              : (receiptImageDir != null
+                    ? '$receiptImageDir/$receiptName'
+                    : receiptName);
           final aiConfidenceStr = row.length > 8 ? row[8].trim() : '';
           final origCurrency = row.length > 9 ? row[9].trim() : '';
           final origAmount = row.length > 10 ? row[10].trim() : '';
@@ -312,7 +326,9 @@ class CsvImportService {
           final date = DateTime.tryParse(dateStr) ?? DateTime.now();
           final amount = double.tryParse(amountStr) ?? 0.0;
 
-          final cleanedCategoryName = categoryName.isNotEmpty ? categoryName : 'Uncategorized';
+          final cleanedCategoryName = categoryName.isNotEmpty
+              ? categoryName
+              : 'Uncategorized';
           final categoryKey = cleanedCategoryName.toLowerCase();
 
           String categoryId;
@@ -320,7 +336,8 @@ class CsvImportService {
             categoryId = categoryNameMap[categoryKey]!.id;
           } else {
             // Create new category
-            categoryId = 'cat_${cleanedCategoryName.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '_')}';
+            categoryId =
+                'cat_${cleanedCategoryName.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '_')}';
             if (categoryId.length > 50) {
               categoryId = categoryId.substring(0, 50);
             }
@@ -355,9 +372,13 @@ class CsvImportService {
             source: source,
             accountId: accountId.isNotEmpty ? accountId : null,
             receiptImagePath: receiptPath.isNotEmpty ? receiptPath : null,
-            aiConfidence: aiConfidenceStr.isNotEmpty ? double.tryParse(aiConfidenceStr) : null,
+            aiConfidence: aiConfidenceStr.isNotEmpty
+                ? double.tryParse(aiConfidenceStr)
+                : null,
             originalCurrency: origCurrency.isNotEmpty ? origCurrency : null,
-            originalAmount: origAmount.isNotEmpty ? double.tryParse(origAmount) : null,
+            originalAmount: origAmount.isNotEmpty
+                ? double.tryParse(origAmount)
+                : null,
             isSynced: false,
           );
 
@@ -406,9 +427,12 @@ class CsvImportService {
           final isPaidStr = row[4].trim();
           final frequencyStr = row[5].trim();
           final categoryName = row.length > 6 ? row[6].trim() : '';
+          final accountId = row.length > 7 ? row[7].trim() : '';
 
           final frequency = domain.BillFrequency.values.firstWhere(
-            (f) => f.displayName.toLowerCase() == frequencyStr.toLowerCase() || f.name.toLowerCase() == frequencyStr.toLowerCase(),
+            (f) =>
+                f.displayName.toLowerCase() == frequencyStr.toLowerCase() ||
+                f.name.toLowerCase() == frequencyStr.toLowerCase(),
             orElse: () => domain.BillFrequency.oneOff,
           );
 
@@ -426,6 +450,7 @@ class CsvImportService {
             isPaid: isPaidStr.toLowerCase() == 'yes',
             frequency: frequency,
             categoryId: categoryId,
+            accountId: accountId.isNotEmpty ? accountId : null,
           );
 
           if (billIdSet.contains(bill.id)) {
@@ -456,8 +481,9 @@ class CsvImportService {
           final lastPosted = row.length > 12 && row[12].trim().isNotEmpty
               ? DateTime.tryParse(row[12].trim())
               : null;
-          final isActive =
-              row.length > 13 ? row[13].trim().toLowerCase() == 'yes' : true;
+          final isActive = row.length > 13
+              ? row[13].trim().toLowerCase() == 'yes'
+              : true;
 
           final rule = domain.RecurringRule(
             id: id.isNotEmpty ? id : const Uuid().v4(),
@@ -493,8 +519,12 @@ class CsvImportService {
           final counterparty = row[3].trim();
           final principal = double.tryParse(row[4].trim()) ?? 0.0;
           final paid = double.tryParse(row[5].trim()) ?? 0.0;
-          final interest = row[6].trim().isNotEmpty ? double.tryParse(row[6].trim()) : null;
-          final emi = row[7].trim().isNotEmpty ? double.tryParse(row[7].trim()) : null;
+          final interest = row[6].trim().isNotEmpty
+              ? double.tryParse(row[6].trim())
+              : null;
+          final emi = row[7].trim().isNotEmpty
+              ? double.tryParse(row[7].trim())
+              : null;
           final startDate = DateTime.tryParse(row[8].trim()) ?? DateTime.now();
           final dueDate = row.length > 9 && row[9].trim().isNotEmpty
               ? DateTime.tryParse(row[9].trim())
@@ -502,8 +532,9 @@ class CsvImportService {
           final color = row.length > 10 && row[10].trim().isNotEmpty
               ? row[10].trim()
               : '#4A90E2';
-          final isClosed =
-              row.length > 11 ? row[11].trim().toLowerCase() == 'yes' : false;
+          final isClosed = row.length > 11
+              ? row[11].trim().toLowerCase() == 'yes'
+              : false;
           final note = row.length > 12 ? row[12].trim() : '';
 
           final debt = domain.Debt(
@@ -540,7 +571,9 @@ class CsvImportService {
           final openingStr = row.length > 4 ? row[4].trim() : '';
           final archived =
               row.length > 5 && row[5].trim().toLowerCase() == 'yes';
-          final sortOrder = row.length > 6 ? (int.tryParse(row[6].trim()) ?? 0) : 0;
+          final sortOrder = row.length > 6
+              ? (int.tryParse(row[6].trim()) ?? 0)
+              : 0;
           if (id.isEmpty) continue;
 
           final account = domain.Account(
@@ -563,17 +596,19 @@ class CsvImportService {
         } else if (currentSection == 'income_sources') {
           // Each row is ID,Name,Icon,Color (with fallback for legacy 'Source' format)
           if (row.isEmpty) continue;
-          
+
           if (row.length == 1) {
             // Legacy format
             final name = row[0].trim();
             if (name.isNotEmpty && name.toLowerCase() != 'other') {
-              restoredIncomeSources.add(domain.Category(
-                id: 'inc_${name.toLowerCase().replaceAll(' ', '_')}',
-                name: name,
-                icon: 'payments',
-                color: '#6BAE6E',
-              ));
+              restoredIncomeSources.add(
+                domain.Category(
+                  id: 'inc_${name.toLowerCase().replaceAll(' ', '_')}',
+                  name: name,
+                  icon: 'payments',
+                  color: '#6BAE6E',
+                ),
+              );
             }
           } else if (row.length >= 4) {
             final id = row[0].trim();
@@ -581,12 +616,16 @@ class CsvImportService {
             final icon = row[2].trim();
             final color = row[3].trim();
             if (name.isNotEmpty && name.toLowerCase() != 'other') {
-              restoredIncomeSources.add(domain.Category(
-                id: id.isNotEmpty ? id : 'inc_${name.toLowerCase().replaceAll(' ', '_')}',
-                name: name,
-                icon: icon.isNotEmpty ? icon : 'payments',
-                color: color.isNotEmpty ? color : '#6BAE6E',
-              ));
+              restoredIncomeSources.add(
+                domain.Category(
+                  id: id.isNotEmpty
+                      ? id
+                      : 'inc_${name.toLowerCase().replaceAll(' ', '_')}',
+                  name: name,
+                  icon: icon.isNotEmpty ? icon : 'payments',
+                  color: color.isNotEmpty ? color : '#6BAE6E',
+                ),
+              );
             }
           }
         } else if (currentSection == 'transfers') {
@@ -626,7 +665,9 @@ class CsvImportService {
           final type = domain.InvestmentType.fromJson(row[2].trim());
           final invested = double.tryParse(row[3].trim()) ?? 0.0;
           final current = double.tryParse(row[4].trim()) ?? invested;
-          final units = row[5].trim().isNotEmpty ? double.tryParse(row[5].trim()) : null;
+          final units = row[5].trim().isNotEmpty
+              ? double.tryParse(row[5].trim())
+              : null;
           final purchase = DateTime.tryParse(row[6].trim()) ?? DateTime.now();
           final lastUpdate = row.length > 7 && row[7].trim().isNotEmpty
               ? DateTime.tryParse(row[7].trim())

@@ -10,6 +10,7 @@ import 'package:uuid/uuid.dart';
 import '../views/bill_form_dialog.dart';
 import '../views/bill_detail_view.dart';
 import '../views/bills_view.dart';
+import 'bill_tile.dart';
 import 'section_header.dart';
 
 /// Up-to-two upcoming (unpaid) bills with a quick "Pay Now" action.
@@ -38,7 +39,11 @@ class UpcomingBillsSection extends ConsumerWidget {
     return 'Due in $diff days';
   }
 
-  Future<void> _confirmPayBill(BuildContext context, WidgetRef ref, domain.Bill bill) async {
+  Future<void> _confirmPayBill(
+    BuildContext context,
+    WidgetRef ref,
+    domain.Bill bill,
+  ) async {
     final code = ref.read(currencyCodeProvider);
     final sym = currencySymbol(code);
     final confirmed = await showDialog<bool>(
@@ -58,7 +63,11 @@ class UpcomingBillsSection extends ConsumerWidget {
                 color: AppColors.primaryLight,
                 shape: BoxShape.circle,
               ),
-              child: const Icon(Icons.payment_rounded, color: AppColors.primary, size: 24),
+              child: const Icon(
+                Icons.payment_rounded,
+                color: AppColors.primary,
+                size: 24,
+              ),
             ),
             const SizedBox(width: 12),
             Text(
@@ -126,11 +135,16 @@ class UpcomingBillsSection extends ConsumerWidget {
               foregroundColor: Colors.white,
               elevation: 0,
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
             ),
             child: Text(
               'Pay Now',
-              style: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 14),
+              style: GoogleFonts.inter(
+                fontWeight: FontWeight.w600,
+                fontSize: 14,
+              ),
             ),
           ),
         ],
@@ -141,7 +155,11 @@ class UpcomingBillsSection extends ConsumerWidget {
     }
   }
 
-  Future<void> _toggleBillPaid(BuildContext context, WidgetRef ref, domain.Bill bill) async {
+  Future<void> _toggleBillPaid(
+    BuildContext context,
+    WidgetRef ref,
+    domain.Bill bill,
+  ) async {
     final repo = ref.read(billRepositoryProvider);
     final expenseRepo = ref.read(expenseRepositoryProvider);
 
@@ -155,6 +173,7 @@ class UpcomingBillsSection extends ConsumerWidget {
       date: now,
       note: 'Auto-logged bill payment: ${bill.name}',
       source: domain.ExpenseSource.manual,
+      accountId: bill.accountId,
     );
     await expenseRepo.addExpense(expense);
 
@@ -206,7 +225,9 @@ class UpcomingBillsSection extends ConsumerWidget {
       final categoryName = categoryMap[categoryId]?.name ?? 'Uncategorized';
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Paid! Logged ${currencySymbol(ref.read(currencyCodeProvider))}${bill.amount.toStringAsFixed(2)} expense for ${bill.name} under $categoryName.'),
+          content: Text(
+            'Paid! Logged ${currencySymbol(ref.read(currencyCodeProvider))}${bill.amount.toStringAsFixed(2)} expense for ${bill.name} under $categoryName.',
+          ),
           duration: const Duration(seconds: 4),
         ),
       );
@@ -250,7 +271,11 @@ class UpcomingBillsSection extends ConsumerWidget {
                         color: AppColors.primary.withValues(alpha: 0.12),
                         shape: BoxShape.circle,
                       ),
-                      child: const Icon(Icons.receipt_long_rounded, color: AppColors.primary, size: 20),
+                      child: const Icon(
+                        Icons.receipt_long_rounded,
+                        color: AppColors.primary,
+                        size: 20,
+                      ),
                     ),
                     const SizedBox(width: 14),
                     Expanded(
@@ -259,12 +284,20 @@ class UpcomingBillsSection extends ConsumerWidget {
                         children: [
                           const Text(
                             'No upcoming payments',
-                            style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13, color: AppColors.text),
+                            style: TextStyle(
+                              fontWeight: FontWeight.w600,
+                              fontSize: 13,
+                              color: AppColors.text,
+                            ),
                           ),
                           const SizedBox(height: 2),
                           Text(
                             'Tap the plus icon to track subscriptions like Netflix, Rent, utilities, and more.',
-                            style: TextStyle(fontSize: 11, color: AppColors.textSecondary, height: 1.3),
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: AppColors.textSecondary,
+                              height: 1.3,
+                            ),
                           ),
                         ],
                       ),
@@ -275,120 +308,45 @@ class UpcomingBillsSection extends ConsumerWidget {
             )
           else
             ...upcoming.take(2).map((bill) {
-              final cat = bill.categoryId != null ? categoryMap[bill.categoryId] : null;
+              final cat = bill.categoryId != null
+                  ? categoryMap[bill.categoryId]
+                  : null;
               final catColorStr = cat?.color ?? '#9E9E9E';
-              final catColor = Color(int.parse(catColorStr.replaceAll('#', '0xFF')));
+              final catColor = Color(
+                int.parse(catColorStr.replaceAll('#', '0xFF')),
+              );
               final iconData = getCategoryIcon(cat?.icon);
               final dueLabel = _getDueDateLabel(bill.dueDate);
-              final isOverdue = bill.dueDate.isBefore(DateTime.now()) &&
+              final isOverdue =
+                  bill.dueDate.isBefore(DateTime.now()) &&
                   !DateUtils.isSameDay(bill.dueDate, DateTime.now());
               final diff = bill.dueDate.difference(DateTime.now());
-              final canPay = isOverdue || switch (bill.frequency) {
-                domain.BillFrequency.daily => diff.inHours <= 12,
-                domain.BillFrequency.weekly => diff.inDays <= 2,
-                domain.BillFrequency.monthly => diff.inDays <= 10,
-                domain.BillFrequency.yearly => diff.inDays <= 30,
-                domain.BillFrequency.oneOff => diff.inDays <= 10,
-              };
+              final canPay =
+                  isOverdue ||
+                  switch (bill.frequency) {
+                    domain.BillFrequency.daily => diff.inHours <= 12,
+                    domain.BillFrequency.weekly => diff.inDays <= 2,
+                    domain.BillFrequency.monthly => diff.inDays <= 10,
+                    domain.BillFrequency.yearly => diff.inDays <= 30,
+                    domain.BillFrequency.oneOff => diff.inDays <= 10,
+                  };
 
-              return Padding(
-                padding: const EdgeInsets.only(bottom: 8),
-                child: Card(
-                  margin: EdgeInsets.zero,
-                  child: InkWell(
-                    borderRadius: BorderRadius.circular(14),
-                    onTap: () {
-                      Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) => BillDetailView(initialBill: bill),
-                        ),
-                      );
-                    },
-                    child: Padding(
-                      padding: const EdgeInsets.all(12),
-                      child: Row(
-                        children: [
-                          Container(
-                            width: 38,
-                            height: 38,
-                            decoration: BoxDecoration(
-                              color: catColor.withValues(alpha: 0.12),
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            child: Icon(iconData, color: catColor, size: 18),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  bill.name,
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.w600,
-                                    fontSize: 13.5,
-                                    color: AppColors.text,
-                                  ),
-                                ),
-                                const SizedBox(height: 2),
-                                Text(
-                                  dueLabel,
-                                  style: TextStyle(
-                                    fontSize: 11,
-                                    color: isOverdue ? AppColors.secondary : AppColors.textSecondary,
-                                    fontWeight: isOverdue ? FontWeight.w600 : FontWeight.normal,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.end,
-                            children: [
-                              Text(
-                                '$symbol${bill.amount.toStringAsFixed(2)}',
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.w700,
-                                  fontSize: 14,
-                                  color: AppColors.text,
-                                ),
-                              ),
-                              const SizedBox(height: 2),
-                              Text(
-                                bill.frequency.displayName,
-                                style: const TextStyle(fontSize: 10, color: AppColors.textSecondary),
-                              ),
-                            ],
-                          ),
-                          if (canPay) ...[
-                            const SizedBox(width: 6),
-                            TextButton(
-                              onPressed: () => _confirmPayBill(context, ref, bill),
-                              style: TextButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                                backgroundColor: AppColors.primary.withValues(alpha: 0.1),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                minimumSize: Size.zero,
-                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                              ),
-                              child: const Text(
-                                'Pay Now',
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w700,
-                                  color: AppColors.primary,
-                                  letterSpacing: 0.3,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ],
-                      ),
+              return BillTile(
+                bill: bill,
+                catColor: catColor,
+                iconData: iconData,
+                dueLabel: dueLabel,
+                symbol: symbol,
+                isOverdue: isOverdue,
+                canPay: canPay,
+                onTap: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => BillDetailView(initialBill: bill),
                     ),
-                  ),
-                ),
+                  );
+                },
+                onPay: () => _confirmPayBill(context, ref, bill),
               );
             }),
           if (upcoming.length > 2)
@@ -396,10 +354,14 @@ class UpcomingBillsSection extends ConsumerWidget {
               padding: const EdgeInsets.only(top: 4),
               child: Center(
                 child: TextButton.icon(
-                  onPressed: () => Navigator.of(context).push(
-                    MaterialPageRoute(builder: (_) => const BillsView()),
+                  onPressed: () => Navigator.of(
+                    context,
+                  ).push(MaterialPageRoute(builder: (_) => const BillsView())),
+                  icon: const Icon(
+                    Icons.arrow_forward_rounded,
+                    size: 16,
+                    color: AppColors.primary,
                   ),
-                  icon: const Icon(Icons.arrow_forward_rounded, size: 16, color: AppColors.primary),
                   label: Text(
                     'View All (${upcoming.length})',
                     style: GoogleFonts.inter(
@@ -409,7 +371,10 @@ class UpcomingBillsSection extends ConsumerWidget {
                     ),
                   ),
                   style: TextButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 8,
+                    ),
                   ),
                 ),
               ),

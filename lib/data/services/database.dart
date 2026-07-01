@@ -11,7 +11,8 @@ class Categories extends Table {
   BoolColumn get isDefault => boolean().withDefault(const Constant(false))();
   RealColumn get budgetLimit => real().nullable()();
   // Envelope budgeting: when true, unspent budget carries into the next month.
-  BoolColumn get rolloverEnabled => boolean().withDefault(const Constant(false))();
+  BoolColumn get rolloverEnabled =>
+      boolean().withDefault(const Constant(false))();
 
   @override
   Set<Column> get primaryKey => {id};
@@ -23,8 +24,10 @@ class Incomes extends Table {
   TextColumn get source => text()();
   DateTimeColumn get date => dateTime()();
   BoolColumn get isRecurring => boolean().withDefault(const Constant(false))();
-  TextColumn get frequency => text()(); // Stored as Enum string (monthly, weekly, oneOff)
-  TextColumn get accountId => text().nullable()(); // Wallet/account the income was paid into
+  TextColumn get frequency =>
+      text()(); // Stored as Enum string (monthly, weekly, oneOff)
+  TextColumn get accountId =>
+      text().nullable()(); // Wallet/account the income was paid into
   // Multi-currency: when the entry was made in a foreign currency, these hold
   // the original currency + amount. [amount] above is always in base currency.
   TextColumn get originalCurrency => text().nullable()();
@@ -45,7 +48,8 @@ class Expenses extends Table {
   TextColumn get receiptImagePath => text().nullable()();
   TextColumn get source => text()(); // Stored as Enum string (manual, aiScan)
   RealColumn get aiConfidence => real().nullable()();
-  TextColumn get accountId => text().nullable()(); // Wallet/account the expense was paid from
+  TextColumn get accountId =>
+      text().nullable()(); // Wallet/account the expense was paid from
   // Multi-currency: original foreign currency + amount, if any. [amount] above
   // is always stored in the app's base currency.
   TextColumn get originalCurrency => text().nullable()();
@@ -63,7 +67,8 @@ class Expenses extends Table {
 class Accounts extends Table {
   TextColumn get id => text()();
   TextColumn get name => text()();
-  TextColumn get type => text()(); // AccountType enum string (cash, bank, card, upi, wallet, other)
+  TextColumn get type =>
+      text()(); // AccountType enum string (cash, bank, card, upi, wallet, other)
   TextColumn get color => text()(); // Hex color string
   RealColumn get openingBalance => real().withDefault(const Constant(0))();
   BoolColumn get archived => boolean().withDefault(const Constant(false))();
@@ -153,6 +158,8 @@ class Bills extends Table {
   BoolColumn get isPaid => boolean().withDefault(const Constant(false))();
   TextColumn get frequency => text()();
   TextColumn get categoryId => text().nullable()();
+  TextColumn get accountId =>
+      text().nullable()(); // account the payment is deducted from
 
   @override
   Set<Column> get primaryKey => {id};
@@ -171,7 +178,8 @@ class Investments extends Table {
   RealColumn get units => real().nullable()();
   DateTimeColumn get purchaseDate => dateTime()();
   DateTimeColumn get lastValueUpdate => dateTime().nullable()();
-  TextColumn get platform => text().nullable()(); // broker / fund house / exchange
+  TextColumn get platform =>
+      text().nullable()(); // broker / fund house / exchange
   TextColumn get accountId => text().nullable()(); // funding account, if linked
   TextColumn get color => text()();
   BoolColumn get isClosed => boolean().withDefault(const Constant(false))();
@@ -254,12 +262,27 @@ const AccountsCompanion _investmentSystemAccount = AccountsCompanion(
   sortOrder: Value(99),
 );
 
-@DriftDatabase(tables: [Categories, Incomes, Expenses, SavingsGoals, Bills, ProactiveInsights, HealthScores, Accounts, Transfers, RecurringRules, Debts, Investments])
+@DriftDatabase(
+  tables: [
+    Categories,
+    Incomes,
+    Expenses,
+    SavingsGoals,
+    Bills,
+    ProactiveInsights,
+    HealthScores,
+    Accounts,
+    Transfers,
+    RecurringRules,
+    Debts,
+    Investments,
+  ],
+)
 class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(driftDatabase(name: 'smart_wallet'));
 
   @override
-  int get schemaVersion => 14;
+  int get schemaVersion => 15;
 
   @override
   MigrationStrategy get migration {
@@ -277,7 +300,9 @@ class AppDatabase extends _$AppDatabase {
           final cols = await customSelect(
             "PRAGMA table_info('categories')",
           ).get();
-          final hasColumn = cols.any((row) => row.read<String>('name') == 'budget_limit');
+          final hasColumn = cols.any(
+            (row) => row.read<String>('name') == 'budget_limit',
+          );
           if (!hasColumn) {
             await m.addColumn(categories, categories.budgetLimit);
           }
@@ -329,8 +354,12 @@ class AppDatabase extends _$AppDatabase {
         }
         if (from < 8) {
           // Envelope budgeting: per-category rollover flag.
-          final cols = await customSelect("PRAGMA table_info('categories')").get();
-          final hasColumn = cols.any((row) => row.read<String>('name') == 'rollover_enabled');
+          final cols = await customSelect(
+            "PRAGMA table_info('categories')",
+          ).get();
+          final hasColumn = cols.any(
+            (row) => row.read<String>('name') == 'rollover_enabled',
+          );
           if (!hasColumn) {
             await m.addColumn(categories, categories.rolloverEnabled);
           }
@@ -367,10 +396,13 @@ class AppDatabase extends _$AppDatabase {
         if (from < 14) {
           // System wallet that holds the cost basis of investments so buy /
           // sell flows can move balance through transfers instead of expenses.
-          await into(accounts).insert(
-            _investmentSystemAccount,
-            mode: InsertMode.insertOrIgnore,
-          );
+          await into(
+            accounts,
+          ).insert(_investmentSystemAccount, mode: InsertMode.insertOrIgnore);
+        }
+        if (from < 15) {
+          // Bills can now specify which account the payment is deducted from.
+          await m.addColumn(bills, bills.accountId);
         }
       },
       beforeOpen: (details) async {
