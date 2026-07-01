@@ -138,10 +138,40 @@ class _RecurringFormDialogState extends ConsumerState<RecurringFormDialog> {
       await repo.addRule(rule);
     }
 
+    // Immediately process all due recurring rules so any entry whose due date
+    // is today or in the past is posted right now — no app restart needed.
+    String? immediatePostMessage;
+    if (_isActive) {
+      try {
+        final service = ref.read(recurringTransactionServiceProvider);
+        final result = await service.processDue(
+          ruleRepository: ref.read(recurringRuleRepositoryProvider),
+          expenseRepository: ref.read(expenseRepositoryProvider),
+          incomeRepository: ref.read(incomeRepositoryProvider),
+        );
+        if (!result.isEmpty) {
+          final parts = <String>[];
+          if (result.expenseCount > 0) {
+            parts.add('${result.expenseCount} expense${result.expenseCount == 1 ? '' : 's'}');
+          }
+          if (result.incomeCount > 0) {
+            parts.add('${result.incomeCount} income${result.incomeCount == 1 ? '' : 's'}');
+          }
+          immediatePostMessage = 'Posted ${parts.join(' & ')} immediately.';
+        }
+      } catch (_) {
+        // Never let this block the UI.
+      }
+    }
+
     if (mounted) {
       Navigator.of(context).pop();
+      final baseMsg = 'Recurring ${_isExpense ? 'expense' : 'income'} ${isEdit ? 'updated' : 'scheduled'}.';
+      final msg = immediatePostMessage != null
+          ? '$baseMsg $immediatePostMessage'
+          : baseMsg;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Recurring ${_isExpense ? 'expense' : 'income'} ${isEdit ? 'updated' : 'scheduled'}.')),
+        SnackBar(content: Text(msg)),
       );
     }
   }

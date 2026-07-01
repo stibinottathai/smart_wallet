@@ -149,7 +149,7 @@ class _InfoBanner extends StatelessWidget {
           const SizedBox(width: 10),
           const Expanded(
             child: Text(
-              'Due entries are added automatically each time you open the app — including any you missed while it was closed.',
+              'Due entries are posted immediately when you save a rule. Missed entries from past dates are also caught up automatically.',
               style: TextStyle(fontSize: 12, color: AppColors.text, height: 1.35),
             ),
           ),
